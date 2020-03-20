@@ -20,7 +20,6 @@ import (
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
-	"github.com/golang/protobuf/proto"
 )
 
 func TestLWWRegister(t *testing.T) {
@@ -41,8 +40,8 @@ func TestLWWRegister(t *testing.T) {
 		if r.HasDelta() {
 			t.Errorf("register has lwwRegisterDelta but should not")
 		}
-		state := lwwREncDecState(r.State())
-		err = encoding.UnmarshalJSON(state.Value, &example)
+		state := encDecState(r.State())
+		err = encoding.UnmarshalJSON(state.GetLwwregister().GetValue(), &example)
 		if err != nil {
 			t.Error(err)
 		}
@@ -59,9 +58,17 @@ func TestLWWRegister(t *testing.T) {
 		r := LWWRegister{
 			value: encoding.Struct(Example{Field1: "bar"}),
 		}
-		r.ApplyState(lwwREncDecState(&protocol.LWWRegisterState{
-			Value: encoding.Struct(Example{Field1: "foo"}),
-		}))
+		if err := r.applyState(encDecState(
+			&protocol.CrdtState{
+				State: &protocol.CrdtState_Lwwregister{
+					Lwwregister: &protocol.LWWRegisterState{
+						Value: encoding.Struct(Example{Field1: "foo"}),
+					},
+				},
+			},
+		)); err != nil {
+			t.Fatal(err)
+		}
 		example := Example{}
 		err := encoding.UnmarshalJSON(r.Value(), &example)
 		if err != nil {
@@ -83,10 +90,10 @@ func TestLWWRegister(t *testing.T) {
 		if example.Field1 != "bar" {
 			t.Errorf("example.Field1: %v; want: %v", example.Field1, "bar")
 		}
-		d := lwwREncDecDelta(r.Delta())
+		d := encDecDelta(r.Delta())
 		r.ResetDelta()
 		e := Example{}
-		err = encoding.UnmarshalJSON(d.GetValue(), &e)
+		err = encoding.UnmarshalJSON(d.GetLwwregister().GetValue(), &e)
 		if err != nil {
 			t.Error(err)
 		}
@@ -112,21 +119,21 @@ func TestLWWRegister(t *testing.T) {
 		if example.Field1 != "bar" {
 			t.Errorf("example.Field1: %v; want: %v", example.Field1, "bar")
 		}
-		d := lwwREncDecDelta(r.Delta())
+		d := encDecDelta(r.Delta())
 		r.ResetDelta()
 		e := Example{}
-		err = encoding.UnmarshalJSON(d.GetValue(), &e)
+		err = encoding.UnmarshalJSON(d.GetLwwregister().GetValue(), &e)
 		if err != nil {
 			t.Error(err)
 		}
 		if example.Field1 != "bar" {
 			t.Fatalf("example.Field1: %v; want: %v", example.Field1, "bar")
 		}
-		if d.Clock != Custom.toCrdtClock() {
-			t.Fatalf("r.clock: %v; want: %v", d.Clock, Custom)
+		if clock := d.GetLwwregister().GetClock(); clock != Custom.toCrdtClock() {
+			t.Fatalf("r.clock: %v; want: %v", clock, Custom)
 		}
-		if d.CustomClockValue != 10 {
-			t.Fatalf("r.customClockValue: %v; want: %v", d.CustomClockValue, 10)
+		if cv := d.GetLwwregister().GetCustomClockValue(); cv != 10 {
+			t.Fatalf("r.customClockValue: %v; want: %v", cv, 10)
 		}
 		if r.HasDelta() {
 			t.Fatalf("register has lwwRegisterDelta but should not")
@@ -135,12 +142,18 @@ func TestLWWRegister(t *testing.T) {
 
 	t.Run("should reflect a lwwRegisterDelta update", func(t *testing.T) {
 		r := NewLWWRegister(encoding.Struct(Example{Field1: "foo"}))
-		//r := LWWRegister{}
 		//r.Set(encoding.Struct(Example{Field1: "foo"})) // TODO: this is not the same, check
-
-		r.ApplyDelta(lwwREncDecDelta(&protocol.LWWRegisterDelta{
-			Value: encoding.Struct(Example{Field1: "bar"}),
-		}))
+		if err := r.applyDelta(encDecDelta(
+			&protocol.CrdtDelta{
+				Delta: &protocol.CrdtDelta_Lwwregister{
+					Lwwregister: &protocol.LWWRegisterDelta{
+						Value: encoding.Struct(Example{Field1: "bar"}),
+					},
+				},
+			},
+		)); err != nil {
+			t.Fatal(err)
+		}
 		e := Example{}
 		err := encoding.UnmarshalJSON(r.Value(), &e)
 		if err != nil {
@@ -153,7 +166,7 @@ func TestLWWRegister(t *testing.T) {
 			t.Fatalf("register has lwwRegisterDelta but should not")
 		}
 		e2 := Example{}
-		err = encoding.UnmarshalJSON(lwwREncDecState(r.State()).GetValue(), &e2)
+		err = encoding.UnmarshalJSON(encDecState(r.State()).GetLwwregister().GetValue(), &e2)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -164,9 +177,9 @@ func TestLWWRegister(t *testing.T) {
 
 	t.Run("should work with primitive types", func(t *testing.T) {
 		r := NewLWWRegister(encoding.String("momo"))
-		state := lwwREncDecState(r.State())
+		state := encDecState(r.State())
 		r.ResetDelta()
-		stateValue := encoding.DecodeString(state.GetValue())
+		stateValue := encoding.DecodeString(state.GetLwwregister().GetValue())
 		if stateValue != "momo" {
 			t.Fatalf("stateValue: %v; want: %v", stateValue, "momo")
 		}
@@ -176,30 +189,4 @@ func TestLWWRegister(t *testing.T) {
 			t.Fatalf("r.Value(): %v; want: %v", rValue, "hello")
 		}
 	})
-}
-
-func lwwREncDecState(s *protocol.LWWRegisterState) *protocol.LWWRegisterState {
-	marshal, err := proto.Marshal(s)
-	if err != nil {
-		// we panic for convenience
-		panic(err)
-	}
-	out := &protocol.LWWRegisterState{}
-	if err := proto.Unmarshal(marshal, out); err != nil {
-		panic(err)
-	}
-	return out
-}
-
-func lwwREncDecDelta(s *protocol.LWWRegisterDelta) *protocol.LWWRegisterDelta {
-	marshal, err := proto.Marshal(s)
-	if err != nil {
-		// we panic for convenience
-		panic(err)
-	}
-	out := &protocol.LWWRegisterDelta{}
-	if err := proto.Unmarshal(marshal, out); err != nil {
-		panic(err)
-	}
-	return out
 }

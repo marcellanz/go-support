@@ -16,6 +16,7 @@
 package crdt
 
 import (
+	"fmt"
 	"hash/maphash"
 
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
@@ -50,10 +51,15 @@ func (s *GSet) Add(a *any.Any) {
 	s.added[h] = a
 }
 
-func (s GSet) State() *protocol.GSetState {
-	return &protocol.GSetState{
-		Items: s.Value(),
+func (s GSet) State() *protocol.CrdtState {
+	return &protocol.CrdtState{
+		State: &protocol.CrdtState_Gset{
+			Gset: &protocol.GSetState{
+				Items: s.Value(),
+			},
+		},
 	}
+
 }
 
 func (s GSet) HasDelta() bool {
@@ -76,9 +82,16 @@ func (s GSet) Added() []*any.Any {
 	return val
 }
 
-func (s GSet) Delta() *protocol.GSetDelta {
-	return &protocol.GSetDelta{
-		Added: s.Added(),
+func (s GSet) Delta() *protocol.CrdtDelta {
+	if len(s.added) == 0 {
+		return nil
+	}
+	return &protocol.CrdtDelta{
+		Delta: &protocol.CrdtDelta_Gset{
+			Gset: &protocol.GSetDelta{
+				Added: s.Added(),
+			},
+		},
 	}
 }
 
@@ -86,15 +99,25 @@ func (s *GSet) ResetDelta() {
 	s.added = make(map[uint64]*any.Any)
 }
 
-func (s *GSet) ApplyState(state *protocol.GSetState) {
+func (s *GSet) applyState(state *protocol.CrdtState) error {
+	gss := state.GetGset()
+	if gss == nil {
+		return fmt.Errorf("unable to apply state %+v to GSet", state)
+	}
 	s.value = make(map[uint64]*any.Any)
-	for _, v := range state.Items {
+	for _, v := range gss.GetItems() {
 		s.value[s.hashAny(v)] = v
 	}
+	return nil
 }
 
-func (s *GSet) ApplyDelta(delta *protocol.GSetDelta) {
-	for _, v := range delta.Added {
+func (s *GSet) applyDelta(delta *protocol.CrdtDelta) error {
+	gsd := delta.GetGset()
+	if gsd == nil {
+		return fmt.Errorf("unable to apply state %+v to GSet", delta)
+	}
+	for _, v := range gsd.GetAdded() {
 		s.value[s.hashAny(v)] = v
 	}
+	return nil
 }

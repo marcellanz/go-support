@@ -148,7 +148,8 @@ func (s *Server) Handle(stream protocol.Crdt_HandleServer) error {
 		case *protocol.CrdtStreamIn_Changed:
 			if !runner.stateReceived {
 				return sendFailureAndReturnWith(
-					errors.New("received a CrdtDelta message without having a CrdtState ever received"), runner.stream,
+					errors.New("received a CrdtDelta message without having a CrdtState ever received"),
+					runner.stream,
 				)
 			}
 			if err := s.handleDelta(m.Changed, runner); err != nil {
@@ -205,14 +206,18 @@ func (s *Server) handleInit(init *protocol.CrdtInit, r *runner) error {
 // updated the value itself in response to a command, or because the value was deleted, this must be sent before
 // any deltas.
 func (s *Server) handleState(state *protocol.CrdtState, r *runner) error {
-	switch s := state.State.(type) {
+	switch state.State.(type) {
 	case *protocol.CrdtState_Gcounter:
 		c := &GCounter{}
-		c.applyState(state)
+		if err := c.applyState(state); err != nil {
+			return err
+		}
 		r.context.Instance = c
 	case *protocol.CrdtState_Pncounter:
 		c := &PNCounter{}
-		c.applyState(s.Pncounter)
+		if err := c.applyState(state); err != nil {
+			return err
+		}
 		r.context.Instance = c
 	default:
 		return errors.New(fmt.Sprintf("unhandled value type received: %value", state))
@@ -223,27 +228,13 @@ func (s *Server) handleState(state *protocol.CrdtState, r *runner) error {
 // A lwwRegisterDelta to be applied to the current value. It may be sent at any time as long as the user function already has
 // value.
 func (s *Server) handleDelta(delta *protocol.CrdtDelta, r *runner) error {
-	switch d := delta.Delta.(type) {
-	case *protocol.CrdtDelta_Gcounter:
-		if c, ok := r.context.Instance.(*GCounter); ok {
-			c.applyDelta(delta)
-		} else {
-			return errors.New(fmt.Sprintf(
-				"received GcounterDelta %+value, but it doesn't match the CRDT that this entity has: %+value", d, c,
-			))
-		}
-		//TODO notifySubscribers
-	case *protocol.CrdtDelta_Pncounter:
-		if c, ok := r.context.Instance.(*PNCounter); ok {
-			c.applyDelta(d.Pncounter)
-		} else {
-			return errors.New(fmt.Sprintf(
-				"received PNCounterDelta %+value, but it doesn't match the CRDT that this entity has: %+value", d, c,
-			))
-		}
-		//TODO notifySubscribers
-	default:
-		return errors.New(fmt.Sprintf("unhandled value type received: %value", d))
+	t, ok := r.context.Instance.(crdt)
+	if !ok {
+		return fmt.Errorf("r.context.Instance is not of type crdt: %v", r.context.Instance)
 	}
+	if err := t.applyDelta(delta); err != nil {
+		return err
+	}
+	//TODO notifySubscribers
 	return nil
 }

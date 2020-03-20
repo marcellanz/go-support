@@ -484,5 +484,31 @@ func TestORMap(t *testing.T) {
 			t.Fatalf("c0.Field1: %v; want: %v", f1, "bar")
 		}
 	})
-	//t.Fatalf(": %v; want: %v", , )
+}
+
+func TestORMapAdditional(t *testing.T) {
+	t.Run("apply invalid delta", func(t *testing.T) {
+		s := NewORMap()
+		if err := s.applyDelta(&protocol.CrdtDelta{
+			Delta: &protocol.CrdtDelta_Flag{
+				Flag: &protocol.FlagDelta{
+					Value: false,
+				},
+			},
+		}); err == nil {
+			t.Fatal("ormap applyDelta should err but did not")
+		}
+	})
+	t.Run("apply invalid state", func(t *testing.T) {
+		s := NewORMap()
+		if err := s.applyState(&protocol.CrdtState{
+			State: &protocol.CrdtState_Flag{
+				Flag: &protocol.FlagState{
+					Value: false,
+				},
+			},
+		}); err == nil {
+			t.Fatal("ormap applyState should err but did not")
+		}
+	})
 }

@@ -84,6 +84,6 @@ func (c *GCounter) applyDelta(delta *protocol.CrdtDelta) error {
 	if d == nil {
 		return errors.New(fmt.Sprintf("unable to apply delta %v to GCounter", delta))
 	}
-	c.value += d.Increment
+	c.value += d.GetIncrement()
 	return nil
 }

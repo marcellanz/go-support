@@ -41,92 +41,116 @@ func TestGCounter(t *testing.T) {
 		}
 	}
 
-	t.Run("should reflect a value update", func(t *testing.T) {
+	t.Run("should reflect a state update", func(t *testing.T) {
 		c := GCounter{}
-		c.applyState(encDecState(state(29)))
+		if err := c.applyState(encDecState(state(29))); err != nil {
+			t.Fatal(err)
+		}
 		if v := c.Value(); v != 29 {
 			t.Errorf("c.Value: %v; want: %d", v, 29)
 		}
-		c.applyState(encDecState(state(92)))
+		if err := c.applyState(encDecState(state(92))); err != nil {
+			t.Fatal(err)
+		}
 		if v := c.Value(); v != 92 {
 			t.Errorf("c.Value: %v; want: %d", v, 92)
 		}
 	})
 
-	t.Run("should reflect a lwwRegisterDelta update", func(t *testing.T) {
-		c := GCounter{}
-		c.applyDelta(encDecDelta(delta(29)))
-
-		if c.Value() != 29 {
-			t.Fail()
+	t.Run("should reflect a delta update", func(t *testing.T) {
+		c := NewGCounter()
+		if err := c.applyDelta(encDecDelta(delta(10))); err != nil {
+			t.Fatal(err)
 		}
-		c.applyDelta(encDecDelta(delta(92)))
-		if c.Value() != 29+92 {
-			t.Fail()
+		if v := c.Value(); v != 10 {
+			t.Errorf("c.Value: %v; want: %d", v, 10)
+		}
+		if err := c.applyDelta(encDecDelta(delta(5))); err != nil {
+			t.Fatal(err)
+		}
+		if v := c.Value(); v != 15 {
+			t.Errorf("c.Value: %v; want: %d", v, 15)
 		}
 	})
 
 	t.Run("should generate deltas", func(t *testing.T) {
 		c := GCounter{}
 		c.Increment(10)
-		if c.delta != 10 {
-			t.Errorf("c.lwwRegisterDelta: %v; want: %v", c.delta, 10)
+		if c.Delta().GetGcounter().GetIncrement() != 10 {
+			t.Errorf("counter increment: %v; want: %v", c.delta, 10)
 		}
 		c.ResetDelta()
-		if c.delta != 0 {
-			t.Errorf("c.lwwRegisterDelta: %v; want: %v", c.delta, 0)
+		if c.Delta().GetGcounter().GetIncrement() != 0 {
+			t.Errorf("counter increment: %v; want: %v", c.delta, 0)
 		}
 		c.Increment(3)
 		if c.Value() != 13 {
-			t.Errorf("c.lwwRegisterDelta: %v; want: %v", c.delta, 13)
+			t.Errorf("counter increment: %v; want: %v", c.delta, 13)
 		}
 		c.Increment(4)
 		if c.Value() != 17 {
-			t.Errorf("c.lwwRegisterDelta: %v; want: %v", c.delta, 17)
+			t.Errorf("counter increment: %v; want: %v", c.delta, 17)
+		}
+		// TODO: c.Delta().GetGcounter().GetIncrement() is 0 even if Delta() returns nil
+		if c.Delta().GetGcounter().GetIncrement() != 7 {
+			t.Errorf("counter increment: %v; want: %v", c.delta, 7)
 		}
 		c.ResetDelta()
-		if c.delta != 0 {
-			t.Errorf("c.lwwRegisterDelta: %v; want: %v", c.delta, 0)
+		if d := c.Delta(); d != nil {
+			t.Errorf("c.Delta() should be nil, but was not")
 		}
 	})
 
-	t.Run("should return its value", func(t *testing.T) {
+	t.Run("should return its state", func(t *testing.T) {
 		c := GCounter{}
-		c.Increment(29)
-		if encDecState(c.State()).GetGcounter().GetValue() != 29 {
-			t.Fail()
+		c.Increment(10)
+		if v := encDecState(c.State()).GetGcounter().GetValue(); v != 10 {
+			t.Errorf("c.Value: %v; want: %d", v, 10)
 		}
-	})
-	t.Run("should return its lwwRegisterDelta", func(t *testing.T) {
-		c := GCounter{}
-		c.Increment(29)
-		if encDecDelta(c.Delta()).GetGcounter().GetIncrement() != 29 {
-			t.Fail()
-		}
-	})
-	t.Run("ResetDelta", func(t *testing.T) {
-		c := GCounter{}
-		c.Increment(29)
 		c.ResetDelta()
-		if c.value != 29 || c.delta != 0 {
-			t.Fail()
+		if d := c.Delta(); d != nil {
+			t.Errorf("c.Delta() should be nil, but was not")
 		}
 	})
-	t.Run("applyDelta", func(t *testing.T) {
-		c := GCounter{}
-		c.Increment(10)
-		delta := encDecDelta(delta(29))
-		c.applyDelta(delta)
-		if c.Value() != 10+29 {
-			t.Fail()
+}
+
+func TestGCounterAdditional(t *testing.T) {
+	t.Run("should report hasDelta", func(t *testing.T) {
+		c := NewGCounter()
+		if c.HasDelta() {
+			t.Errorf("c.HasDelta() but should not")
+		}
+		c.Increment(29)
+		if !c.HasDelta() {
+			t.Errorf("c.HasDelta() is false, but should not")
 		}
 	})
-	t.Run("applyState", func(t *testing.T) {
-		c := GCounter{}
-		c.Increment(10)
-		c.applyState(encDecState(state(29)))
-		if c.Value() != 29 {
-			t.Fail()
+
+	t.Run("should catch illegal delta applied", func(t *testing.T) {
+		c := NewGCounter()
+		err := c.applyDelta(&protocol.CrdtDelta{
+			Delta: &protocol.CrdtDelta_Pncounter{
+				Pncounter: &protocol.PNCounterDelta{
+					Change: 11,
+				},
+			},
+		})
+		if err == nil {
+			t.Errorf("c.applyDelta() has to err, but did not")
+		}
+	})
+
+	t.Run("should catch illegal state applied", func(t *testing.T) {
+		c := NewGCounter()
+		err := c.applyState(&protocol.CrdtState{
+			State: &protocol.CrdtState_Pncounter{
+				Pncounter: &protocol.PNCounterState{
+					Value: 11,
+				},
+			},
+		})
+		if err == nil {
+			t.Errorf("c.applyState() has to err, but did not")
 		}
 	})
 }

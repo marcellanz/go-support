@@ -19,22 +19,14 @@ import (
 	"errors"
 	"fmt"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
-	"hash/maphash"
-
 	"github.com/golang/protobuf/ptypes/any"
+	"hash/maphash"
 )
 
 type ORMap struct {
 	value map[uint64]*orMapValue
 	delta orMapDelta
 	anyHasher
-}
-
-type crdt interface {
-	State() *protocol.CrdtState
-	Delta() *protocol.CrdtDelta
-	ResetDelta()
-	HasDelta() bool
 }
 
 type orMapValue struct {
@@ -236,6 +228,7 @@ func (m *ORMap) applyDelta(delta *protocol.CrdtDelta) error {
 				key:   a.GetKey(),
 				value: crdt,
 			}
+			// TODO: handle other types
 		}
 	}
 	for _, u := range d.Updated {
@@ -278,23 +271,62 @@ func (m *ORMap) State() *protocol.CrdtState {
 }
 
 func (m *ORMap) applyState(state *protocol.CrdtState) error {
-	m.value = make(map[uint64]*orMapValue)
 	orMapState := state.GetOrmap()
 	if orMapState == nil {
-		return errors.New(fmt.Sprintf("unable to apply delta %v to the ORMap", state))
+		return fmt.Errorf("unable to apply state %v to the ORMap", state)
 	}
-	for _, entry := range orMapState.Entries {
+	m.value = make(map[uint64]*orMapValue)
+	for _, entry := range orMapState.GetEntries() {
+		mval := &orMapValue{
+			key: entry.GetKey(),
+		}
 		switch entry.GetValue().GetState().(type) {
 		case *protocol.CrdtState_Gcounter:
-			crdt := NewGCounter()
-			if err := crdt.applyState(entry.GetValue()); err != nil {
+			c := NewGCounter()
+			if err := c.applyState(entry.GetValue()); err != nil {
 				return err
 			}
-			m.value[m.hashAny(entry.GetKey())] = &orMapValue{
-				key:   entry.GetKey(),
-				value: crdt,
+			mval.value = c
+		case *protocol.CrdtState_Flag:
+			f := NewFlag()
+			if err := f.applyState(entry.GetValue()); err != nil {
+				return err
 			}
+			mval.value = f
+		case *protocol.CrdtState_Lwwregister:
+			r := NewLWWRegister(nil)
+			if err := r.applyState(entry.GetValue()); err != nil {
+				return err
+			}
+			mval.value = r
+		case *protocol.CrdtState_Ormap:
+			m := NewORMap()
+			if err := m.applyState(entry.GetValue()); err != nil {
+				return err
+			}
+			mval.value = m
+		case *protocol.CrdtState_Orset:
+			s := NewORSet()
+			if err := s.applyState(entry.GetValue()); err != nil {
+				return err
+			}
+			mval.value = s
+		case *protocol.CrdtState_Pncounter:
+			c := NewPNCounter()
+			if err := c.applyState(entry.GetValue()); err != nil {
+				return err
+			}
+			mval.value = c
+		case *protocol.CrdtState_Vote:
+			v := NewVote()
+			if err := v.applyState(entry.GetValue()); err != nil {
+				return err
+			}
+			mval.value = v
+		default:
+			return fmt.Errorf("unable to apply state %+v to the ORMap", state)
 		}
+		m.value[m.hashAny(mval.key)] = mval
 	}
 	return nil
 }

@@ -22,15 +22,15 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 )
 
-func contains(x []*any.Any, s ...string) bool {
-	n := 0
-	for _, a0 := range x {
-		sa0 := encoding.DecodeString(a0)
-		for _, s0 := range s {
-			if sa0 == s0 {
-				n++
+func contains(in []*any.Any, all ...string) bool {
+	seen := 0
+	for _, x := range in {
+		dec := encoding.DecodeString(x)
+		for _, one := range all {
+			if dec == one {
+				seen++
 			}
-			if n == len(s) {
+			if seen == len(all) {
 				return true
 			}
 		}

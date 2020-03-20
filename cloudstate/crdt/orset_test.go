@@ -20,89 +20,92 @@ import (
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
-	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/any"
 )
 
 func TestORSet(t *testing.T) {
 	t.Run("should reflect a state update", func(t *testing.T) {
 		s := NewORSet()
-		s.ApplyState(&protocol.ORSetState{
-			Items: append(make([]*any.Any, 0), encoding.String("one"), encoding.String("two")),
-		})
+		s.applyState(
+			&protocol.CrdtState{
+				State: &protocol.CrdtState_Orset{
+					Orset: &protocol.ORSetState{
+						Items: append(make([]*any.Any, 0), encoding.String("one"), encoding.String("two")),
+					},
+				},
+			},
+		)
 		if s.Size() != 2 {
-			t.Errorf("s.Size(): %v; want: %v", s.Size(), 2)
+			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 2)
 		}
 	})
 
-	t.Run("should generate an add lwwRegisterDelta", func(t *testing.T) {
+	t.Run("should generate an add delta", func(t *testing.T) {
 		s := NewORSet()
 		s.Add(encoding.String("one"))
 		if s.Size() != 1 {
-			t.Errorf("s.Size(): %v; want: %v", s.Size(), 1)
+			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 1)
 		}
-		delta := orSetEncDecDelta(s.Delta())
+		delta := encDecDelta(s.Delta())
 		s.ResetDelta()
-		if len(delta.GetAdded()) != 1 {
-			t.Errorf("s.Delta()).GetAdded()): %v; want: %v", len(orSetEncDecDelta(s.Delta()).GetAdded()), 1)
+		if alen := len(delta.GetOrset().GetAdded()); alen != 1 {
+			t.Fatalf("s.Delta()).GetAdded()): %v; want: %v", alen, 1)
 		}
-		if !contains(delta.Added, "one") {
+		if !contains(delta.GetOrset().GetAdded(), "one") {
 			t.Error("did not found one")
 		}
 		if s.HasDelta() {
-			t.Errorf("set has lwwRegisterDelta")
+			t.Fatalf("set has delta")
 		}
 		s.Add(encoding.String("two"))
 		s.Add(encoding.String("three"))
 		if s.Size() != 3 {
-			t.Errorf("s.Size(): %v; want: %v", s.Size(), 3)
+			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 3)
 		}
-		addedLen := len(orSetEncDecDelta(s.Delta()).GetAdded())
-		if addedLen != 2 {
-			t.Errorf("len(GetAdded()): %v; want: %v", addedLen, 2)
+		if alen := len(encDecDelta(s.Delta()).GetOrset().GetAdded()); alen != 2 {
+			t.Fatalf("len(GetAdded()): %v; want: %v", alen, 2)
 		}
 		if !contains(s.Added(), "two", "three") {
 			t.Error("did not found two and three")
 		}
 		s.ResetDelta()
 		if s.HasDelta() {
-			t.Errorf("set has lwwRegisterDelta")
+			t.Fatalf("set has delta")
 		}
 	})
 
-	t.Run("should generate a remove lwwRegisterDelta", func(t *testing.T) {
+	t.Run("should generate a remove delta", func(t *testing.T) {
 		s := NewORSet()
 		s.Add(encoding.String("one"))
 		s.Add(encoding.String("two"))
 		s.Add(encoding.String("three"))
 		s.ResetDelta()
 		if !contains(s.Value(), "one", "two", "three") {
-			t.Errorf("removed does not include: one, two, three")
+			t.Fatalf("removed does not include: one, two, three")
 		}
 		s.Remove(encoding.String("one"))
 		s.Remove(encoding.String("two"))
 		if s.Size() != 1 {
-			t.Errorf("s.Size(): %v; want: %v", s.Size(), 1)
+			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 1)
 		}
 		if contains(s.Value(), "one") {
-			t.Errorf("set should not include one")
+			t.Fatalf("set should not include one")
 		}
 		if contains(s.Value(), "two") {
-			t.Errorf("set should not include two")
+			t.Fatalf("set should not include two")
 		}
 		if !contains(s.Value(), "three") {
-			t.Errorf("set should include three")
+			t.Fatalf("set should include three")
 		}
-		delta := orSetEncDecDelta(s.Delta())
-		if len(delta.GetRemoved()) != 2 {
-			t.Errorf("len(lwwRegisterDelta.GetRemoved()): %v; want: %v", len(delta.GetRemoved()), 2)
+		if dlen := len(encDecDelta(s.Delta()).GetOrset().GetRemoved()); dlen != 2 {
+			t.Fatalf("len(delta.GetRemoved()): %v; want: %v", dlen, 2)
 		}
 		if !contains(s.Removed(), "one", "two") {
-			t.Errorf("removed does not include: one, two")
+			t.Fatalf("removed does not include: one, two")
 		}
 	})
 
-	t.Run("should generate a clear lwwRegisterDelta", func(t *testing.T) {
+	t.Run("should generate a clear delta", func(t *testing.T) {
 		s := NewORSet()
 		s.Add(encoding.String("one"))
 		s.Add(encoding.String("two"))
@@ -110,20 +113,20 @@ func TestORSet(t *testing.T) {
 		s.ResetDelta()
 		s.Clear()
 		if s.Size() != 0 {
-			t.Errorf("s.Size(): %v; want: %v", len(s.Removed()), 0)
+			t.Fatalf("s.Size(): %v; want: %v", len(s.Removed()), 0)
 		}
-		delta := orSetEncDecDelta(s.Delta())
+		delta := encDecDelta(s.Delta())
 		s.ResetDelta()
-		if !delta.Cleared {
+		if !delta.GetOrset().GetCleared() {
 			t.Fail()
 		}
 		delta = s.Delta()
 		if s.HasDelta() {
-			t.Errorf("set has lwwRegisterDelta")
+			t.Fatalf("set has delta")
 		}
 	})
 
-	t.Run("should generate a clear lwwRegisterDelta when everything is removed", func(t *testing.T) {
+	t.Run("should generate a clear delta when everything is removed", func(t *testing.T) {
 		s := NewORSet()
 		s.Add(encoding.String("one"))
 		s.Add(encoding.String("two"))
@@ -131,19 +134,19 @@ func TestORSet(t *testing.T) {
 		s.Remove(encoding.String("one"))
 		s.Remove(encoding.String("two"))
 		if s.Size() != 0 {
-			t.Errorf("s.Size(): %v; want: %v", s.Size(), 0)
+			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 0)
 		}
-		delta := orSetEncDecDelta(s.Delta())
+		delta := encDecDelta(s.Delta())
 		s.ResetDelta()
-		if !delta.Cleared {
-			t.Errorf("lwwRegisterDelta.Cleared: %v; want: %v", delta.Cleared, true)
+		if cleared := delta.GetOrset().GetCleared(); !cleared {
+			t.Fatalf("delta.Cleared: %v; want: %v", cleared, true)
 		}
 		if s.HasDelta() {
-			t.Errorf("set has lwwRegisterDelta")
+			t.Fatalf("set has delta")
 		}
 	})
 
-	t.Run("should not generate a lwwRegisterDelta when an added element is removed", func(t *testing.T) {
+	t.Run("should not generate a delta when an added element is removed", func(t *testing.T) {
 		s := NewORSet()
 		s.Add(encoding.String("one"))
 		s.Add(encoding.String("two"))
@@ -152,16 +155,16 @@ func TestORSet(t *testing.T) {
 		s.Add(encoding.String("two"))
 		s.Remove(encoding.String("two"))
 		if s.Size() != 1 {
-			t.Errorf("s.Size(): %v; want: %v", s.Size(), 1)
+			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 1)
 		}
-		//lwwRegisterDelta := orSetEncDecDelta(s.Delta())
+		//delta := encDecDelta(s.Delta())
 		s.ResetDelta()
 		if s.HasDelta() {
-			t.Errorf("set has lwwRegisterDelta")
+			t.Fatalf("set has delta")
 		}
 	})
 
-	t.Run("should not generate a lwwRegisterDelta when a removed element is added", func(t *testing.T) {
+	t.Run("should not generate a delta when a removed element is added", func(t *testing.T) {
 		s := NewORSet()
 		s.Add(encoding.String("one"))
 		s.Add(encoding.String("two"))
@@ -170,37 +173,39 @@ func TestORSet(t *testing.T) {
 		s.Remove(encoding.String("two"))
 		s.Add(encoding.String("two"))
 		if s.Size() != 2 {
-			t.Errorf("s.Size(): %v; want: %v", s.Size(), 2)
+			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 2)
 		}
 		if s.HasDelta() {
-			t.Errorf("set has lwwRegisterDelta")
+			t.Fatalf("set has delta")
 		}
 	})
 
-	t.Run("should not generate a lwwRegisterDelta when an already existing element is added", func(t *testing.T) {
+	t.Run("should not generate a delta when an already existing element is added", func(t *testing.T) {
 		s := NewORSet()
 		s.Add(encoding.String("one"))
 		s.ResetDelta()
 		s.Add(encoding.String("one"))
 		if s.Size() != 1 {
-			t.Errorf("s.Size(): %v; want: %v", s.Size(), 1)
+			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 1)
 		}
 		if s.HasDelta() {
-			t.Errorf("set has lwwRegisterDelta")
+			t.Fatalf("set has delta")
 		}
 	})
-	t.Run("should not generate a lwwRegisterDelta when a non existing element is removed", func(t *testing.T) {
+
+	t.Run("should not generate a delta when a non existing element is removed", func(t *testing.T) {
 		s := NewORSet()
 		s.Add(encoding.String("one"))
 		s.ResetDelta()
 		s.Remove(encoding.String("two"))
 		if s.Size() != 1 {
-			t.Errorf("s.Size(): %v; want: %v", s.Size(), 1)
+			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 1)
 		}
 		if s.HasDelta() {
-			t.Errorf("set has lwwRegisterDelta")
+			t.Fatalf("set has delta")
 		}
 	})
+
 	t.Run("clear all other deltas when the set is cleared", func(t *testing.T) {
 		s := NewORSet()
 		s.Add(encoding.String("one"))
@@ -209,69 +214,86 @@ func TestORSet(t *testing.T) {
 		s.Remove(encoding.String("one"))
 		s.Clear()
 		if s.Size() != 0 {
-			t.Errorf("s.Size(): %v; want: %v", s.Size(), 0)
+			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 0)
 		}
-		delta := orSetEncDecDelta(s.Delta())
-		if !delta.Cleared {
-			t.Errorf("lwwRegisterDelta.Cleared: %v; want: %v", delta.Cleared, true)
+		delta := encDecDelta(s.Delta())
+		if cleared := delta.GetOrset().GetCleared(); !cleared {
+			t.Fatalf("delta.Cleared: %v; want: %v", cleared, 0)
 		}
-		if len(delta.GetAdded()) != 0 {
-			t.Errorf("len(lwwRegisterDelta.GetAdded()): %v; want: %v", len(delta.GetAdded()), true)
+		if alen := len(delta.GetOrset().GetAdded()); alen != 0 {
+			t.Fatalf("len(delta.GetAdded()): %v; want: %v", alen, 0)
 		}
-		if len(delta.GetRemoved()) != 0 {
-			t.Errorf("len(lwwRegisterDelta.GetRemoved): %v; want: %v", len(delta.GetRemoved()), true)
+		if rlen := len(delta.GetOrset().GetRemoved()); rlen != 0 {
+			t.Fatalf("len(delta.GetRemoved): %v; want: %v", rlen, 0)
 		}
 	})
-	t.Run("should reflect a lwwRegisterDelta add", func(t *testing.T) {
+	t.Run("should reflect a delta add", func(t *testing.T) {
 		s := NewORSet()
 		s.Add(encoding.String("one"))
 		s.ResetDelta()
-		s.ApplyDelta(orSetEncDecDelta(&protocol.ORSetDelta{
-			Added: append(make([]*any.Any, 0), encoding.String("two")),
-		}))
+		if err := s.applyDelta(encDecDelta(&protocol.CrdtDelta{
+			Delta: &protocol.CrdtDelta_Orset{
+				Orset: &protocol.ORSetDelta{
+					Added: append(make([]*any.Any, 0), encoding.String("two")),
+				},
+			},
+		})); err != nil {
+			t.Fatal(err)
+		}
 		if s.Size() != 2 {
-			t.Errorf("s.Size(): %v; want: %v", s.Size(), 2)
+			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 2)
 		}
 		s.ResetDelta()
 		if s.HasDelta() {
-			t.Errorf("set has lwwRegisterDelta")
+			t.Fatalf("set has delta")
 		}
-		stateLen := len(orSetEncDecState(s.State()).GetItems())
+		stateLen := len(encDecState(s.State()).GetOrset().GetItems())
 		if stateLen != 2 {
-			t.Errorf("len(GetItems()): %v; want: %v", stateLen, 2)
+			t.Fatalf("len(GetItems()): %v; want: %v", stateLen, 2)
 		}
 	})
 
-	t.Run("should reflect a lwwRegisterDelta remove", func(t *testing.T) {
+	t.Run("should reflect a delta remove", func(t *testing.T) {
 		s := NewORSet()
 		s.Add(encoding.String("one"))
 		s.Add(encoding.String("two"))
-		s.ApplyDelta(orSetEncDecDelta(&protocol.ORSetDelta{
-			Removed: append(make([]*any.Any, 0), encoding.String("two")),
-		}))
-		if s.Size() != 1 {
-			t.Errorf("s.Size(): %v; want: %v", s.Size(), 1)
+		if err := s.applyDelta(&protocol.CrdtDelta{
+			Delta: &protocol.CrdtDelta_Orset{
+				Orset: &protocol.ORSetDelta{
+					Removed: append(make([]*any.Any, 0), encoding.String("two")),
+				},
+			},
+		}); err != nil {
+			t.Fatal(err)
 		}
-		stateLen := len(orSetEncDecState(s.State()).GetItems())
-		if stateLen != 1 {
-			t.Errorf("len(GetItems()): %v; want: %v", stateLen, 1)
+		if s.Size() != 1 {
+			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 1)
+		}
+
+		if slen := len(encDecState(s.State()).GetOrset().GetItems()); slen != 1 {
+			t.Fatalf("len(GetItems()): %v; want: %v", slen, 1)
 		}
 	})
 
-	t.Run("should reflect a lwwRegisterDelta clear", func(t *testing.T) {
+	t.Run("should reflect a delta clear", func(t *testing.T) {
 		s := NewORSet()
 		s.Add(encoding.String("one"))
 		s.Add(encoding.String("two"))
 		s.ResetDelta()
-		s.ApplyDelta(orSetEncDecDelta(&protocol.ORSetDelta{
-			Cleared: true,
-		}))
-		if s.Size() != 0 {
-			t.Errorf("s.Size(): %v; want: %v", s.Size(), 0)
+		if err := s.applyDelta(encDecDelta(&protocol.CrdtDelta{
+			Delta: &protocol.CrdtDelta_Orset{
+				Orset: &protocol.ORSetDelta{
+					Cleared: true,
+				},
+			},
+		})); err != nil {
+			t.Fatal(err)
 		}
-		stateLen := len(orSetEncDecState(s.State()).GetItems())
-		if stateLen != 0 {
-			t.Errorf("len(GetItems()): %v; want: %v", stateLen, 0)
+		if s.Size() != 0 {
+			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 0)
+		}
+		if slen := len(encDecState(s.State()).GetOrset().GetItems()); slen != 0 {
+			t.Fatalf("len(GetItems()): %v; want: %v", slen, 0)
 		}
 	})
 
@@ -287,57 +309,44 @@ func TestORSet(t *testing.T) {
 		s.ResetDelta()
 		s.Remove(encoding.Struct(Example{Field1: "one"}))
 		if s.Size() != 1 {
-			t.Errorf("s.Size(): %v; want: %v", s.Size(), 1)
+			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 1)
 		}
-		delta := orSetEncDecDelta(s.Delta())
-		removedLen := len(delta.GetRemoved())
-		if removedLen != 1 {
-			t.Errorf("removedLen: %v; want: %v", removedLen, 1)
+		delta := encDecDelta(s.Delta())
+
+		if rlen := len(delta.GetOrset().GetRemoved()); rlen != 1 {
+			t.Fatalf("rlen: %v; want: %v", rlen, 1)
 		}
 		e := &Example{}
-		err := encoding.UnmarshalJSON(delta.GetRemoved()[0], e)
+		err := encoding.UnmarshalJSON(delta.GetOrset().GetRemoved()[0], e)
 		if err != nil || e.Field1 != "one" {
 			t.Fail()
 		}
 	})
 }
 
-func TestRemoved(t *testing.T) {
-	s := NewORSet()
-	s.Add(encoding.String("one"))
-	if len(s.Removed()) != 0 {
-		t.Fail()
-	}
-	s.Delta()
-	s.ResetDelta()
-	s.Remove(encoding.String("one"))
-	if len(s.Removed()) != 0 {
-		t.Fail()
-	}
-}
-
-func orSetEncDecState(s *protocol.ORSetState) *protocol.ORSetState {
-	marshal, err := proto.Marshal(s)
-	if err != nil {
-		// we panic for convenience
-		panic(err)
-	}
-	out := &protocol.ORSetState{}
-	if err := proto.Unmarshal(marshal, out); err != nil {
-		panic(err)
-	}
-	return out
-}
-
-func orSetEncDecDelta(s *protocol.ORSetDelta) *protocol.ORSetDelta {
-	marshal, err := proto.Marshal(s)
-	if err != nil {
-		// we panic for convenience
-		panic(err)
-	}
-	out := &protocol.ORSetDelta{}
-	if err := proto.Unmarshal(marshal, out); err != nil {
-		panic(err)
-	}
-	return out
+func TestORSetAdditional(t *testing.T) {
+	t.Run("apply invalid delta", func(t *testing.T) {
+		s := NewORSet()
+		if err := s.applyDelta(&protocol.CrdtDelta{
+			Delta: &protocol.CrdtDelta_Flag{
+				Flag: &protocol.FlagDelta{
+					Value: false,
+				},
+			},
+		}); err == nil {
+			t.Fatal("orset applyDelta should err but did not")
+		}
+	})
+	t.Run("apply invalid state", func(t *testing.T) {
+		s := NewORSet()
+		if err := s.applyState(&protocol.CrdtState{
+			State: &protocol.CrdtState_Flag{
+				Flag: &protocol.FlagState{
+					Value: false,
+				},
+			},
+		}); err == nil {
+			t.Fatal("orset applyState should err but did not")
+		}
+	})
 }

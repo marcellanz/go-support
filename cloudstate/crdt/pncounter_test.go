@@ -19,106 +19,146 @@ import (
 	"testing"
 
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
-	"github.com/golang/protobuf/proto"
 )
 
-func TestPNCounter_Increment(t *testing.T) {
-	c := PNCounter{}
-	c.Increment(10)
-	if v := c.Value(); v != 10 {
-		t.Errorf("c.Value: %v; want: %v", v, 10)
+func TestPNCounter(t *testing.T) {
+	state := func(v int64) *protocol.CrdtState {
+		return &protocol.CrdtState{
+			State: &protocol.CrdtState_Pncounter{
+				Pncounter: &protocol.PNCounterState{
+					Value: v,
+				},
+			},
+		}
 	}
+	delta := func(v int64) *protocol.CrdtDelta {
+		return &protocol.CrdtDelta{
+			Delta: &protocol.CrdtDelta_Pncounter{
+				Pncounter: &protocol.PNCounterDelta{
+					Change: v,
+				},
+			},
+		}
+	}
+
+	t.Run("should have a value of zero when instantiated", func(t *testing.T) {
+		c := NewPNCounter()
+		if v := c.Value(); v != 0 {
+			t.Fatalf("c.Value: %v; want: %v", v, 0)
+		}
+	})
+	t.Run("should reflect a state update", func(t *testing.T) {
+		c := NewPNCounter()
+		if err := c.applyState(encDecState(state(10))); err != nil {
+			t.Fatal(err)
+		}
+		if v := c.Value(); v != 10 {
+			t.Fatalf("c.Value: %v; want: %v", v, 10)
+		}
+		if err := c.applyState(encDecState(state(-5))); err != nil {
+			t.Fatal(err)
+		}
+		if v := c.Value(); v != -5 {
+			t.Fatalf("c.Value: %v; want: %v", v, -5)
+		}
+	})
+	t.Run("should reflect a delta update", func(t *testing.T) {
+		c := NewPNCounter()
+		if err := c.applyDelta(encDecDelta(delta(10))); err != nil {
+			t.Fatal(err)
+		}
+		if v := c.Value(); v != 10 {
+			t.Fatalf("c.Value: %v; want: %v", v, 10)
+		}
+		if err := c.applyDelta(encDecDelta(delta(-3))); err != nil {
+			t.Fatal(err)
+		}
+		if v := c.Value(); v != 7 {
+			t.Fatalf("c.Value: %v; want: %v", v, 7)
+		}
+	})
+	t.Run("should generate deltas", func(t *testing.T) {
+		c := NewPNCounter()
+		c.Increment(10)
+		if v := c.Value(); v != 10 {
+			t.Fatalf("c.Value: %v; want: %v", v, 10)
+		}
+		if d := encDecDelta(c.Delta()).GetPncounter().GetChange(); d != 10 {
+			t.Fatalf("c.Delta: %v; want: %v", d, 10)
+		}
+		c.ResetDelta()
+		if d := c.Delta(); d != nil {
+			t.Fatalf("c.Delta() should have been nil but was not: %+v", d)
+		}
+		c.Decrement(3)
+		if v := c.Value(); v != 7 {
+			t.Fatalf("c.Value: %v; want: %v", v, 7)
+		}
+		c.Decrement(4)
+		if v := c.Value(); v != 3 {
+			t.Fatalf("c.Value: %v; want: %v", v, 3)
+		}
+		if d := encDecDelta(c.Delta()).GetPncounter().GetChange(); d != -7 {
+			t.Fatalf("c.Delta: %v; want: %v", d, -7)
+		}
+		c.ResetDelta()
+		if d := c.Delta(); d != nil {
+			t.Fatalf("c.Delta() should have been nil but was not: %+v", d)
+		}
+	})
+	t.Run("should return its state", func(t *testing.T) {
+		c := NewPNCounter()
+		c.Increment(10)
+		if v := c.Value(); v != 10 {
+			t.Fatalf("c.Value: %v; want: %v", v, 10)
+		}
+		if v := encDecState(c.State()).GetPncounter().GetValue(); v != 10 {
+			t.Fatalf("c.Value: %v; want: %v", v, 10)
+		}
+		c.ResetDelta()
+		if d := c.Delta(); d != nil {
+			t.Fatalf("c.Delta() should have been nil but was not: %+v", d)
+		}
+	})
 }
 
-func TestPNCounter_ApplyState(t *testing.T) {
-	c := PNCounter{}
-	c.applyState(pnEncDecState(&protocol.PNCounterState{
-		Value: 10,
-	}))
-	if v := c.Value(); v != 10 {
-		t.Errorf("c.Value: %v; want: %v", v, 10)
-	}
-	c.applyState(pnEncDecState(&protocol.PNCounterState{
-		Value: -7,
-	}))
-	if v := c.Value(); v != -7 {
-		t.Errorf("c.Value: %v; want: %v", v, -7)
-	}
-}
+func TestPNCounterAdditional(t *testing.T) {
+	t.Run("should report hasDelta", func(t *testing.T) {
+		c := NewPNCounter()
+		if c.HasDelta() {
+			t.Fatalf("c.HasDelta() but should not")
+		}
+		c.Increment(29)
+		if !c.HasDelta() {
+			t.Fatalf("c.HasDelta() is false, but should not")
+		}
+	})
 
-func TestPNCounter_ApplyDelta(t *testing.T) {
-	c := PNCounter{}
-	c.applyDelta(pnEncDecDelta(&protocol.PNCounterDelta{
-		Change: 10,
-	}))
-	if v := c.Value(); v != 10 {
-		t.Errorf("c.Value: %v; want: %v", v, 10)
-	}
-	c.applyDelta(pnEncDecDelta(&protocol.PNCounterDelta{
-		Change: 19,
-	}))
-	if v := c.Value(); v != 29 {
-		t.Errorf("c.Value: %v; want: %v", v, 29)
-	}
-}
+	t.Run("should catch illegal delta applied", func(t *testing.T) {
+		c := NewPNCounter()
+		err := c.applyDelta(&protocol.CrdtDelta{
+			Delta: &protocol.CrdtDelta_Flag{
+				Flag: &protocol.FlagDelta{
+					Value: false,
+				},
+			},
+		})
+		if err == nil {
+			t.Fatalf("c.applyDelta() has to err, but did not")
+		}
+	})
 
-func TestPNCounter_Delta(t *testing.T) {
-	c := PNCounter{}
-	c.Increment(10)
-	if d := pnEncDecDelta(c.Delta()).Change; d != 10 {
-		t.Errorf("c.Delta: %v; want: %v", d, 10)
-	}
-	c.ResetDelta()
-	if d := pnEncDecDelta(c.Delta()).Change; d != 0 {
-		t.Errorf("c.Delta: %v; want: %v", d, 0)
-	}
-	c.Decrement(3)
-	if v := c.Value(); v != 7 {
-		t.Errorf("c.Value: %v; want: %v", v, 7)
-	}
-	c.Decrement(4)
-	if v := c.Value(); v != 3 {
-		t.Errorf("c.Value: %v; want: %v", v, 3)
-	}
-	if d := pnEncDecDelta(c.Delta()).Change; d != -7 {
-		t.Errorf("c.Delta: %v; want: %v", d, -7)
-	}
-	c.ResetDelta()
-	if d := pnEncDecDelta(c.Delta()).Change; d != 0 {
-		t.Errorf("c.Delta: %v; want: %v", d, 0)
-	}
-}
-
-func TestPNCounter_State(t *testing.T) {
-	c := PNCounter{}
-	c.Increment(10)
-	if v := pnEncDecState(c.State()).Value; v != 10 {
-		t.Errorf("c.Value: %v; want: %v", v, 10)
-	}
-}
-
-func pnEncDecState(s *protocol.PNCounterState) *protocol.PNCounterState {
-	marshal, err := proto.Marshal(s)
-	if err != nil {
-		// we panic for convenience
-		panic(err)
-	}
-	out := &protocol.PNCounterState{}
-	if err := proto.Unmarshal(marshal, out); err != nil {
-		panic(err)
-	}
-	return out
-}
-
-func pnEncDecDelta(s *protocol.PNCounterDelta) *protocol.PNCounterDelta {
-	marshal, err := proto.Marshal(s)
-	if err != nil {
-		// we panic for convenience
-		panic(err)
-	}
-	out := &protocol.PNCounterDelta{}
-	if err := proto.Unmarshal(marshal, out); err != nil {
-		panic(err)
-	}
-	return out
+	t.Run("should catch illegal state applied", func(t *testing.T) {
+		c := NewPNCounter()
+		err := c.applyState(&protocol.CrdtState{
+			State: &protocol.CrdtState_Flag{
+				Flag: &protocol.FlagState{
+					Value: true,
+				},
+			},
+		})
+		if err == nil {
+			t.Fatalf("c.applyState() has to err, but did not")
+		}
+	})
 }

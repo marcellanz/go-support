@@ -16,6 +16,7 @@
 package crdt
 
 import (
+	"fmt"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/golang/protobuf/ptypes/any"
 )
@@ -46,7 +47,7 @@ func NewLWWRegisterWithClock(x *any.Any, c Clock, customClockValue int64) *LWWRe
 	}
 }
 
-func (r LWWRegister) Value() *any.Any {
+func (r *LWWRegister) Value() *any.Any {
 	return r.value
 }
 
@@ -67,12 +68,17 @@ func (r *LWWRegister) SetWithClock(x *any.Any, c Clock, customClockValue int64) 
 	}
 }
 
-func (r *LWWRegister) Delta() *protocol.LWWRegisterDelta {
-	return &protocol.LWWRegisterDelta{
-		Value:            r.delta.value,
-		Clock:            r.delta.clock.toCrdtClock(),
-		CustomClockValue: r.delta.customClockValue,
+func (r *LWWRegister) Delta() *protocol.CrdtDelta {
+	return &protocol.CrdtDelta{
+		Delta: &protocol.CrdtDelta_Lwwregister{
+			Lwwregister: &protocol.LWWRegisterDelta{
+				Value:            r.delta.value,
+				Clock:            r.delta.clock.toCrdtClock(),
+				CustomClockValue: r.delta.customClockValue,
+			},
+		},
 	}
+
 }
 
 func (r *LWWRegister) HasDelta() bool {
@@ -85,20 +91,34 @@ func (r *LWWRegister) ResetDelta() {
 	r.customClockValue = 0
 }
 
-func (r *LWWRegister) ApplyDelta(d *protocol.LWWRegisterDelta) {
-	r.value = d.Value
+func (r *LWWRegister) applyDelta(delta *protocol.CrdtDelta) error {
+	d := delta.GetLwwregister()
+	if d == nil {
+		return fmt.Errorf("unable to apply state %+v to LWWRegister", delta)
+	}
+	r.value = d.GetValue()
+	return nil
 }
 
-func (r LWWRegister) State() *protocol.LWWRegisterState {
-	return &protocol.LWWRegisterState{
-		Value:            r.value,
-		Clock:            r.clock.toCrdtClock(),
-		CustomClockValue: r.customClockValue,
+func (r *LWWRegister) State() *protocol.CrdtState {
+	return &protocol.CrdtState{
+		State: &protocol.CrdtState_Lwwregister{
+			Lwwregister: &protocol.LWWRegisterState{
+				Value:            r.value,
+				Clock:            r.clock.toCrdtClock(),
+				CustomClockValue: r.customClockValue,
+			},
+		},
 	}
 }
 
-func (r *LWWRegister) ApplyState(d *protocol.LWWRegisterState) {
-	r.value = d.Value
-	r.clock = fromCrdtClock(d.Clock)
-	r.customClockValue = d.CustomClockValue
+func (r *LWWRegister) applyState(delta *protocol.CrdtState) error {
+	d := delta.GetLwwregister()
+	if d == nil {
+		return fmt.Errorf("unable to apply delta %+v to LWWRegister", delta)
+	}
+	r.value = d.GetValue()
+	r.clock = fromCrdtClock(d.GetClock())
+	r.customClockValue = d.GetCustomClockValue()
+	return nil
 }

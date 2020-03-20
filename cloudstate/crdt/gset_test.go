@@ -20,96 +20,137 @@ import (
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
-	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/any"
 )
 
 func TestGset(t *testing.T) {
+	state := func(x []*any.Any) *protocol.CrdtState {
+		return &protocol.CrdtState{
+			State: &protocol.CrdtState_Gset{
+				Gset: &protocol.GSetState{
+					Items: x,
+				},
+			},
+		}
+	}
+	delta := func(x []*any.Any) *protocol.CrdtDelta {
+		return &protocol.CrdtDelta{
+			Delta: &protocol.CrdtDelta_Gset{
+				Gset: &protocol.GSetDelta{
+					Added: x,
+				},
+			},
+		}
+	}
+
 	t.Run("should have no elements when instantiated", func(t *testing.T) {
 		s := NewGSet()
 		if s.Size() != 0 {
 			t.Fail()
 		}
 		if s.HasDelta() {
-			t.Errorf("has lwwRegisterDelta but should not")
+			t.Fatal("has delta but should not")
 		}
-		itemsLen := len(gSetEncDecState(s.State()).Items)
+		itemsLen := len(encDecState(s.State()).GetGset().GetItems())
 		if itemsLen != 0 {
-			t.Errorf("len(items): %v; want: %v", itemsLen, 0)
+			t.Fatalf("len(items): %v; want: %v", itemsLen, 0)
 		}
 	})
-	t.Run("should generate an add lwwRegisterDelta", func(t *testing.T) {
+
+	t.Run("should reflect a state update", func(t *testing.T) {
+		s := NewGSet()
+		if err := s.applyState(state(append(make([]*any.Any, 0),
+			encoding.String("one"),
+			encoding.String("two")),
+		)); err != nil {
+			t.Fatal(err)
+		}
+		if size := s.Size(); size != 2 {
+			t.Fatalf("s.Size(): %v; want: %v", size, 2)
+		}
+		if !contains(s.Value(), "one", "two") {
+			t.Fatalf("set values should contain 'one' and 'two', but was: %v", s.Value())
+		}
+		delta := s.Delta()
+		if delta != nil {
+			t.Fatalf("set delta should be nil but was not: %+v", delta)
+		}
+		s.ResetDelta()
+		if slen := len(encDecState(s.State()).GetGset().GetItems()); slen != 2 {
+			t.Fatalf("set state length: %v; want: %v", s.Size(), 2)
+		}
+	})
+
+	t.Run("should generate an add delta", func(t *testing.T) {
 		s := NewGSet()
 		s.Add(encoding.String("one"))
 		if !contains(s.Value(), "one") {
-			t.Errorf("set should have a: one")
+			t.Fatal("set should have a: one")
 		}
 		if s.Size() != 1 {
-			t.Errorf("s.Size(): %v; want: %v", s.Size(), 1)
+			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 1)
 		}
-		delta := gSetEncDecDelta(s.Delta())
+		delta := encDecDelta(s.Delta())
 		s.ResetDelta()
-		addedLen := len(delta.GetAdded())
+		addedLen := len(delta.GetGset().GetAdded())
 		if addedLen != 1 {
-			t.Errorf("s.Size(): %v; want: %v", addedLen, 1)
+			t.Fatalf("s.Size(): %v; want: %v", addedLen, 1)
 		}
-		if !contains(delta.GetAdded(), "one") {
-			t.Errorf("set should have a: one")
+		if !contains(delta.GetGset().GetAdded(), "one") {
+			t.Fatalf("set should have a: one")
 		}
 		if s.HasDelta() {
-			t.Errorf("has lwwRegisterDelta but should not")
+			t.Fatalf("has but should not")
 		}
 		s.Add(encoding.String("two"))
 		s.Add(encoding.String("three"))
 		if s.Size() != 3 {
-			t.Errorf("s.Size(): %v; want: %v", s.Size(), 3)
+			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 3)
 		}
-		delta2 := gSetEncDecDelta(s.Delta())
-		addedLen2 := len(delta2.GetAdded())
+		delta2 := encDecDelta(s.Delta())
+		addedLen2 := len(delta2.GetGset().GetAdded())
 		if addedLen2 != 2 {
-			t.Errorf("s.Size(): %v; want: %v", addedLen2, 2)
+			t.Fatalf("s.Size(): %v; want: %v", addedLen2, 2)
 		}
-		if !contains(delta2.GetAdded(), "two", "three") {
-			t.Errorf("lwwRegisterDelta should include two, three")
+		if !contains(delta2.GetGset().GetAdded(), "two", "three") {
+			t.Fatalf("delta should include two, three")
 		}
 		s.ResetDelta()
 		if s.HasDelta() {
-			t.Errorf("has lwwRegisterDelta but should not")
+			t.Fatalf("has delta but should not")
 		}
 	})
 
-	t.Run("should not generate a lwwRegisterDelta when an already existing element is added", func(t *testing.T) {
+	t.Run("should not generate a delta when an already existing element is added", func(t *testing.T) {
 		s := NewGSet()
 		s.Add(encoding.String("one"))
 		s.ResetDelta()
 		s.Add(encoding.String("one"))
 		if s.Size() != 1 {
-			t.Errorf("s.Size(): %v; want: %v", s.Size(), 1)
+			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 1)
 		}
 		if s.HasDelta() {
-			t.Errorf("has lwwRegisterDelta but should not")
+			t.Fatalf("has delta but should not")
 		}
 	})
-	t.Run("should reflect a lwwRegisterDelta add", func(t *testing.T) {
+	t.Run("should reflect a delta add", func(t *testing.T) {
 		s := NewGSet()
 		s.Add(encoding.String("one"))
 		s.ResetDelta()
-		s.ApplyDelta(&protocol.GSetDelta{
-			Added: append(make([]*any.Any, 0), encoding.String("two")),
-		})
+		s.applyDelta(delta(append(make([]*any.Any, 0), encoding.String("two"))))
 		if s.Size() != 2 {
-			t.Errorf("s.Size(): %v; want: %v", s.Size(), 2)
+			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 2)
 		}
 		if !contains(s.Value(), "one", "two") {
-			t.Errorf("lwwRegisterDelta should include two, three")
+			t.Fatalf("delta should include two, three")
 		}
 		if s.HasDelta() {
-			t.Errorf("has lwwRegisterDelta but should not")
+			t.Fatalf("has delta but should not")
 		}
-		state := gSetEncDecState(s.State())
+		state := encDecState(s.State())
 
-		if len(state.GetItems()) != 2 {
-			t.Errorf("state.GetItems(): %v; want: %v", state.GetItems(), 2)
+		if len(state.GetGset().GetItems()) != 2 {
+			t.Fatalf("state.GetItems(): %v; want: %v", state.GetGset().GetItems(), 2)
 		}
 	})
 
@@ -122,18 +163,18 @@ func TestGset(t *testing.T) {
 		s.ResetDelta()
 		s.Add(encoding.Struct(&Example{Field1: "one"}))
 		if s.Size() != 1 {
-			t.Errorf("s.Size(): %v; want: %v", s.Size(), 1)
+			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 1)
 		}
 		s.Add(encoding.Struct(&Example{Field1: "two"}))
 		if s.Size() != 2 {
-			t.Errorf("s.Size(): %v; want: %v", s.Size(), 2)
+			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 2)
 		}
-		delta := gSetEncDecDelta(s.Delta())
-		if len(delta.GetAdded()) != 1 {
-			t.Errorf("s.Size(): %v; want: %v", len(delta.GetAdded()), 1)
+		delta := encDecDelta(s.Delta())
+		if len(delta.GetGset().GetAdded()) != 1 {
+			t.Fatalf("s.Size(): %v; want: %v", len(delta.GetGset().GetAdded()), 1)
 		}
 		foundOne := false
-		for _, v := range delta.GetAdded() {
+		for _, v := range delta.GetGset().GetAdded() {
 			e := Example{}
 			encoding.UnmarshalJSON(v, &e)
 			if e.Field1 == "two" {
@@ -141,17 +182,9 @@ func TestGset(t *testing.T) {
 			}
 		}
 		if !foundOne {
-			t.Errorf("lwwRegisterDelta should include two")
+			t.Errorf("delta should include two")
 		}
 	})
-	/*
-	  it("should work with protobuf types", () => {
-
-	    const lwwRegisterDelta = roundTripDelta(set.getAndResetDelta());
-	    lwwRegisterDelta.gset.added.should.have.lengthOf(1);
-	    fromAnys(lwwRegisterDelta.gset.added)[0].field1.should.equal("two");
-	  });
-	*/
 
 	type a struct {
 		B string
@@ -205,28 +238,29 @@ func TestGset(t *testing.T) {
 	})
 }
 
-func gSetEncDecState(s *protocol.GSetState) *protocol.GSetState {
-	marshal, err := proto.Marshal(s)
-	if err != nil {
-		// we panic for convenience
-		panic(err)
-	}
-	out := &protocol.GSetState{}
-	if err := proto.Unmarshal(marshal, out); err != nil {
-		panic(err)
-	}
-	return out
-}
-
-func gSetEncDecDelta(s *protocol.GSetDelta) *protocol.GSetDelta {
-	marshal, err := proto.Marshal(s)
-	if err != nil {
-		// we panic for convenience
-		panic(err)
-	}
-	out := &protocol.GSetDelta{}
-	if err := proto.Unmarshal(marshal, out); err != nil {
-		panic(err)
-	}
-	return out
+func TestGSetAdditional(t *testing.T) {
+	t.Run("apply invalid delta", func(t *testing.T) {
+		s := NewGSet()
+		if err := s.applyDelta(&protocol.CrdtDelta{
+			Delta: &protocol.CrdtDelta_Flag{
+				Flag: &protocol.FlagDelta{
+					Value: false,
+				},
+			},
+		}); err == nil {
+			t.Fatal("gset applyDelta should err but did not")
+		}
+	})
+	t.Run("apply invalid state", func(t *testing.T) {
+		s := NewGSet()
+		if err := s.applyState(&protocol.CrdtState{
+			State: &protocol.CrdtState_Flag{
+				Flag: &protocol.FlagState{
+					Value: false,
+				},
+			},
+		}); err == nil {
+			t.Fatal("gset applyState should err but did not")
+		}
+	})
 }

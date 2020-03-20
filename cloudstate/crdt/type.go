@@ -15,22 +15,14 @@
 
 package crdt
 
-import (
-	"fmt"
+import "github.com/cloudstateio/go-support/cloudstate/protocol"
 
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
-)
+type crdt interface {
+	State() *protocol.CrdtState
+	Delta() *protocol.CrdtDelta
+	ResetDelta()
+	HasDelta() bool
 
-func sendFailureAndReturnWith(e error, stream protocol.Crdt_HandleServer) error {
-	err := stream.Send(&protocol.CrdtStreamOut{
-		Message: &protocol.CrdtStreamOut_Failure{
-			Failure: &protocol.Failure{
-				Description: e.Error(),
-			},
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("send of CrdtStreamOut#Failure failed: %w", err)
-	}
-	return e
+	applyState(*protocol.CrdtState) error
+	applyDelta(*protocol.CrdtDelta) error
 }

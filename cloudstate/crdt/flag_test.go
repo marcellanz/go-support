@@ -22,35 +22,50 @@ import (
 )
 
 func TestFlag(t *testing.T) {
+	delta := func(value bool) *protocol.CrdtDelta {
+		return &protocol.CrdtDelta{
+			Delta: &protocol.CrdtDelta_Flag{
+				Flag: &protocol.FlagDelta{
+					Value: value,
+				},
+			},
+		}
+	}
+	state := func(value bool) *protocol.CrdtState {
+		return &protocol.CrdtState{
+			State: &protocol.CrdtState_Flag{
+				Flag: &protocol.FlagState{
+					Value: value,
+				},
+			},
+		}
+	}
+
 	t.Run("should be disabled when instantiated", func(t *testing.T) {
-		f := Flag{}
+		f := NewFlag()
 		if f.Value() {
 			t.Errorf("flag should be false but was not")
 		}
 	})
 	t.Run("should reflect a state update", func(t *testing.T) {
-		f := Flag{}
-		f.ApplyState(flagEncDecState(&protocol.FlagState{
-			Value: true,
-		}))
+		f := NewFlag()
+		f.applyState(encDecState(state(true)))
 		if !f.Value() {
 			t.Errorf("flag should be true but was not")
 		}
 	})
 	t.Run("should reflect a lwwRegisterDelta update", func(t *testing.T) {
-		f := Flag{}
-		f.ApplyDelta(&protocol.FlagDelta{
-			Value: true,
-		})
+		f := NewFlag()
+		f.applyDelta(delta(true))
 		if !f.Value() {
 			t.Errorf("flag should be true but was not")
 		}
 	})
 	t.Run("should generate deltas", func(t *testing.T) {
-		f := Flag{}
+		f := NewFlag()
 		f.Enable()
-		if !flagEncDecDelta(f.Delta()).Value {
-			t.Errorf("lwwRegisterDelta should be true but was not")
+		if !encDecDelta(f.Delta()).GetFlag().GetValue() {
+			t.Errorf("flag delta should be true but was not")
 		}
 		f.ResetDelta()
 		if f.HasDelta() {
@@ -58,13 +73,13 @@ func TestFlag(t *testing.T) {
 		}
 	})
 	t.Run("should return its state", func(t *testing.T) {
-		f := Flag{}
-		if flagEncDecState(f.State()).Value {
+		f := NewFlag()
+		if encDecState(f.State()).GetFlag().GetValue() {
 			t.Errorf("value should be false but was not")
 		}
 		f.ResetDelta()
 		f.Enable()
-		if !flagEncDecState(f.State()).Value {
+		if !encDecState(f.State()).GetFlag().GetValue() {
 			t.Errorf("lwwRegisterDelta should be true but was not")
 		}
 		f.ResetDelta()
@@ -74,30 +89,39 @@ func TestFlag(t *testing.T) {
 	})
 }
 
-func flagEncDecState(s *protocol.FlagState) *protocol.FlagState {
-	b := make([]byte, 0)[:]
-	marshal, err := s.XXX_Marshal(b, true)
-	if err != nil {
-		// we panic for convenience
-		panic(err)
-	}
-	out := &protocol.FlagState{}
-	if err := out.XXX_Unmarshal(marshal); err != nil {
-		panic(err)
-	}
-	return out
-}
-
-func flagEncDecDelta(s *protocol.FlagDelta) *protocol.FlagDelta {
-	b := make([]byte, 0)[:]
-	marshal, err := s.XXX_Marshal(b, true)
-	if err != nil {
-		// we panic for convenience
-		panic(err)
-	}
-	out := &protocol.FlagDelta{}
-	if err := out.XXX_Unmarshal(marshal); err != nil {
-		panic(err)
-	}
-	return out
+func TestFlagAdditional(t *testing.T) {
+	t.Run("should return correct delta on zero value", func(t *testing.T) {
+		f := NewFlag()
+		if f.Delta().GetFlag().GetValue() != false {
+			t.Errorf("flag delta should be false but was not")
+		}
+		f.Enable()
+		if f.Delta().GetFlag().GetValue() != true {
+			t.Errorf("flag delta should be true but was not")
+		}
+	})
+	t.Run("apply invalid delta", func(t *testing.T) {
+		f := NewFlag()
+		if err := f.applyDelta(&protocol.CrdtDelta{
+			Delta: &protocol.CrdtDelta_Gcounter{
+				Gcounter: &protocol.GCounterDelta{
+					Increment: 11,
+				},
+			},
+		}); err == nil {
+			t.Fatal("flag applyDelta should err but did not")
+		}
+	})
+	t.Run("apply invalid state", func(t *testing.T) {
+		f := NewFlag()
+		if err := f.applyState(&protocol.CrdtState{
+			State: &protocol.CrdtState_Gcounter{
+				Gcounter: &protocol.GCounterState{
+					Value: 11,
+				},
+			},
+		}); err == nil {
+			t.Fatal("flag applyDelta should err but did not")
+		}
+	})
 }

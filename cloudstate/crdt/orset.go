@@ -16,10 +16,11 @@
 package crdt
 
 import (
-	"hash/maphash"
-
+	"errors"
+	"fmt"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/golang/protobuf/ptypes/any"
+	"hash/maphash"
 )
 
 type ORSet struct {
@@ -103,17 +104,25 @@ func (s ORSet) Removed() []*any.Any {
 	return val
 }
 
-func (s *ORSet) State() *protocol.ORSetState {
-	return &protocol.ORSetState{
-		Items: s.Value(),
+func (s *ORSet) State() *protocol.CrdtState {
+	return &protocol.CrdtState{
+		State: &protocol.CrdtState_Orset{
+			Orset: &protocol.ORSetState{
+				Items: s.Value(),
+			},
+		},
 	}
 }
 
-func (s *ORSet) Delta() *protocol.ORSetDelta {
-	return &protocol.ORSetDelta{
-		Added:   s.Added(),
-		Removed: s.Removed(),
-		Cleared: s.cleared,
+func (s *ORSet) Delta() *protocol.CrdtDelta {
+	return &protocol.CrdtDelta{
+		Delta: &protocol.CrdtDelta_Orset{
+			Orset: &protocol.ORSetDelta{
+				Added:   s.Added(),
+				Removed: s.Removed(),
+				Cleared: s.cleared,
+			},
+		},
 	}
 }
 
@@ -127,29 +136,39 @@ func (s *ORSet) ResetDelta() {
 	s.removed = make(map[uint64]*any.Any)
 }
 
-func (s *ORSet) ApplyState(state *protocol.ORSetState) {
+func (s *ORSet) applyState(state *protocol.CrdtState) error {
+	ostate := state.GetOrset()
+	if ostate == nil {
+		return errors.New(fmt.Sprintf("unable to delta state %v to ORSet", state))
+	}
 	s.value = make(map[uint64]*any.Any)
-	if len(state.GetItems()) != 0 {
-		for _, a := range state.Items {
+	if items := ostate.GetItems(); len(items) != 0 {
+		for _, a := range items {
 			s.value[s.hashAny(a)] = a
 		}
 	}
+	return nil
 }
 
-func (s *ORSet) ApplyDelta(delta *protocol.ORSetDelta) {
-	if delta.Cleared {
+func (s *ORSet) applyDelta(delta *protocol.CrdtDelta) error {
+	d := delta.GetOrset()
+	if d == nil {
+		return errors.New(fmt.Sprintf("unable to delta %v to ORSet", delta))
+	}
+	if d.GetCleared() {
 		s.value = make(map[uint64]*any.Any)
 	}
-	for _, r := range delta.Removed {
+	for _, r := range d.GetRemoved() {
 		h := s.hashAny(r)
 		if _, has := s.value[h]; has {
 			delete(s.value, h)
 		}
 	}
-	for _, a := range delta.Added {
+	for _, a := range d.GetAdded() {
 		h := s.hashAny(a)
 		if _, has := s.value[h]; !has {
 			s.value[h] = a
 		}
 	}
+	return nil
 }

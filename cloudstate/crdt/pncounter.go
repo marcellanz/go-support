@@ -15,11 +15,19 @@
 
 package crdt
 
-import "github.com/cloudstateio/go-support/cloudstate/protocol"
+import (
+	"errors"
+	"fmt"
+	"github.com/cloudstateio/go-support/cloudstate/protocol"
+)
 
 type PNCounter struct {
 	value int64
 	delta int64
+}
+
+func NewPNCounter() *PNCounter {
+	return &PNCounter{}
 }
 
 func (c *PNCounter) Value() int64 {
@@ -36,15 +44,30 @@ func (c *PNCounter) Decrement(i int64) {
 	c.delta -= i
 }
 
-func (c *PNCounter) State() *protocol.PNCounterState {
-	return &protocol.PNCounterState{
-		Value: c.value,
+func (c *PNCounter) State() *protocol.CrdtState {
+	return &protocol.CrdtState{
+		State: &protocol.CrdtState_Pncounter{
+			Pncounter: &protocol.PNCounterState{
+				Value: c.value,
+			},
+		},
 	}
 }
 
-func (c *PNCounter) Delta() *protocol.PNCounterDelta {
-	return &protocol.PNCounterDelta{
-		Change: c.delta,
+func (c *PNCounter) HasDelta() bool {
+	return c.delta != 0
+}
+
+func (c *PNCounter) Delta() *protocol.CrdtDelta {
+	if c.delta == 0 {
+		return nil
+	}
+	return &protocol.CrdtDelta{
+		Delta: &protocol.CrdtDelta_Pncounter{
+			Pncounter: &protocol.PNCounterDelta{
+				Change: c.delta,
+			},
+		},
 	}
 }
 
@@ -52,10 +75,20 @@ func (c *PNCounter) ResetDelta() {
 	c.delta = 0
 }
 
-func (c *PNCounter) applyState(state *protocol.PNCounterState) {
-	c.value = state.Value
+func (c *PNCounter) applyState(state *protocol.CrdtState) error {
+	s := state.GetPncounter()
+	if s == nil {
+		return errors.New(fmt.Sprintf("unable to apply state %v to PNCounter", state))
+	}
+	c.value = s.GetValue()
+	return nil
 }
 
-func (c *PNCounter) applyDelta(delta *protocol.PNCounterDelta) {
-	c.value += delta.Change
+func (c *PNCounter) applyDelta(delta *protocol.CrdtDelta) error {
+	d := delta.GetPncounter()
+	if d == nil {
+		return errors.New(fmt.Sprintf("unable to apply delta %v to PNCounter", delta))
+	}
+	c.value += d.GetChange()
+	return nil
 }

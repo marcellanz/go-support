@@ -16,6 +16,7 @@
 package crdt
 
 import (
+	"fmt"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 )
 
@@ -24,24 +25,29 @@ type Flag struct {
 	delta bool
 }
 
+func NewFlag() *Flag {
+	return &Flag{}
+}
+
 func (f Flag) Value() bool {
 	return f.value
 }
 
 func (f *Flag) Enable() {
 	if !f.value {
-		f.value = true
-		f.delta = true
+		f.value, f.delta = true, true
 	}
 }
 
-func (f Flag) Delta() *protocol.FlagDelta {
-	return &protocol.FlagDelta{
-		Value: true,
+func (f Flag) Delta() *protocol.CrdtDelta {
+	return &protocol.CrdtDelta{
+		Delta: &protocol.CrdtDelta_Flag{Flag: &protocol.FlagDelta{
+			Value: f.delta,
+		}},
 	}
 }
 
-func (f Flag) HasDelta() bool {
+func (f *Flag) HasDelta() bool {
 	return f.delta
 }
 
@@ -49,16 +55,30 @@ func (f *Flag) ResetDelta() {
 	f.delta = false
 }
 
-func (f *Flag) ApplyDelta(d *protocol.FlagDelta) {
+func (f *Flag) applyDelta(delta *protocol.CrdtDelta) error {
+	d := delta.GetFlag()
+	if d == nil {
+		return fmt.Errorf("unable to apply delta %+v to Flag", delta)
+	}
 	f.value = f.value || d.Value
+	return nil
 }
 
-func (f Flag) State() *protocol.FlagState {
-	return &protocol.FlagState{
-		Value: f.value,
+func (f Flag) State() *protocol.CrdtState {
+	return &protocol.CrdtState{
+		State: &protocol.CrdtState_Flag{
+			Flag: &protocol.FlagState{
+				Value: f.value,
+			},
+		},
 	}
 }
 
-func (f *Flag) ApplyState(s *protocol.FlagState) {
-	f.value = s.Value
+func (f *Flag) applyState(state *protocol.CrdtState) error {
+	s := state.GetFlag()
+	if s == nil {
+		return fmt.Errorf("unable to apply state %+v to Flag", state)
+	}
+	f.value = s.GetValue()
+	return nil
 }
