@@ -192,7 +192,7 @@ func (esh *EventSourcedServer) handleInit(init *protocol.EventSourcedInit) error
 	}
 
 	if err := esh.handleInitSnapshot(init); err != nil {
-		return NewFailureError("unable to server.Send. %w", err)
+		return NewFailureError("unable to server.Send", err)
 	}
 	esh.subscribeEvents(esh.contexts[eid].EntityInstance)
 	return nil

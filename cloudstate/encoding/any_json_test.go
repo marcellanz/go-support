@@ -16,11 +16,54 @@
 package encoding
 
 import (
-	"fmt"
-	"github.com/golang/protobuf/ptypes/any"
-	"reflect"
 	"testing"
+
+	"github.com/golang/protobuf/ptypes/any"
 )
+
+func TestMarshalling(t *testing.T) {
+	t.Run("marshals to cloudstate any.Any", func(t *testing.T) {
+		s := &a{B: "29", C: 29}
+		x, err := MarshalJSON(s)
+		if err != nil {
+			t.Fail()
+		}
+		url := "json.cloudstate.io/github.com/cloudstateio/go-support/cloudstate/encoding.a"
+		if x.GetTypeUrl() != url {
+			t.Fail()
+		}
+	})
+	t.Run("marshal/unmarshal pointer struct", func(t *testing.T) {
+		s := &a{B: "29", C: 29}
+		x, err := MarshalJSON(s)
+		if err != nil {
+			t.Error(err)
+		}
+		s1 := &a{}
+		err = UnmarshalJSON(x, s1)
+		if err != nil {
+			t.Error(err)
+		}
+		if *s != *s1 {
+			t.Fail()
+		}
+	})
+	t.Run("marshal/unmarshal struct", func(t *testing.T) {
+		s := a{B: "29", C: 29}
+		x, err := MarshalJSON(s)
+		if err != nil {
+			t.Error(err)
+		}
+		s1 := a{}
+		err = UnmarshalJSON(x, &s1)
+		if err != nil {
+			t.Error(err)
+		}
+		if s != s1 {
+			t.Fail()
+		}
+	})
+}
 
 var testsJSON = []struct {
 	name       string
@@ -30,40 +73,11 @@ var testsJSON = []struct {
 	shouldFail bool
 }{
 	{jsonTypeURLPrefix + "/github.com/cloudstateio/go-support/cloudstate/encoding.a",
+		&a{B: "29", C: 29}, &a{}, jsonTypeURLPrefix + "/github.com/cloudstateio/go-support/cloudstate/encoding.a", false},
+	{jsonTypeURLPrefix + "/github.com/cloudstateio/go-support/cloudstate/encoding.a",
 		a{B: "29", C: 29}, a{}, jsonTypeURLPrefix + "/github.com/cloudstateio/go-support/cloudstate/encoding.a", false},
 	{jsonTypeURLPrefix + "/github.com/cloudstateio/go-support/cloudstate/encoding.aDefault" + "_defaultValue",
 		aDefault{}, aDefault{}, jsonTypeURLPrefix + "/github.com/cloudstateio/go-support/cloudstate/encoding.aDefault", false},
-}
-
-func TestMarshallerJSON(t *testing.T) {
-	for _, test := range testsJSON {
-		test0 := test
-		t.Run(fmt.Sprintf("%v", test0.name), func(t *testing.T) {
-			any0, err := MarshalJSON(test0.value)
-			hasErr := err != nil
-			if hasErr && !test0.shouldFail {
-				t.Errorf("err: %v, got: %+v, expected: %+v", err, any0, test0)
-				return
-			} else if !hasErr && test0.shouldFail {
-				t.Errorf("err: %v, got: %+v, expected: %+v", err, any0, test0)
-				return
-			}
-			failed := any0.GetTypeUrl() != test0.typeURL
-			if failed && !test0.shouldFail {
-				t.Errorf("err: %v, got: %+v, expected: %+v", err, any0, test0)
-			} else if !failed && test0.shouldFail {
-				t.Errorf("err: %v, got: %+v, expected: %+v", err, any0, test0)
-			}
-			value := reflect.New(reflect.TypeOf(test0.value))
-			err = UnmarshalJSON(any0, value.Interface())
-			if err != nil {
-				t.Error(err)
-			}
-			if test0.value != value.Elem().Interface() {
-				t.Errorf("err: %v. got: %+v, expected: %+v", err, value.Elem().Interface(), test0.value)
-			}
-		})
-	}
 }
 
 func BenchmarkMarshallerJSON(b *testing.B) {

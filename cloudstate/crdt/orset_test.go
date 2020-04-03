@@ -47,7 +47,7 @@ func TestORSet(t *testing.T) {
 			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 1)
 		}
 		delta := encDecDelta(s.Delta())
-		s.ResetDelta()
+		s.resetDelta()
 		if alen := len(delta.GetOrset().GetAdded()); alen != 1 {
 			t.Fatalf("s.Delta()).GetAdded()): %v; want: %v", alen, 1)
 		}
@@ -68,7 +68,7 @@ func TestORSet(t *testing.T) {
 		if !contains(s.Added(), "two", "three") {
 			t.Error("did not found two and three")
 		}
-		s.ResetDelta()
+		s.resetDelta()
 		if s.HasDelta() {
 			t.Fatalf("set has delta")
 		}
@@ -79,7 +79,7 @@ func TestORSet(t *testing.T) {
 		s.Add(encoding.String("one"))
 		s.Add(encoding.String("two"))
 		s.Add(encoding.String("three"))
-		s.ResetDelta()
+		s.resetDelta()
 		if !contains(s.Value(), "one", "two", "three") {
 			t.Fatalf("removed does not include: one, two, three")
 		}
@@ -110,13 +110,13 @@ func TestORSet(t *testing.T) {
 		s.Add(encoding.String("one"))
 		s.Add(encoding.String("two"))
 		_ = s.Delta()
-		s.ResetDelta()
+		s.resetDelta()
 		s.Clear()
 		if s.Size() != 0 {
 			t.Fatalf("s.Size(): %v; want: %v", len(s.Removed()), 0)
 		}
 		delta := encDecDelta(s.Delta())
-		s.ResetDelta()
+		s.resetDelta()
 		if !delta.GetOrset().GetCleared() {
 			t.Fail()
 		}
@@ -130,14 +130,14 @@ func TestORSet(t *testing.T) {
 		s := NewORSet()
 		s.Add(encoding.String("one"))
 		s.Add(encoding.String("two"))
-		s.ResetDelta()
+		s.resetDelta()
 		s.Remove(encoding.String("one"))
 		s.Remove(encoding.String("two"))
 		if s.Size() != 0 {
 			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 0)
 		}
 		delta := encDecDelta(s.Delta())
-		s.ResetDelta()
+		s.resetDelta()
 		if cleared := delta.GetOrset().GetCleared(); !cleared {
 			t.Fatalf("delta.Cleared: %v; want: %v", cleared, true)
 		}
@@ -151,14 +151,14 @@ func TestORSet(t *testing.T) {
 		s.Add(encoding.String("one"))
 		s.Add(encoding.String("two"))
 		s.Delta()
-		s.ResetDelta()
+		s.resetDelta()
 		s.Add(encoding.String("two"))
 		s.Remove(encoding.String("two"))
 		if s.Size() != 1 {
 			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 1)
 		}
 		//delta := encDecDelta(s.Delta())
-		s.ResetDelta()
+		s.resetDelta()
 		if s.HasDelta() {
 			t.Fatalf("set has delta")
 		}
@@ -169,7 +169,7 @@ func TestORSet(t *testing.T) {
 		s.Add(encoding.String("one"))
 		s.Add(encoding.String("two"))
 		s.Delta()
-		s.ResetDelta()
+		s.resetDelta()
 		s.Remove(encoding.String("two"))
 		s.Add(encoding.String("two"))
 		if s.Size() != 2 {
@@ -183,7 +183,7 @@ func TestORSet(t *testing.T) {
 	t.Run("should not generate a delta when an already existing element is added", func(t *testing.T) {
 		s := NewORSet()
 		s.Add(encoding.String("one"))
-		s.ResetDelta()
+		s.resetDelta()
 		s.Add(encoding.String("one"))
 		if s.Size() != 1 {
 			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 1)
@@ -196,7 +196,7 @@ func TestORSet(t *testing.T) {
 	t.Run("should not generate a delta when a non existing element is removed", func(t *testing.T) {
 		s := NewORSet()
 		s.Add(encoding.String("one"))
-		s.ResetDelta()
+		s.resetDelta()
 		s.Remove(encoding.String("two"))
 		if s.Size() != 1 {
 			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 1)
@@ -209,7 +209,7 @@ func TestORSet(t *testing.T) {
 	t.Run("clear all other deltas when the set is cleared", func(t *testing.T) {
 		s := NewORSet()
 		s.Add(encoding.String("one"))
-		s.ResetDelta()
+		s.resetDelta()
 		s.Add(encoding.String("two"))
 		s.Remove(encoding.String("one"))
 		s.Clear()
@@ -230,7 +230,7 @@ func TestORSet(t *testing.T) {
 	t.Run("should reflect a delta add", func(t *testing.T) {
 		s := NewORSet()
 		s.Add(encoding.String("one"))
-		s.ResetDelta()
+		s.resetDelta()
 		if err := s.applyDelta(encDecDelta(&protocol.CrdtDelta{
 			Delta: &protocol.CrdtDelta_Orset{
 				Orset: &protocol.ORSetDelta{
@@ -243,7 +243,7 @@ func TestORSet(t *testing.T) {
 		if s.Size() != 2 {
 			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 2)
 		}
-		s.ResetDelta()
+		s.resetDelta()
 		if s.HasDelta() {
 			t.Fatalf("set has delta")
 		}
@@ -279,7 +279,7 @@ func TestORSet(t *testing.T) {
 		s := NewORSet()
 		s.Add(encoding.String("one"))
 		s.Add(encoding.String("two"))
-		s.ResetDelta()
+		s.resetDelta()
 		if err := s.applyDelta(encDecDelta(&protocol.CrdtDelta{
 			Delta: &protocol.CrdtDelta_Orset{
 				Orset: &protocol.ORSetDelta{
@@ -306,7 +306,7 @@ func TestORSet(t *testing.T) {
 		s.Add(one)
 		two := encoding.Struct(Example{Field1: "two"})
 		s.Add(two)
-		s.ResetDelta()
+		s.resetDelta()
 		s.Remove(encoding.Struct(Example{Field1: "one"}))
 		if s.Size() != 1 {
 			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 1)

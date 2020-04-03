@@ -38,14 +38,14 @@ func TestLWWRegister(t *testing.T) {
 			t.Errorf("example.Field1: %v; want: %v", example.Field1, "foo")
 		}
 		if r.HasDelta() {
-			t.Errorf("register has lwwRegisterDelta but should not")
+			t.Errorf("register has delta but should not")
 		}
 		state := encDecState(r.State())
 		err = encoding.UnmarshalJSON(state.GetLwwregister().GetValue(), &example)
 		if err != nil {
 			t.Error(err)
 		}
-		r.ResetDelta()
+		r.resetDelta()
 		if example.Field1 != "foo" {
 			t.Errorf("example.Field1: %v; want: %v", example.Field1, "foo")
 		}
@@ -79,7 +79,7 @@ func TestLWWRegister(t *testing.T) {
 		}
 	})
 
-	t.Run("should generate a lwwRegisterDelta", func(t *testing.T) {
+	t.Run("should generate a delta", func(t *testing.T) {
 		r := NewLWWRegister(encoding.Struct(Example{Field1: "foo"}))
 		r.Set(encoding.Struct(Example{Field1: "bar"}))
 		example := Example{}
@@ -91,7 +91,7 @@ func TestLWWRegister(t *testing.T) {
 			t.Errorf("example.Field1: %v; want: %v", example.Field1, "bar")
 		}
 		d := encDecDelta(r.Delta())
-		r.ResetDelta()
+		r.resetDelta()
 		e := Example{}
 		err = encoding.UnmarshalJSON(d.GetLwwregister().GetValue(), &e)
 		if err != nil {
@@ -104,7 +104,7 @@ func TestLWWRegister(t *testing.T) {
 			t.Errorf("r.clock: %v; want: %v", r.clock, Default)
 		}
 		if r.HasDelta() {
-			t.Errorf("register has lwwRegisterDelta but should not")
+			t.Errorf("register has delta but should not")
 		}
 	})
 
@@ -120,7 +120,7 @@ func TestLWWRegister(t *testing.T) {
 			t.Errorf("example.Field1: %v; want: %v", example.Field1, "bar")
 		}
 		d := encDecDelta(r.Delta())
-		r.ResetDelta()
+		r.resetDelta()
 		e := Example{}
 		err = encoding.UnmarshalJSON(d.GetLwwregister().GetValue(), &e)
 		if err != nil {
@@ -136,11 +136,11 @@ func TestLWWRegister(t *testing.T) {
 			t.Fatalf("r.customClockValue: %v; want: %v", cv, 10)
 		}
 		if r.HasDelta() {
-			t.Fatalf("register has lwwRegisterDelta but should not")
+			t.Fatalf("register has delta but should not")
 		}
 	})
 
-	t.Run("should reflect a lwwRegisterDelta update", func(t *testing.T) {
+	t.Run("should reflect a delta update", func(t *testing.T) {
 		r := NewLWWRegister(encoding.Struct(Example{Field1: "foo"}))
 		//r.Set(encoding.Struct(Example{Field1: "foo"})) // TODO: this is not the same, check
 		if err := r.applyDelta(encDecDelta(
@@ -163,7 +163,7 @@ func TestLWWRegister(t *testing.T) {
 			t.Fatalf("example.Field1: %v; want: %v", e.Field1, "bar")
 		}
 		if r.HasDelta() {
-			t.Fatalf("register has lwwRegisterDelta but should not")
+			t.Fatalf("register has delta but should not")
 		}
 		e2 := Example{}
 		err = encoding.UnmarshalJSON(encDecState(r.State()).GetLwwregister().GetValue(), &e2)
@@ -178,7 +178,7 @@ func TestLWWRegister(t *testing.T) {
 	t.Run("should work with primitive types", func(t *testing.T) {
 		r := NewLWWRegister(encoding.String("momo"))
 		state := encDecState(r.State())
-		r.ResetDelta()
+		r.resetDelta()
 		stateValue := encoding.DecodeString(state.GetLwwregister().GetValue())
 		if stateValue != "momo" {
 			t.Fatalf("stateValue: %v; want: %v", stateValue, "momo")

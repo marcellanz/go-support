@@ -15,16 +15,16 @@
 
 package crdt
 
-type EntityInstance struct {
-	EntityId EntityId
-	// Instance is an instance of the Entity.Entity
-	Instance interface{}
-	// EventSourcedEntity describes the instance
-	Entity *Entity
-	// active indicates if this context is active
-	active bool // TODO: inactivate a context in case of errors
+type (
+	ServiceName string
+	EntityId    string
+	CommandId   int64
+)
+
+func (sn ServiceName) String() string {
+	return string(sn)
 }
 
-func (e *EntityInstance) deactivate() {
-	e.active = false
+func (id CommandId) Value() int64 {
+	return int64(id)
 }

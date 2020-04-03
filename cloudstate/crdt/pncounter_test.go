@@ -86,7 +86,7 @@ func TestPNCounter(t *testing.T) {
 		if d := encDecDelta(c.Delta()).GetPncounter().GetChange(); d != 10 {
 			t.Fatalf("c.Delta: %v; want: %v", d, 10)
 		}
-		c.ResetDelta()
+		c.resetDelta()
 		if d := c.Delta(); d != nil {
 			t.Fatalf("c.Delta() should have been nil but was not: %+v", d)
 		}
@@ -101,7 +101,7 @@ func TestPNCounter(t *testing.T) {
 		if d := encDecDelta(c.Delta()).GetPncounter().GetChange(); d != -7 {
 			t.Fatalf("c.Delta: %v; want: %v", d, -7)
 		}
-		c.ResetDelta()
+		c.resetDelta()
 		if d := c.Delta(); d != nil {
 			t.Fatalf("c.Delta() should have been nil but was not: %+v", d)
 		}
@@ -115,7 +115,7 @@ func TestPNCounter(t *testing.T) {
 		if v := encDecState(c.State()).GetPncounter().GetValue(); v != 10 {
 			t.Fatalf("c.Value: %v; want: %v", v, 10)
 		}
-		c.ResetDelta()
+		c.resetDelta()
 		if d := c.Delta(); d != nil {
 			t.Fatalf("c.Delta() should have been nil but was not: %+v", d)
 		}

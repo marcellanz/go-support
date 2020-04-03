@@ -49,14 +49,18 @@ func TestFlag(t *testing.T) {
 	})
 	t.Run("should reflect a state update", func(t *testing.T) {
 		f := NewFlag()
-		f.applyState(encDecState(state(true)))
+		if err := f.applyState(encDecState(state(true))); err != nil {
+			t.Fatal(err)
+		}
 		if !f.Value() {
 			t.Errorf("flag should be true but was not")
 		}
 	})
-	t.Run("should reflect a lwwRegisterDelta update", func(t *testing.T) {
+	t.Run("should reflect a delta update", func(t *testing.T) {
 		f := NewFlag()
-		f.applyDelta(delta(true))
+		if err := f.applyDelta(delta(true)); err != nil {
+			t.Fatal(err)
+		}
 		if !f.Value() {
 			t.Errorf("flag should be true but was not")
 		}
@@ -67,9 +71,9 @@ func TestFlag(t *testing.T) {
 		if !encDecDelta(f.Delta()).GetFlag().GetValue() {
 			t.Errorf("flag delta should be true but was not")
 		}
-		f.ResetDelta()
+		f.resetDelta()
 		if f.HasDelta() {
-			t.Errorf("flag should have no lwwRegisterDelta")
+			t.Errorf("flag should have no delta")
 		}
 	})
 	t.Run("should return its state", func(t *testing.T) {
@@ -77,14 +81,14 @@ func TestFlag(t *testing.T) {
 		if encDecState(f.State()).GetFlag().GetValue() {
 			t.Errorf("value should be false but was not")
 		}
-		f.ResetDelta()
+		f.resetDelta()
 		f.Enable()
 		if !encDecState(f.State()).GetFlag().GetValue() {
-			t.Errorf("lwwRegisterDelta should be true but was not")
+			t.Errorf("delta should be true but was not")
 		}
-		f.ResetDelta()
+		f.resetDelta()
 		if f.HasDelta() {
-			t.Errorf("flag should have no lwwRegisterDelta")
+			t.Errorf("flag should have no delta")
 		}
 	})
 }

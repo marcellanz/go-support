@@ -31,8 +31,10 @@ type ORMap struct {
 
 type orMapValue struct {
 	key   *any.Any
-	value crdt
+	value CRDT
 }
+
+var _ CRDT = (*ORMap)(nil)
 
 type orMapDelta struct {
 	added   map[uint64]*any.Any
@@ -64,10 +66,7 @@ func (m *ORMap) Size() int {
 func (m *ORMap) Values() []*protocol.CrdtState {
 	values := make([]*protocol.CrdtState, 0, len(m.value))
 	for _, v := range m.value {
-		switch v.value.(type) {
-		case *GCounter:
-			values = append(values, v.value.State())
-		}
+		values = append(values, v.value.State())
 	}
 	return values
 }
@@ -84,30 +83,10 @@ func (m *ORMap) Get(key *any.Any) *protocol.CrdtState {
 	if s, ok := m.value[m.hashAny(key)]; ok {
 		return s.value.State()
 	}
-	// TODO: how about default values?
 	return nil
 }
 
-func (m *ORMap) GCounter(key *any.Any) (*GCounter, error) {
-	if v, ok := m.value[m.hashAny(key)]; ok {
-		counter, ok := v.value.(*GCounter)
-		if ok {
-			return counter, nil
-		}
-		return nil, errors.New(fmt.Sprintf("value at key: %v is not of type GCounter but: %+v", key, v))
-	}
-	return nil, nil
-}
-
-func (m *ORMap) SetGCounter(key *any.Any, counter *GCounter) {
-	m.set(key, counter)
-}
-
-func (m *ORMap) SetPNCounter(key *any.Any, counter *PNCounter) {
-	//m.set(key, counter)
-}
-
-func (m *ORMap) set(key *any.Any, value crdt) {
+func (m *ORMap) set(key *any.Any, value CRDT) {
 	hk := m.hashAny(key)
 	// why that?
 	if _, has := m.value[hk]; has {
@@ -210,16 +189,15 @@ func (m *ORMap) applyDelta(delta *protocol.CrdtDelta) error {
 	}
 	for _, r := range d.GetRemoved() {
 		if m.HasKey(r) {
-			//m.Delete(r)
 			delete(m.value, m.hashAny(r))
 		}
 	}
 	for _, a := range d.Added {
+		if m.HasKey(a.GetKey()) {
+			continue
+		}
 		switch a.GetValue().GetState().(type) {
 		case *protocol.CrdtState_Gcounter:
-			if m.HasKey(a.GetKey()) {
-				continue
-			}
 			crdt := NewGCounter()
 			if err := crdt.applyState(a.GetValue()); err != nil {
 				return err
@@ -228,25 +206,21 @@ func (m *ORMap) applyDelta(delta *protocol.CrdtDelta) error {
 				key:   a.GetKey(),
 				value: crdt,
 			}
-			// TODO: handle other types
 		}
 	}
 	for _, u := range d.Updated {
 		if v, has := m.value[m.hashAny(u.GetKey())]; has {
-			switch t := v.value.(type) {
-			case *GCounter:
-				if err := t.applyDelta(u.GetDelta()); err != nil {
-					return err
-				}
+			if err := v.value.applyDelta(u.GetDelta()); err != nil {
+				return err
 			}
 		}
 	}
 	return nil
 }
 
-func (m *ORMap) ResetDelta() {
+func (m *ORMap) resetDelta() {
 	for _, v := range m.value {
-		v.value.ResetDelta()
+		v.value.resetDelta()
 	}
 	m.delta.cleared = false // whats the thing with cleared to be different to orMapDelta.clear()?
 	m.delta.added = make(map[uint64]*any.Any)
@@ -271,62 +245,20 @@ func (m *ORMap) State() *protocol.CrdtState {
 }
 
 func (m *ORMap) applyState(state *protocol.CrdtState) error {
-	orMapState := state.GetOrmap()
-	if orMapState == nil {
+	s := state.GetOrmap()
+	if s == nil {
 		return fmt.Errorf("unable to apply state %v to the ORMap", state)
 	}
 	m.value = make(map[uint64]*orMapValue)
-	for _, entry := range orMapState.GetEntries() {
-		mval := &orMapValue{
-			key: entry.GetKey(),
+	for _, entry := range s.GetEntries() {
+		v := &orMapValue{
+			key:   entry.GetKey(),
+			value: newFor(entry.GetValue()),
 		}
-		switch entry.GetValue().GetState().(type) {
-		case *protocol.CrdtState_Gcounter:
-			c := NewGCounter()
-			if err := c.applyState(entry.GetValue()); err != nil {
-				return err
-			}
-			mval.value = c
-		case *protocol.CrdtState_Flag:
-			f := NewFlag()
-			if err := f.applyState(entry.GetValue()); err != nil {
-				return err
-			}
-			mval.value = f
-		case *protocol.CrdtState_Lwwregister:
-			r := NewLWWRegister(nil)
-			if err := r.applyState(entry.GetValue()); err != nil {
-				return err
-			}
-			mval.value = r
-		case *protocol.CrdtState_Ormap:
-			m := NewORMap()
-			if err := m.applyState(entry.GetValue()); err != nil {
-				return err
-			}
-			mval.value = m
-		case *protocol.CrdtState_Orset:
-			s := NewORSet()
-			if err := s.applyState(entry.GetValue()); err != nil {
-				return err
-			}
-			mval.value = s
-		case *protocol.CrdtState_Pncounter:
-			c := NewPNCounter()
-			if err := c.applyState(entry.GetValue()); err != nil {
-				return err
-			}
-			mval.value = c
-		case *protocol.CrdtState_Vote:
-			v := NewVote()
-			if err := v.applyState(entry.GetValue()); err != nil {
-				return err
-			}
-			mval.value = v
-		default:
-			return fmt.Errorf("unable to apply state %+v to the ORMap", state)
+		if err := v.value.applyState(entry.GetValue()); err != nil {
+			return err
 		}
-		m.value[m.hashAny(mval.key)] = mval
+		m.value[m.hashAny(v.key)] = v
 	}
 	return nil
 }

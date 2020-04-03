@@ -34,6 +34,8 @@ type lwwRegisterDelta struct {
 	customClockValue int64
 }
 
+var _ CRDT = (*LWWRegister)(nil)
+
 func NewLWWRegister(x *any.Any) *LWWRegister {
 	return NewLWWRegisterWithClock(x, Default, 0)
 }
@@ -85,7 +87,7 @@ func (r *LWWRegister) HasDelta() bool {
 	return r.delta.value != nil
 }
 
-func (r *LWWRegister) ResetDelta() {
+func (r *LWWRegister) resetDelta() {
 	r.delta = lwwRegisterDelta{}
 	r.clock = Default
 	r.customClockValue = 0

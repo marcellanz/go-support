@@ -17,4 +17,10 @@ package cloudstate
 
 const (
 	EventSourced = "cloudstate.eventsourced.EventSourced"
+	Crdt         = "cloudstate.crdt.Crdt"
+)
+
+type (
+	ServiceName string
+	EntityId    string
 )

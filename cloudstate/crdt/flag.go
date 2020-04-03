@@ -25,6 +25,8 @@ type Flag struct {
 	delta bool
 }
 
+var _ CRDT = (*Flag)(nil)
+
 func NewFlag() *Flag {
 	return &Flag{}
 }
@@ -41,9 +43,11 @@ func (f *Flag) Enable() {
 
 func (f Flag) Delta() *protocol.CrdtDelta {
 	return &protocol.CrdtDelta{
-		Delta: &protocol.CrdtDelta_Flag{Flag: &protocol.FlagDelta{
-			Value: f.delta,
-		}},
+		Delta: &protocol.CrdtDelta_Flag{
+			Flag: &protocol.FlagDelta{
+				Value: f.delta,
+			},
+		},
 	}
 }
 
@@ -51,7 +55,7 @@ func (f *Flag) HasDelta() bool {
 	return f.delta
 }
 
-func (f *Flag) ResetDelta() {
+func (f *Flag) resetDelta() {
 	f.delta = false
 }
 

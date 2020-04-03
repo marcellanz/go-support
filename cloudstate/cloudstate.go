@@ -24,6 +24,8 @@ import (
 	"os"
 	"runtime"
 
+	"github.com/cloudstateio/go-support/cloudstate/crdt"
+
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/golang/protobuf/descriptor"
 	"github.com/golang/protobuf/proto"
@@ -42,6 +44,7 @@ type CloudState struct {
 	server                *grpc.Server
 	entityDiscoveryServer *EntityDiscoveryServer
 	eventSourcedServer    *EventSourcedServer
+	crdtServer            *crdt.Server
 }
 
 // New returns a new CloudState instance.
@@ -54,9 +57,11 @@ func New(config Config) (*CloudState, error) {
 		server:                grpc.NewServer(),
 		entityDiscoveryServer: eds,
 		eventSourcedServer:    newEventSourcedServer(),
+		crdtServer:            crdt.NewServer(),
 	}
 	protocol.RegisterEntityDiscoveryServer(cs.server, cs.entityDiscoveryServer)
 	protocol.RegisterEventSourcedServer(cs.server, cs.eventSourcedServer)
+	protocol.RegisterCrdtServer(cs.server, cs.crdtServer)
 	return cs, nil
 }
 
@@ -97,6 +102,16 @@ func (cs *CloudState) RegisterEventSourcedEntity(ese *EventSourcedEntity, config
 		}
 	})
 	return
+}
+
+func (cs *CloudState) RegisterCrdt(e *crdt.Entity, config DescriptorConfig) error {
+	if err := cs.crdtServer.Register(e, crdt.ServiceName(config.Service)); err != nil {
+		return err
+	}
+	if err := cs.entityDiscoveryServer.registerCrdtEntity(e, config); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Run runs the CloudState instance.
@@ -201,6 +216,17 @@ func (r *EntityDiscoveryServer) registerEntity(e *EventSourcedEntity, config Des
 		EntityType:    EventSourced,
 		ServiceName:   e.ServiceName,
 		PersistenceId: e.PersistenceID,
+	})
+	return r.updateSpec()
+}
+
+func (r *EntityDiscoveryServer) registerCrdtEntity(e *crdt.Entity, config DescriptorConfig) error {
+	if err := r.resolveFileDescriptors(config); err != nil {
+		return fmt.Errorf("failed to resolveFileDescriptor for DescriptorConfig: %+v: %w", config, err)
+	}
+	r.entitySpec.Entities = append(r.entitySpec.Entities, &protocol.Entity{
+		EntityType:  Crdt,
+		ServiceName: e.ServiceName.String(),
 	})
 	return r.updateSpec()
 }

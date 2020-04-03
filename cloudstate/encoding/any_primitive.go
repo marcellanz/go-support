@@ -16,9 +16,10 @@
 package encoding
 
 import (
+	"math"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/any"
-	"math"
 )
 
 const (
@@ -36,8 +37,7 @@ const (
 const fieldKey = 1 << 3
 
 func MarshalPrimitive(i interface{}) (*any.Any, error) {
-	buf := make([]byte, 0)
-	buffer := proto.NewBuffer(buf)
+	buffer := proto.NewBuffer(make([]byte, 0))
 	buffer.SetDeterministic(true)
 	// see https://developers.google.com/protocol-buffers/docs/encoding#structure
 	var typeUrl string

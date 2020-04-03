@@ -17,24 +17,30 @@ package encoding
 
 import (
 	"encoding/json"
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes/any"
+	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/any"
 )
 
 const (
 	jsonTypeURLPrefix = "json.cloudstate.io"
 )
 
+func JSON(value interface{}) (*any.Any, error) {
+	return MarshalJSON(value)
+}
+
 func MarshalJSON(value interface{}) (*any.Any, error) {
 	typeOf := reflect.TypeOf(value)
-	if typeOf.Kind() != reflect.Struct {
-		return nil, ErrNotMarshalled
+	if typeOf.Kind() == reflect.Ptr {
+		typeOf = reflect.ValueOf(value).Elem().Type()
 	}
 	buffer := proto.NewBuffer(make([]byte, 0))
 	buffer.SetDeterministic(true)
-	typeUrl := jsonTypeURLPrefix + "/" + typeOf.PkgPath() + "." + typeOf.Name()
+	typeUrl := fmt.Sprintf("%s/%s.%s", jsonTypeURLPrefix, typeOf.PkgPath(), typeOf.Name())
 	_ = buffer.EncodeVarint(fieldKey | proto.WireBytes)
 	bytes, err := json.Marshal(value)
 	if err != nil {

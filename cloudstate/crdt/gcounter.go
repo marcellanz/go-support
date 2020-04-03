@@ -26,6 +26,8 @@ type GCounter struct {
 	delta uint64
 }
 
+var _ CRDT = (*GCounter)(nil)
+
 func NewGCounter() *GCounter {
 	return &GCounter{}
 }
@@ -66,7 +68,7 @@ func (c *GCounter) Delta() *protocol.CrdtDelta {
 	}
 }
 
-func (c *GCounter) ResetDelta() {
+func (c *GCounter) resetDelta() {
 	c.delta = 0
 }
 

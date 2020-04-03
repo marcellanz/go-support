@@ -31,7 +31,7 @@ func TestORMap(t *testing.T) {
 		if m.Delta() != nil {
 			t.Fatal("m.Delta() is not nil but should")
 		}
-		m.ResetDelta()
+		m.resetDelta()
 		if elen := len(encDecState(m.State()).GetOrmap().Entries); elen > 0 {
 			t.Fatalf("len(Entries): %v; want: %v", elen, 0)
 		}
@@ -74,7 +74,7 @@ func TestORMap(t *testing.T) {
 		if d := m.Delta(); d != nil {
 			t.Fatalf("m.Delta(): %v; want: %v", d, nil)
 		}
-		m.ResetDelta()
+		m.resetDelta()
 		if l := len(encDecState(m.State()).GetOrmap().Entries); l != 2 {
 			t.Fatalf("len(map.Entries): %v; want: %v", l, 2)
 		}
@@ -89,7 +89,7 @@ func TestORMap(t *testing.T) {
 			t.Fatalf("m.Size(): %v; want: %v", s, 1)
 		}
 		delta := m.Delta()
-		m.ResetDelta()
+		m.resetDelta()
 		if l := len(encDecDelta(delta).GetOrmap().GetAdded()); l != 1 {
 			t.Fatalf("delta added length: %v; want: %v", l, 1)
 		}
@@ -114,7 +114,7 @@ func TestORMap(t *testing.T) {
 			t.Fatalf("m.Size(): %v; want: %v", s, 2)
 		}
 		delta2 := encDecDelta(m.Delta())
-		m.ResetDelta()
+		m.resetDelta()
 		if l := len(delta2.GetOrmap().GetAdded()); l != 1 {
 			t.Fatalf("delta added length: %v; want: %v", l, 1)
 		}
@@ -140,7 +140,7 @@ func TestORMap(t *testing.T) {
 		m.SetGCounter(encoding.String("two"), NewGCounter())
 		m.SetGCounter(encoding.String("three"), NewGCounter())
 		m.Delta()
-		m.ResetDelta()
+		m.resetDelta()
 		if !m.HasKey(encoding.String("one")) {
 			t.Fatalf("map should have key: %v but had not", "one")
 		}
@@ -168,7 +168,7 @@ func TestORMap(t *testing.T) {
 			t.Fatalf("map should have key: %v but had not", "three")
 		}
 		delta := encDecDelta(m.Delta())
-		m.ResetDelta()
+		m.resetDelta()
 		if l := len(delta.GetOrmap().GetRemoved()); l != 2 {
 			t.Fatalf("length of delta.removed: %v; want: %v", l, 2)
 		}
@@ -182,14 +182,14 @@ func TestORMap(t *testing.T) {
 	t.Run("should generate an update delta", func(t *testing.T) {
 		m := NewORMap()
 		m.SetGCounter(encoding.String("one"), NewGCounter())
-		m.ResetDelta()
+		m.resetDelta()
 		counter, err := m.GCounter(encoding.String("one"))
 		if err != nil {
 			t.Fatal(err)
 		}
 		counter.Increment(5)
 		delta := encDecDelta(m.Delta())
-		m.ResetDelta()
+		m.resetDelta()
 		if l := len(delta.GetOrmap().GetUpdated()); l != 1 {
 			t.Fatalf("length of delta.updated: %v; want: %v", l, 1)
 		}
@@ -209,13 +209,13 @@ func TestORMap(t *testing.T) {
 		m := NewORMap()
 		m.SetGCounter(encoding.String("one"), NewGCounter())
 		m.SetGCounter(encoding.String("two"), NewGCounter())
-		m.ResetDelta()
+		m.resetDelta()
 		m.Clear()
 		if s := m.Size(); s != 0 {
 			t.Fatalf("m.Size(): %v; want: %v", s, 0)
 		}
 		delta := encDecDelta(m.Delta())
-		m.ResetDelta()
+		m.resetDelta()
 		if c := delta.GetOrmap().GetCleared(); !c {
 			t.Fatalf("delta cleared: %v; want: %v", c, true)
 		}
@@ -227,14 +227,14 @@ func TestORMap(t *testing.T) {
 		m := NewORMap()
 		m.SetGCounter(encoding.String("one"), NewGCounter())
 		m.SetGCounter(encoding.String("two"), NewGCounter())
-		m.ResetDelta()
+		m.resetDelta()
 		m.Delete(encoding.String("one"))
 		m.Delete(encoding.String("two"))
 		if s := m.Size(); s != 0 {
 			t.Fatalf("m.Size(): %v; want: %v", s, 0)
 		}
 		delta := encDecDelta(m.Delta())
-		m.ResetDelta()
+		m.resetDelta()
 		if c := delta.GetOrmap().GetCleared(); !c {
 			t.Fatalf("delta cleared: %v; want: %v", c, true)
 		}
@@ -245,7 +245,7 @@ func TestORMap(t *testing.T) {
 	t.Run("should not generate a delta when an added element is removed", func(t *testing.T) {
 		m := NewORMap()
 		m.SetGCounter(encoding.String("one"), NewGCounter())
-		m.ResetDelta()
+		m.resetDelta()
 		m.SetGCounter(encoding.String("two"), NewGCounter())
 		m.Delete(encoding.String("two"))
 		if s := m.Size(); s != 1 {
@@ -259,14 +259,14 @@ func TestORMap(t *testing.T) {
 		m := NewORMap()
 		m.SetGCounter(encoding.String("one"), NewGCounter())
 		m.SetGCounter(encoding.String("two"), NewGCounter())
-		m.ResetDelta()
+		m.resetDelta()
 		m.Delete(encoding.String("two"))
 		m.SetGCounter(encoding.String("two"), NewGCounter())
 		if s := m.Size(); s != 2 {
 			t.Fatalf("m.Size(): %v; want: %v", s, 2)
 		}
 		delta := encDecDelta(m.Delta())
-		m.ResetDelta()
+		m.resetDelta()
 		if l := len(delta.GetOrmap().GetRemoved()); l != 1 {
 			t.Fatalf("length of delta.removed: %v; want: %v", l, 1)
 		}
@@ -280,7 +280,7 @@ func TestORMap(t *testing.T) {
 	t.Run("should not generate a delta when a non existing element is removed", func(t *testing.T) {
 		m := NewORMap()
 		m.SetGCounter(encoding.String("one"), NewGCounter())
-		m.ResetDelta()
+		m.resetDelta()
 		m.Delete(encoding.String("two"))
 		if s := m.Size(); s != 1 {
 			t.Fatalf("m.Size(): %v; want: %v", s, 1)
@@ -292,13 +292,13 @@ func TestORMap(t *testing.T) {
 	t.Run("should generate a delta when an already existing element is set", func(t *testing.T) {
 		m := NewORMap()
 		m.SetGCounter(encoding.String("one"), NewGCounter())
-		m.ResetDelta()
+		m.resetDelta()
 		m.SetGCounter(encoding.String("one"), NewGCounter())
 		if s := m.Size(); s != 1 {
 			t.Fatalf("m.Size(): %v; want: %v", s, 1)
 		}
 		delta := encDecDelta(m.Delta())
-		m.ResetDelta()
+		m.resetDelta()
 		if l := len(delta.GetOrmap().GetRemoved()); l != 1 {
 			t.Fatalf("length of delta.removed: %v; want: %v", l, 1)
 		}
@@ -313,7 +313,7 @@ func TestORMap(t *testing.T) {
 		m := NewORMap()
 		m.SetGCounter(encoding.String("one"), NewGCounter())
 		m.SetGCounter(encoding.String("two"), NewGCounter())
-		m.ResetDelta()
+		m.resetDelta()
 		counter, err := m.GCounter(encoding.String("two"))
 		if err != nil {
 			t.Fatal(err)
@@ -328,7 +328,7 @@ func TestORMap(t *testing.T) {
 			t.Fatalf("m.Size(): %v; want: %v", s, 0)
 		}
 		delta := encDecDelta(m.Delta())
-		m.ResetDelta()
+		m.resetDelta()
 		if c := delta.GetOrmap().GetCleared(); !c {
 			t.Fatalf("ormap cleared: %v; want: %v", c, true)
 		}
@@ -345,7 +345,7 @@ func TestORMap(t *testing.T) {
 	t.Run("should reflect a delta add", func(t *testing.T) {
 		m := NewORMap()
 		m.SetGCounter(encoding.String("one"), NewGCounter())
-		m.ResetDelta()
+		m.resetDelta()
 		err := m.applyDelta(encDecDelta(&protocol.CrdtDelta{
 			Delta: &protocol.CrdtDelta_Ormap{Ormap: &protocol.ORMapDelta{
 				Added: append(make([]*protocol.ORMapEntry, 0), &protocol.ORMapEntry{
@@ -379,7 +379,7 @@ func TestORMap(t *testing.T) {
 		if d := m.Delta(); d != nil {
 			t.Fatalf("m.Delta(): %v; want: %v", d, nil)
 		}
-		m.ResetDelta()
+		m.resetDelta()
 		if l := len(encDecState(m.State()).GetOrmap().GetEntries()); l != 2 {
 			t.Fatalf("state entries len: %v; want: %v", l, 2)
 		}
@@ -388,7 +388,7 @@ func TestORMap(t *testing.T) {
 		m := NewORMap()
 		m.SetGCounter(encoding.String("one"), NewGCounter())
 		m.SetGCounter(encoding.String("two"), NewGCounter())
-		m.ResetDelta()
+		m.resetDelta()
 		err := m.applyDelta(encDecDelta(&protocol.CrdtDelta{
 			Delta: &protocol.CrdtDelta_Ormap{
 				Ormap: &protocol.ORMapDelta{
@@ -407,7 +407,7 @@ func TestORMap(t *testing.T) {
 		if d := m.Delta(); d != nil {
 			t.Fatalf("m.Delta(): %v; want: %v", d, nil)
 		}
-		m.ResetDelta()
+		m.resetDelta()
 		if l := len(encDecState(m.State()).GetOrmap().GetEntries()); l != 1 {
 			t.Fatalf("state entries len: %v; want: %v", l, 1)
 		}
@@ -416,7 +416,7 @@ func TestORMap(t *testing.T) {
 		m := NewORMap()
 		m.SetGCounter(encoding.String("one"), NewGCounter())
 		m.SetGCounter(encoding.String("two"), NewGCounter())
-		m.ResetDelta()
+		m.resetDelta()
 		err := m.applyDelta(encDecDelta(&protocol.CrdtDelta{
 			Delta: &protocol.CrdtDelta_Ormap{
 				Ormap: &protocol.ORMapDelta{
@@ -432,7 +432,7 @@ func TestORMap(t *testing.T) {
 		if d := m.Delta(); d != nil {
 			t.Fatalf("m.Delta(): %v; want: %v", d, nil)
 		}
-		m.ResetDelta()
+		m.resetDelta()
 		if l := len(encDecState(m.State()).GetOrmap().GetEntries()); l != 0 {
 			t.Fatalf("state entries len: %v; want: %v", l, 0)
 		}
@@ -444,7 +444,7 @@ func TestORMap(t *testing.T) {
 		}
 		m.SetGCounter(encoding.Struct(&c{Field1: "one"}), NewGCounter())
 		m.SetGCounter(encoding.Struct(&c{Field1: "two"}), NewGCounter())
-		m.ResetDelta()
+		m.resetDelta()
 		m.Delete(encoding.Struct(&c{Field1: "one"}))
 		if s := m.Size(); s != 1 {
 			t.Fatalf("m.Size(): %v; want: %v", s, 1)
@@ -466,7 +466,7 @@ func TestORMap(t *testing.T) {
 		m := NewORMap()
 		m.SetGCounter(encoding.Struct(struct{ Foo string }{Foo: "bar"}), NewGCounter())
 		m.SetGCounter(encoding.Struct(struct{ Foo string }{Foo: "baz"}), NewGCounter())
-		m.ResetDelta()
+		m.resetDelta()
 		m.Delete(encoding.Struct(struct{ Foo string }{Foo: "bar"}))
 		if s := m.Size(); s != 1 {
 			t.Fatalf("m.Size(): %v; want: %v", s, 1)

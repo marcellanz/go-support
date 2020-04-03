@@ -30,6 +30,8 @@ type GSet struct {
 	anyHasher
 }
 
+var _ CRDT = (*GSet)(nil)
+
 func NewGSet() *GSet {
 	return &GSet{
 		value:     make(map[uint64]*any.Any),
@@ -95,7 +97,7 @@ func (s GSet) Delta() *protocol.CrdtDelta {
 	}
 }
 
-func (s *GSet) ResetDelta() {
+func (s *GSet) resetDelta() {
 	s.added = make(map[uint64]*any.Any)
 }
 

@@ -19,9 +19,10 @@ import (
 	"bytes"
 	"compress/gzip"
 	"errors"
+	"io/ioutil"
+
 	"github.com/golang/protobuf/proto"
 	filedescr "github.com/golang/protobuf/protoc-gen-go/descriptor"
-	"io/ioutil"
 )
 
 const protoAnyBase = "type.googleapis.com"

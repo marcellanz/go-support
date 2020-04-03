@@ -15,7 +15,14 @@
 
 package encoding
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/golang/protobuf/ptypes/any"
+)
 
 var ErrNotMarshalled = errors.New("not marshalled")
 var ErrNotUnmarshalled = errors.New("not unmarshalled")
+
+type AnyEncFunc func(i interface{}) (*any.Any, error)
+type AnyDecFunc func(any *any.Any, target interface{}) error

@@ -343,8 +343,8 @@ func (*CrdtStreamOut) XXX_OneofWrappers() []interface{} {
 	}
 }
 
-// The CRDT state. This represents the full state of a CRDT. When received, a user function should replace the current
-// state with this, not apply it as a delta. This includes both for the top level CRDT, and embedded CRDTs, such as
+// The crdt state. This represents the full state of a crdt. When received, a user function should replace the current
+// state with this, not apply it as a delta. This includes both for the top level crdt, and embedded CRDTs, such as
 // the values of an ORMap.
 type CrdtState struct {
 	// Types that are valid to be assigned to State:
@@ -799,7 +799,7 @@ func (m *FlagState) GetValue() bool {
 //
 // Like an OR-Set, an OR-Map may have items added and removed, with the condition that an item must be observed to be
 // in the map before it is removed. The values of the map are CRDTs themselves. Different keys are allowed to use
-// different CRDTs, and if an item is removed, and then replaced, the new value may be a different CRDT.
+// different CRDTs, and if an item is removed, and then replaced, the new value may be a different crdt.
 type ORMapState struct {
 	// The entries of the map.
 	Entries              []*ORMapEntry `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
@@ -844,7 +844,7 @@ func (m *ORMapState) GetEntries() []*ORMapEntry {
 type ORMapEntry struct {
 	// The entry key.
 	Key *any.Any `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	// The value of the entry, a CRDT itself.
+	// The value of the entry, a crdt itself.
 	Value                *CrdtState `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
 	XXX_unrecognized     []byte     `json:"-"`
@@ -949,7 +949,7 @@ func (m *VoteState) GetSelfVote() bool {
 	return false
 }
 
-// A CRDT delta
+// A crdt delta
 //
 // Deltas only carry the change in value, not the full value (unless
 type CrdtDelta struct {

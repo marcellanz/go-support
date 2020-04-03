@@ -16,7 +16,6 @@
 package crdt
 
 import (
-	"errors"
 	"fmt"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/golang/protobuf/ptypes/any"
@@ -30,6 +29,8 @@ type ORSet struct {
 	cleared bool
 	anyHasher
 }
+
+var _ CRDT = (*ORSet)(nil)
 
 func NewORSet() *ORSet {
 	return &ORSet{
@@ -74,14 +75,14 @@ func (s *ORSet) Remove(a *any.Any) {
 }
 
 func (s *ORSet) Clear() {
-	s.cleared = true
+	s.value = make(map[uint64]*any.Any)
 	s.added = make(map[uint64]*any.Any)
 	s.removed = make(map[uint64]*any.Any)
-	s.value = make(map[uint64]*any.Any)
+	s.cleared = true
 }
 
 func (s ORSet) Value() []*any.Any {
-	val := make([]*any.Any, 0, s.Size())
+	val := make([]*any.Any, 0, len(s.value))
 	for _, v := range s.value {
 		val = append(val, v)
 	}
@@ -114,6 +115,20 @@ func (s *ORSet) State() *protocol.CrdtState {
 	}
 }
 
+func (s *ORSet) applyState(state *protocol.CrdtState) error {
+	set := state.GetOrset()
+	if set == nil {
+		return fmt.Errorf("unable to delta state %v to ORSet", state)
+	}
+	s.value = make(map[uint64]*any.Any)
+	if items := set.GetItems(); len(items) > 0 {
+		for _, a := range items {
+			s.value[s.hashAny(a)] = a
+		}
+	}
+	return nil
+}
+
 func (s *ORSet) Delta() *protocol.CrdtDelta {
 	return &protocol.CrdtDelta{
 		Delta: &protocol.CrdtDelta_Orset{
@@ -130,30 +145,16 @@ func (s *ORSet) HasDelta() bool {
 	return s.cleared == true || len(s.added) > 0 || len(s.removed) > 0
 }
 
-func (s *ORSet) ResetDelta() {
+func (s *ORSet) resetDelta() {
 	s.cleared = false
 	s.added = make(map[uint64]*any.Any)
 	s.removed = make(map[uint64]*any.Any)
 }
 
-func (s *ORSet) applyState(state *protocol.CrdtState) error {
-	ostate := state.GetOrset()
-	if ostate == nil {
-		return errors.New(fmt.Sprintf("unable to delta state %v to ORSet", state))
-	}
-	s.value = make(map[uint64]*any.Any)
-	if items := ostate.GetItems(); len(items) != 0 {
-		for _, a := range items {
-			s.value[s.hashAny(a)] = a
-		}
-	}
-	return nil
-}
-
 func (s *ORSet) applyDelta(delta *protocol.CrdtDelta) error {
 	d := delta.GetOrset()
 	if d == nil {
-		return errors.New(fmt.Sprintf("unable to delta %v to ORSet", delta))
+		return fmt.Errorf("unable to delta %v to ORSet", delta)
 	}
 	if d.GetCleared() {
 		s.value = make(map[uint64]*any.Any)

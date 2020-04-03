@@ -91,7 +91,7 @@ func TestVote(t *testing.T) {
 		v := NewVote()
 		v.Vote(true)
 		delta := encDecDelta(v.Delta())
-		v.ResetDelta()
+		v.resetDelta()
 		if dv := delta.GetVote().GetSelfVote(); dv != true {
 			t.Fatalf("delta.SelfVote(): %v; want: %v", dv, true)
 		}
@@ -107,7 +107,7 @@ func TestVote(t *testing.T) {
 
 		v.Vote(false)
 		delta = encDecDelta(v.Delta())
-		v.ResetDelta()
+		v.resetDelta()
 		if dv := delta.GetVote().GetSelfVote(); dv != false {
 			t.Fatalf("delta.SelfVote(): %v; want: %v", dv, false)
 		}
@@ -124,7 +124,7 @@ func TestVote(t *testing.T) {
 	t.Run("should return its state", func(t *testing.T) {
 		v := NewVote()
 		state1 := encDecState(v.State())
-		v.ResetDelta()
+		v.resetDelta()
 		if sv := state1.GetVote().GetSelfVote(); sv != false {
 			t.Fatalf("state.GetSelfVote(): %v; want: %v", sv, false)
 		}
@@ -137,7 +137,7 @@ func TestVote(t *testing.T) {
 
 		v.Vote(true)
 		state2 := encDecState(v.State())
-		v.ResetDelta()
+		v.resetDelta()
 		if sv := state2.GetVote().GetSelfVote(); sv != true {
 			t.Fatalf("state.GetSelfVote(): %v; want: %v", sv, true)
 		}

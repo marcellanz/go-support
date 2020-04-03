@@ -17,8 +17,9 @@ package cloudstate
 
 import (
 	"fmt"
-	"github.com/golang/protobuf/proto"
 	"testing"
+
+	"github.com/golang/protobuf/proto"
 )
 
 func TestMarshalAnyProto(t *testing.T) {

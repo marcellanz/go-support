@@ -18,6 +18,7 @@ package cloudstate
 import (
 	"errors"
 	"fmt"
+
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 )
 
@@ -29,7 +30,7 @@ var ErrFailure = errors.New("cloudstate failure")
 var ErrClientActionFailure = errors.New("cloudstate client action failure")
 
 func NewFailureError(format string, a ...interface{}) error {
-	if len(a) != 0 {
+	if len(a) > 0 {
 		return fmt.Errorf(fmt.Sprintf(format, a...)+". %w", ErrFailure)
 	} else {
 		return fmt.Errorf(format+". %w", ErrFailure)
@@ -37,7 +38,7 @@ func NewFailureError(format string, a ...interface{}) error {
 }
 
 func NewClientActionFailureError(format string, a ...interface{}) error {
-	if len(a) != 0 {
+	if len(a) > 0 {
 		return fmt.Errorf(fmt.Sprintf(format, a...)+". %w", ErrClientActionFailure)
 	} else {
 		return fmt.Errorf(format+". %w", ErrClientActionFailure)

@@ -75,7 +75,7 @@ func TestGset(t *testing.T) {
 		if delta != nil {
 			t.Fatalf("set delta should be nil but was not: %+v", delta)
 		}
-		s.ResetDelta()
+		s.resetDelta()
 		if slen := len(encDecState(s.State()).GetGset().GetItems()); slen != 2 {
 			t.Fatalf("set state length: %v; want: %v", s.Size(), 2)
 		}
@@ -91,7 +91,7 @@ func TestGset(t *testing.T) {
 			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 1)
 		}
 		delta := encDecDelta(s.Delta())
-		s.ResetDelta()
+		s.resetDelta()
 		addedLen := len(delta.GetGset().GetAdded())
 		if addedLen != 1 {
 			t.Fatalf("s.Size(): %v; want: %v", addedLen, 1)
@@ -115,7 +115,7 @@ func TestGset(t *testing.T) {
 		if !contains(delta2.GetGset().GetAdded(), "two", "three") {
 			t.Fatalf("delta should include two, three")
 		}
-		s.ResetDelta()
+		s.resetDelta()
 		if s.HasDelta() {
 			t.Fatalf("has delta but should not")
 		}
@@ -124,7 +124,7 @@ func TestGset(t *testing.T) {
 	t.Run("should not generate a delta when an already existing element is added", func(t *testing.T) {
 		s := NewGSet()
 		s.Add(encoding.String("one"))
-		s.ResetDelta()
+		s.resetDelta()
 		s.Add(encoding.String("one"))
 		if s.Size() != 1 {
 			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 1)
@@ -136,7 +136,7 @@ func TestGset(t *testing.T) {
 	t.Run("should reflect a delta add", func(t *testing.T) {
 		s := NewGSet()
 		s.Add(encoding.String("one"))
-		s.ResetDelta()
+		s.resetDelta()
 		s.applyDelta(delta(append(make([]*any.Any, 0), encoding.String("two"))))
 		if s.Size() != 2 {
 			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 2)
@@ -160,7 +160,7 @@ func TestGset(t *testing.T) {
 			Field1 string
 		}
 		s.Add(encoding.Struct(&Example{Field1: "one"}))
-		s.ResetDelta()
+		s.resetDelta()
 		s.Add(encoding.Struct(&Example{Field1: "one"}))
 		if s.Size() != 1 {
 			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 1)

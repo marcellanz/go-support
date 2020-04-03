@@ -21,13 +21,15 @@ import (
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 )
 
-// A Vote CRDT allows all nodes an a cluster to vote on a condition, such as whether a user is online.
+// A Vote crdt allows all nodes an a cluster to vote on a condition, such as whether a user is online.
 type Vote struct {
 	selfVote        bool
 	selfVoteChanged bool // delta seen
 	voters          uint32
 	votesFor        uint32
 }
+
+var _ CRDT = (*Vote)(nil)
 
 func NewVote() *Vote {
 	return &Vote{
@@ -92,7 +94,7 @@ func (v *Vote) Delta() *protocol.CrdtDelta {
 	}
 }
 
-func (v *Vote) ResetDelta() {
+func (v *Vote) resetDelta() {
 	v.selfVoteChanged = false
 }
 

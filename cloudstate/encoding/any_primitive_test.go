@@ -18,8 +18,9 @@ package encoding
 import (
 	"bytes"
 	"fmt"
-	"github.com/golang/protobuf/ptypes/any"
 	"testing"
+
+	"github.com/golang/protobuf/ptypes/any"
 )
 
 type a struct {

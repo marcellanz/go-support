@@ -79,7 +79,7 @@ func TestGCounter(t *testing.T) {
 		if c.Delta().GetGcounter().GetIncrement() != 10 {
 			t.Errorf("counter increment: %v; want: %v", c.delta, 10)
 		}
-		c.ResetDelta()
+		c.resetDelta()
 		if c.Delta().GetGcounter().GetIncrement() != 0 {
 			t.Errorf("counter increment: %v; want: %v", c.delta, 0)
 		}
@@ -95,7 +95,7 @@ func TestGCounter(t *testing.T) {
 		if c.Delta().GetGcounter().GetIncrement() != 7 {
 			t.Errorf("counter increment: %v; want: %v", c.delta, 7)
 		}
-		c.ResetDelta()
+		c.resetDelta()
 		if d := c.Delta(); d != nil {
 			t.Errorf("c.Delta() should be nil, but was not")
 		}
@@ -107,7 +107,7 @@ func TestGCounter(t *testing.T) {
 		if v := encDecState(c.State()).GetGcounter().GetValue(); v != 10 {
 			t.Errorf("c.Value: %v; want: %d", v, 10)
 		}
-		c.ResetDelta()
+		c.resetDelta()
 		if d := c.Delta(); d != nil {
 			t.Errorf("c.Delta() should be nil, but was not")
 		}

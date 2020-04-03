@@ -26,6 +26,8 @@ type PNCounter struct {
 	delta int64
 }
 
+var _ CRDT = (*PNCounter)(nil)
+
 func NewPNCounter() *PNCounter {
 	return &PNCounter{}
 }
@@ -71,7 +73,7 @@ func (c *PNCounter) Delta() *protocol.CrdtDelta {
 	}
 }
 
-func (c *PNCounter) ResetDelta() {
+func (c *PNCounter) resetDelta() {
 	c.delta = 0
 }
 
