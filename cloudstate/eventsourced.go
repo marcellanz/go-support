@@ -180,7 +180,7 @@ func (esh *EventSourcedServer) Handle(stream protocol.EventSourced_HandleServer)
 func (esh *EventSourcedServer) handleInit(init *protocol.EventSourcedInit) error {
 	eid := init.GetEntityId()
 	if _, present := esh.contexts[eid]; present {
-		return NewFailureError("unable to server.Send")
+		return fmt.Errorf("unable to server.Send")
 	}
 	entity := esh.entities[init.GetServiceName()]
 	esh.contexts[eid] = &EntityInstanceContext{
@@ -192,7 +192,7 @@ func (esh *EventSourcedServer) handleInit(init *protocol.EventSourcedInit) error
 	}
 
 	if err := esh.handleInitSnapshot(init); err != nil {
-		return NewFailureError("unable to server.Send", err)
+		return fmt.Errorf("unable to server.Send: %w", err)
 	}
 	esh.subscribeEvents(esh.contexts[eid].EntityInstance)
 	return nil
@@ -206,11 +206,11 @@ func (esh *EventSourcedServer) handleInitSnapshot(init *protocol.EventSourcedIni
 	if snapshotHandler, ok := esh.contexts[entityId].EntityInstance.Instance.(SnapshotHandler); ok {
 		snapshot, err := esh.unmarshalSnapshot(init)
 		if snapshot == nil || err != nil {
-			return NewFailureError("handling snapshot failed with: %v", err)
+			return NewFailureErrorf("handling snapshot failed with: %v", err)
 		}
 		handled, err := snapshotHandler.HandleSnapshot(snapshot)
 		if err != nil {
-			return NewFailureError("handling snapshot failed with: %v", err)
+			return NewFailureErrorf("handling snapshot failed with: %v", err)
 		}
 		if handled {
 			esh.contexts[entityId].EntityInstance.eventSequence = init.GetSnapshot().SnapshotSequence
@@ -271,15 +271,15 @@ func (esh *EventSourcedServer) subscribeEvents(instance *EntityInstance) {
 
 func (esh *EventSourcedServer) handleEvent(entityId string, event *protocol.EventSourcedEvent) error {
 	if entityId == "" {
-		return NewFailureError("no entityId was found from a previous init message for event sequence: %v", event.Sequence)
+		return NewFailureErrorf("no entityId was found from a previous init message for event sequence: %v", event.Sequence)
 	}
 	entityContext := esh.contexts[entityId]
 	if entityContext == nil {
-		return NewFailureError("no entity with entityId registered: %v", entityId)
+		return NewFailureErrorf("no entity with entityId registered: %v", entityId)
 	}
 	err := esh.handleEvents(entityContext.EntityInstance, event)
 	if err != nil {
-		return NewFailureError("handle event failed: %v", err)
+		return NewFailureErrorf("handle event failed: %v", err)
 	}
 	return err
 }

@@ -29,20 +29,20 @@ var ErrMarshal = errors.New("unable to marshal a message")
 var ErrFailure = errors.New("cloudstate failure")
 var ErrClientActionFailure = errors.New("cloudstate client action failure")
 
-func NewFailureError(format string, a ...interface{}) error {
-	if len(a) > 0 {
-		return fmt.Errorf(fmt.Sprintf(format, a...)+". %w", ErrFailure)
-	} else {
-		return fmt.Errorf(format+". %w", ErrFailure)
-	}
+func NewFailureError(s string) error {
+	return fmt.Errorf(fmt.Sprintf(s)+". %w", ErrFailure)
 }
 
-func NewClientActionFailureError(format string, a ...interface{}) error {
-	if len(a) > 0 {
-		return fmt.Errorf(fmt.Sprintf(format, a...)+". %w", ErrClientActionFailure)
-	} else {
-		return fmt.Errorf(format+". %w", ErrClientActionFailure)
-	}
+func NewFailureErrorf(format string, a ...interface{}) error {
+	return fmt.Errorf(fmt.Sprintf(format, a...)+". %w", ErrFailure)
+}
+
+func NewClientActionFailureError(s string) error {
+	return fmt.Errorf(s+". %w", ErrClientActionFailure)
+}
+
+func NewClientActionFailureErrorf(format string, a ...interface{}) error {
+	return fmt.Errorf(fmt.Sprintf(format, a...)+". %w", ErrClientActionFailure)
 }
 
 type ProtocolFailure struct {
