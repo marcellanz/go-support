@@ -79,6 +79,14 @@ func (r *runner) streamedMessage(msg *protocol.CrdtStreamedMessage) error {
 	})
 }
 
+func (r *runner) cancelledMessage(msg *protocol.CrdtStreamCancelledResponse) error {
+	return r.stream.Send(&protocol.CrdtStreamOut{
+		Message: &protocol.CrdtStreamOut_StreamCancelledResponse{
+			StreamCancelledResponse: msg,
+		},
+	})
+}
+
 // After invoking handle, the first message sent will always be a CrdtInit message, containing the entity ID, and,
 // if it exists or is available, the current value of the entity. After that, one or more commands may be sent,
 // as well as deltas as they arrive, and the entire value if either the entity is created, or the proxy wishes the
@@ -174,173 +182,50 @@ func (s *Server) handle(stream protocol.Crdt_HandleServer) error {
 				runner.context.enableStreamFor(id)
 			}
 
-			// TODO: handle command
-
+			if err := runner.handleCommand(m.Command); err != nil {
+				return err
+			}
+			// after the command handling, and any clientActions
+			// should get handled by existing change handlers
+			// => that is the reason the scala impl copies them over later. TODO: explain in SPEC feedback
 			if err := runner.handleChange(); err != nil {
 				return err
 			}
-
-			// CRDTs may only be updated in command handlers and stream cancellation callbacks.
-
-			// so there are entities that have a entity runner
-			// and at the same time multiple commands running aka. streamedCtx
-			// and an entity instance might decide to subscribe running commands
-			// separately
-			//
-			// | command-foo-1 |
-			//		\-> subscribe(one_way)
-			// | command-foo-2 |
-			//		\-> doesn't
-			//	| command-bar-1 |
-			//		\-> subscribe(another_way)
-
-			// distinguish between streamedCtx and non-streamedCtx commands
-
-			// - handle command
-			// - in any error, deactivate the running context
-
-			// - create ClientAction depending on the reply
-			// 	- error produces an Action.Failure
-			// - on no error
-			//  - a reply and a forward can't be defined at the same time => fail
-			//  - otherwise a ClientAction.Action.Reply is sent
-			//  - if a forward is defined, send it as a ClientAction.Action.Forward
-			// 	- otherwise fail with that no reply or forward was defined
-
-			// a command can result in a protocol.CrdtStateAction_Create
-
-			// if the ctx has an error
-			// - send a CrdtStreamOut.Message.Reply with commandId and clientAction
-			// 	 which would be a ClientAction.Action.Failure
-			// else
-			// - createCrdtAction
-			// - collect streamedMessages by notifySubscribers
-			//
-
-			// if failed: reply
-			// - verifyNoDelta
-
-			// on any error not handled
-			// =>  CrdtStreamOut(CrdtStreamOut.Message.Failure(Failure(description = err.getMessage)))
-
-			// it seems this can happen even before any stream was set
-
 		case *protocol.CrdtStreamIn_StreamCancelled:
-			// a Cancellation can result in a protocol.CrdtStateAction_Create
-
-			// calls cancelListeners
-			// creates a createCrdtAction
-			//   and creates a CrdtStreamOut.Message.StreamCancelledResponse with
-			//		action, command-id, and effects
-			//   and maps returns of subscribers to CrdtStreamOut.Message.StreamedMessage s
-			// otherwise
-			//  CrdtStreamOut.Message.StreamCancelledResponse with
-			//		command-id, and effects
-			// on no cancellers
-			// 	rends CrdtStreamCancelledResponse(cancelled.id)
-
 			if err := runner.handleCancellation(m.StreamCancelled); err != nil {
 				return err
 			}
 		case *protocol.CrdtStreamIn_Init:
-			return errors.New("duplicate enableStreamFor event for the same entity")
+			return errors.New("duplicate init message for the same entity")
 		case nil:
 			return errors.New("empty message received")
 		default:
-			return errors.New("unknown message received")
+			return fmt.Errorf("unknown message received: %v", msg.GetMessage())
 		}
 	}
 }
 
-// notify
-// Streamed command handlers
-
-// for any running streamedCtx commands, their change function get called
-// and return any clientAction they might send in return to the stream change
-// - a reply
-// - a forward
-// - nothing
-
-// onChange lets onChange listeners return a value (any.Any)
-// that gets "sent down the s"
-
-// onChange is done by streaming commands only, so a non-streamedCtx
-// command might return a same kind of value, but on a streamedCtx
-// context, onChange listeners can send them too.
-
-// produces: CrdtStreamOut.Message.StreamedMessage
-
-// notifySubscribers
-// - callback and get a reply
-// - get a clientAction which is a Reply or a Forward but not both
-// - if an error exists, form a failure reply
-//  - remove subscribers and cancelListeners
-// 	- with an error, send the error and the command id
-// - a client action and/or side Effects are present, send them as a streamedCtx message
-// - if the context is ended, remove subscribers and cancelListeners
-
-// -
-// -
-
-//_ = &protocol.CrdtStreamOut{
-//	Message: &protocol.CrdtStreamOut_StreamedMessage{
-//		StreamedMessage: &protocol.CrdtStreamedMessage{
-//			CommandId:    0,
-//			ClientAction: nil,
-//			SideEffects:  nil,
-//			EndStream:    false,
-//		},
-//	},
-//}
 func (r *runner) handleChange() error {
-	// even if a runner.context is not a streaming context, we want to notify others
-	for _, streamCtx := range r.context.streamedCtx { // streamedCtx command context
+	for _, streamCtx := range r.context.streamedCtx {
+		if streamCtx.change == nil {
+			continue
+		}
 		// get reply from stream contexts ChangeFuncs
 		reply, err := streamCtx.changed()
 		if err != nil {
 			streamCtx.deactivate() // TODO: why/how?
 		}
-		if errors.Is(err, ErrFailedCalled) {
+		if errors.Is(err, ErrFailCalled) {
 			reply = nil
 		} else if err != nil {
 			return err
 		}
-		// clientAction
-		var clientAction *protocol.ClientAction
+
+		clientAction := streamCtx.clientActionFor(reply)
 		if streamCtx.failed != nil {
-			clientAction = &protocol.ClientAction{
-				Action: &protocol.ClientAction_Failure{
-					Failure: &protocol.Failure{
-						CommandId:   streamCtx.CommandId.Value(),
-						Description: streamCtx.failed.Error(),
-					},
-				},
-			}
-		} else {
-			if reply != nil {
-				if streamCtx.forward != nil {
-					// spec impl: "Both a reply was returned, and a forward message was sent, choose one or the other."
-					// TODO notallowed: "This context has already forwarded."
-				} else {
-					clientAction = &protocol.ClientAction{
-						Action: &protocol.ClientAction_Reply{
-							Reply: &protocol.Reply{
-								Payload: reply,
-							},
-						},
-					}
-				}
-			} else if streamCtx.forward != nil {
-				clientAction = &protocol.ClientAction{
-					Action: &protocol.ClientAction_Forward{
-						Forward: streamCtx.forward,
-					},
-				}
-			}
-		}
-		// end of createClientAction
-		if streamCtx.failed != nil {
-			// remove cancel and change funcs
+			// remove cancel and change funcs: TODO: should we remove the stream context?
+			streamCtx.change = nil
+			streamCtx.cancel = nil
 			msg := &protocol.CrdtStreamedMessage{
 				CommandId:    streamCtx.CommandId.Value(),
 				ClientAction: clientAction,
@@ -352,9 +237,9 @@ func (r *runner) handleChange() error {
 		}
 		if clientAction != nil || streamCtx.ended || len(streamCtx.sideEffects) > 0 {
 			if streamCtx.ended {
-				// ended means, we will send (below) a streamed message
+				// ended means, we will send a streamed message
 				// where we mark the message as the last one in the stream
-				// and therefore, the streamed command has ended
+				// and therefore, the streamed command has ended.
 				delete(streamCtx.streamedCtx, streamCtx.CommandId) // TODO: do we race here somehow?
 			}
 			msg := &protocol.CrdtStreamedMessage{
@@ -366,6 +251,7 @@ func (r *runner) handleChange() error {
 			if err := r.streamedMessage(msg); err != nil {
 				return err
 			}
+			streamCtx.clearSideEffect()
 			continue
 		}
 	}
@@ -388,7 +274,7 @@ func (s *Server) handleInit(init *protocol.CrdtInit, r *runner) error {
 		EntityId:    id,
 		Entity:      entity,
 		Instance:    entity.EntityFunc(id),
-		origin:      Undefined,
+		created:     false,
 		ctx:         r.stream.Context(), // this context is stable as long as the runner runs
 		active:      true,
 		streamedCtx: make(map[CommandId]*StreamContext),
@@ -398,7 +284,6 @@ func (s *Server) handleInit(init *protocol.CrdtInit, r *runner) error {
 		if err := r.handleState(state); err != nil {
 			return err
 		}
-		r.context.origin = Proxy
 	}
 	// the user entity can provide a crdt through a default function if none is set.
 	r.context.initDefault()
@@ -435,8 +320,38 @@ func (r *runner) handleDelta(delta *protocol.CrdtDelta) error {
 // is cancelled. The cancellation callback handler may update the crdt. This is useful if the crdt
 // is being used to track connections, for example, when using Vote CRDTs to track a users online status.
 func (r *runner) handleCancellation(cancelled *protocol.StreamCancelled) error {
+	id := CommandId(cancelled.GetId())
+	ctx := r.context.streamedCtx[id]
+	delete(r.context.streamedCtx, id)
+	if ctx.cancel == nil {
+		return r.cancelledMessage(&protocol.CrdtStreamCancelledResponse{
+			CommandId: id.Value(),
+		})
+	}
 
-	cancelled.GetId()
+	if err := ctx.cancelled(); err != nil {
+		return err
+	}
+	ctx.deactivate()
+	stateAction := ctx.stateAction()
+	err := r.cancelledMessage(&protocol.CrdtStreamCancelledResponse{
+		CommandId:   id.Value(),
+		StateAction: stateAction,
+		SideEffects: ctx.sideEffects,
+	})
+	if err != nil {
+		return err
+	}
+	ctx.clearSideEffect()
+	return r.handleChange()
+}
+
+func (r *runner) handleCommand(cmd *protocol.Command) error {
+	id := CommandId(cmd.GetId())
+	if cmd.GetStreamed() {
+		r.context.enableStreamFor(id)
+	}
+	// TODO: goon
 
 	return nil
 }

@@ -20,14 +20,6 @@ import (
 	"fmt"
 )
 
-type origin int
-
-const (
-	Undefined origin = iota
-	Proxy
-	User
-)
-
 type Context struct {
 	EntityId EntityId
 	// Entity describes the instance that is used as an entity
@@ -37,9 +29,9 @@ type Context struct {
 
 	// the root crdt managed by this user function
 	crdt CRDT
-	// origin defined from where the crdt was created
-	origin origin
+
 	// active indicates if this context is active.
+	created bool // TODO: inactivate a context in case of errors
 	active  bool // TODO: inactivate a context in case of errors
 	deleted bool // TODO: clientAction might check if the entity is deleted
 	// ctx is the stream context
@@ -57,7 +49,7 @@ func (c *Context) SetCRDT(newCRDT CRDT) error {
 		return fmt.Errorf("crdt has been already created")
 	}
 	c.crdt = newCRDT
-	c.origin = User
+	c.created = true
 	return nil
 }
 
@@ -67,7 +59,7 @@ func (c *Context) initDefault() {
 		return
 	}
 	c.crdt = c.Entity.DefaultFunc(c)
-	c.origin = User
+	c.created = true
 }
 
 func (c *Context) deactivate() {

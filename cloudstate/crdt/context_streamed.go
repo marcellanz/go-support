@@ -20,7 +20,7 @@ import (
  * @param subscriber The subscriber callback.
  */
 type ChangeFunc func(c *StreamContext) (*any.Any, error)
-type CancelFunc func(c *StreamContext) (*any.Any, error)
+type CancelFunc func(c *StreamContext) error
 
 type StreamContext struct {
 	*Context
@@ -53,13 +53,13 @@ func (c *StreamContext) CancelFunc(f CancelFunc) {
 	c.cancel = f
 }
 
-var ErrFailedCalled = errors.New("context failed by context")
+var ErrFailCalled = errors.New("context failed by context")
 
 func (c *StreamContext) Fail(err error) {
 	// TODO: has to be active, has to be not yet failed
 	// "fail(…) already previously invoked!"
 	// "This context has already forwarded."
-	c.failed = fmt.Errorf("failed with %v: %w", err, ErrFailedCalled)
+	c.failed = fmt.Errorf("failed with %v: %w", err, ErrFailCalled)
 }
 
 func (c *StreamContext) End() {
@@ -75,15 +75,36 @@ func (c *StreamContext) SideEffect(e *protocol.SideEffect) {
 	c.sideEffects = append(c.sideEffects, e)
 }
 
+func (c *StreamContext) clearSideEffect() {
+	c.sideEffects = make([]*protocol.SideEffect, 0, cap(c.sideEffects)) // TODO: should we decrease that?
+}
+
 var ErrStateChanged = errors.New("CRDT change not allowed")
 
 func (c *StreamContext) changed() (reply *any.Any, err error) {
+	// spec impl: checkActive()
 	reply, err = c.change(c)
 	if c.crdt.HasDelta() {
-		// spec: any attempt to modify the CRDT will be ignored and the CRDT will crash.
 		err = ErrStateChanged
 	}
 	return
+}
+
+/**
+ * Register an on cancel callback for this command.
+ *
+ * <p>This will be invoked if the client initiates a stream cancel. It will not be invoked if the
+ * entity cancels the stream itself via {@link SubscriptionContext#endStream()} from an {@link
+ * StreamedCommandContext#onChange(Function)} callback.
+ *
+ * <p>An on cancel callback may update the CRDT, and may emit side effects via the passed in
+ * {@link StreamCancelledContext}.
+ *
+ * @param effect The effect to perform when this stream is cancelled.
+ */
+func (c *StreamContext) cancelled() error {
+	// spec impl: checkActive()
+	return c.cancel(c)
 }
 
 func (c *Context) enableStreamFor(id CommandId) {
@@ -94,4 +115,76 @@ func (c *Context) enableStreamFor(id CommandId) {
 			sideEffects: make([]*protocol.SideEffect, 0),
 		}
 	}
+}
+
+func (c *StreamContext) clientActionFor(reply *any.Any) *protocol.ClientAction {
+	var clientAction *protocol.ClientAction
+	if c.failed != nil {
+		clientAction = &protocol.ClientAction{
+			Action: &protocol.ClientAction_Failure{
+				Failure: &protocol.Failure{
+					CommandId:   c.CommandId.Value(),
+					Description: c.failed.Error(),
+				},
+			},
+		}
+	} else {
+		if reply != nil {
+			if c.forward != nil {
+				// spec impl: "Both a reply was returned, and a forward message was sent, choose one or the other."
+				// TODO notallowed: "This context has already forwarded."
+			} else {
+				clientAction = &protocol.ClientAction{
+					Action: &protocol.ClientAction_Reply{
+						Reply: &protocol.Reply{
+							Payload: reply,
+						},
+					},
+				}
+			}
+		} else if c.forward != nil {
+			clientAction = &protocol.ClientAction{
+				Action: &protocol.ClientAction_Forward{
+					Forward: c.forward,
+				},
+			}
+		}
+	}
+	// end of createClientAction
+	return clientAction
+}
+
+func (c *StreamContext) stateAction() *protocol.CrdtStateAction {
+	var stateAction *protocol.CrdtStateAction = nil
+	if c.crdt != nil {
+		if c.created {
+			if c.crdt.HasDelta() {
+				c.created = false
+				if c.deleted {
+					c.crdt = nil
+				} else {
+					c.crdt.resetDelta()
+					stateAction = &protocol.CrdtStateAction{
+						Action: &protocol.CrdtStateAction_Create{
+							Create: c.crdt.State(),
+						},
+					}
+				}
+			} else if c.deleted {
+				c.created = false
+				c.crdt = nil
+			}
+		} else if c.deleted {
+			stateAction = &protocol.CrdtStateAction{
+				Action: &protocol.CrdtStateAction_Delete{Delete: &protocol.CrdtDelete{}},
+			}
+		} else if c.crdt.HasDelta() {
+			delta := c.crdt.Delta()
+			c.crdt.resetDelta()
+			stateAction = &protocol.CrdtStateAction{
+				Action: &protocol.CrdtStateAction_Update{Update: delta},
+			}
+		}
+	}
+	return stateAction
 }
