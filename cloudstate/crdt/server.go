@@ -66,8 +66,8 @@ type Entity struct {
 }
 
 type runner struct {
-	context       *Context
 	stream        protocol.Crdt_HandleServer
+	context       *Context
 	stateReceived bool
 }
 
@@ -113,8 +113,8 @@ func (s *Server) handle(stream protocol.Crdt_HandleServer) error {
 	if err != nil {
 		return err
 	}
-	runner := &runner{stream: stream}
 
+	runner := &runner{stream: stream}
 	// first, always a CrdtInit message must be received.
 	switch m := first.GetMessage().(type) {
 	case *protocol.CrdtStreamIn_Init:
@@ -129,11 +129,10 @@ func (s *Server) handle(stream protocol.Crdt_HandleServer) error {
 	}
 
 	// handle all other messages after a CrdtInit message has been received.
-	ctx := runner.stream.Context()
 	for {
 		select {
-		case <-ctx.Done():
-			return ctx.Err()
+		case <-runner.stream.Context().Done():
+			return runner.stream.Context().Err()
 		default:
 		}
 		// TODO: what is all the active, ended, failed mean? => we close the stream
@@ -141,7 +140,7 @@ func (s *Server) handle(stream protocol.Crdt_HandleServer) error {
 			return nil
 		}
 		if runner.context.failed != nil {
-			// failed means deactivated, so we never get this far
+			// failed means deactivated. we may never get this far.
 			return nil
 		}
 		msg, err := runner.stream.Recv()
@@ -151,8 +150,6 @@ func (s *Server) handle(stream protocol.Crdt_HandleServer) error {
 		if err != nil {
 			return err
 		}
-
-		// TODO: how to handle an inactive entity?
 		switch m := msg.GetMessage().(type) {
 		case *protocol.CrdtStreamIn_State:
 			if err := runner.handleState(m.State); err != nil {
@@ -181,7 +178,6 @@ func (s *Server) handle(stream protocol.Crdt_HandleServer) error {
 			if m.Command.GetStreamed() {
 				runner.context.enableStreamFor(id)
 			}
-
 			if err := runner.handleCommand(m.Command); err != nil {
 				return err
 			}
@@ -193,6 +189,9 @@ func (s *Server) handle(stream protocol.Crdt_HandleServer) error {
 			}
 		case *protocol.CrdtStreamIn_StreamCancelled:
 			if err := runner.handleCancellation(m.StreamCancelled); err != nil {
+				return err
+			}
+			if err := runner.handleChange(); err != nil {
 				return err
 			}
 		case *protocol.CrdtStreamIn_Init:
@@ -223,9 +222,7 @@ func (r *runner) handleChange() error {
 
 		clientAction := streamCtx.clientActionFor(reply)
 		if streamCtx.failed != nil {
-			// remove cancel and change funcs: TODO: should we remove the stream context?
-			streamCtx.change = nil
-			streamCtx.cancel = nil
+			delete(streamCtx.streamedCtx, streamCtx.CommandId)
 			msg := &protocol.CrdtStreamedMessage{
 				CommandId:    streamCtx.CommandId.Value(),
 				ClientAction: clientAction,
@@ -328,22 +325,20 @@ func (r *runner) handleCancellation(cancelled *protocol.StreamCancelled) error {
 			CommandId: id.Value(),
 		})
 	}
-
 	if err := ctx.cancelled(); err != nil {
 		return err
 	}
 	ctx.deactivate()
-	stateAction := ctx.stateAction()
 	err := r.cancelledMessage(&protocol.CrdtStreamCancelledResponse{
 		CommandId:   id.Value(),
-		StateAction: stateAction,
+		StateAction: ctx.stateAction(),
 		SideEffects: ctx.sideEffects,
 	})
 	if err != nil {
 		return err
 	}
 	ctx.clearSideEffect()
-	return r.handleChange()
+	return nil
 }
 
 func (r *runner) handleCommand(cmd *protocol.Command) error {

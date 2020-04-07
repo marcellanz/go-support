@@ -38,6 +38,7 @@ func (c *StreamContext) ChangeFunc(f ChangeFunc) {
 }
 
 /**
+ * TODO: rewrite as Go documentation
  * Register an on cancel callback for this command.
  *
  * <p>This will be invoked if the client initiates a stream cancel. It will not be invoked if the
@@ -91,6 +92,7 @@ func (c *StreamContext) changed() (reply *any.Any, err error) {
 }
 
 /**
+ * TODO: rewrite as Go documentation
  * Register an on cancel callback for this command.
  *
  * <p>This will be invoked if the client initiates a stream cancel. It will not be invoked if the
@@ -118,9 +120,8 @@ func (c *Context) enableStreamFor(id CommandId) {
 }
 
 func (c *StreamContext) clientActionFor(reply *any.Any) *protocol.ClientAction {
-	var clientAction *protocol.ClientAction
 	if c.failed != nil {
-		clientAction = &protocol.ClientAction{
+		return &protocol.ClientAction{
 			Action: &protocol.ClientAction_Failure{
 				Failure: &protocol.Failure{
 					CommandId:   c.CommandId.Value(),
@@ -128,63 +129,66 @@ func (c *StreamContext) clientActionFor(reply *any.Any) *protocol.ClientAction {
 				},
 			},
 		}
-	} else {
-		if reply != nil {
-			if c.forward != nil {
-				// spec impl: "Both a reply was returned, and a forward message was sent, choose one or the other."
-				// TODO notallowed: "This context has already forwarded."
-			} else {
-				clientAction = &protocol.ClientAction{
-					Action: &protocol.ClientAction_Reply{
-						Reply: &protocol.Reply{
-							Payload: reply,
-						},
-					},
-				}
-			}
-		} else if c.forward != nil {
-			clientAction = &protocol.ClientAction{
-				Action: &protocol.ClientAction_Forward{
-					Forward: c.forward,
+	}
+	if reply != nil {
+		if c.forward != nil {
+			// spec impl: "Both a reply was returned, and a forward message was sent, choose one or the other."
+			// TODO notallowed: "This context has already forwarded."
+			return nil
+		}
+		return &protocol.ClientAction{
+			Action: &protocol.ClientAction_Reply{
+				Reply: &protocol.Reply{
+					Payload: reply,
 				},
-			}
+			},
 		}
 	}
-	// end of createClientAction
-	return clientAction
+	if c.forward != nil {
+		return &protocol.ClientAction{
+			Action: &protocol.ClientAction_Forward{
+				Forward: c.forward,
+			},
+		}
+	}
+	return nil
 }
 
 func (c *StreamContext) stateAction() *protocol.CrdtStateAction {
-	var stateAction *protocol.CrdtStateAction = nil
-	if c.crdt != nil {
-		if c.created {
-			if c.crdt.HasDelta() {
-				c.created = false
-				if c.deleted {
-					c.crdt = nil
-				} else {
-					c.crdt.resetDelta()
-					stateAction = &protocol.CrdtStateAction{
-						Action: &protocol.CrdtStateAction_Create{
-							Create: c.crdt.State(),
-						},
-					}
-				}
-			} else if c.deleted {
-				c.created = false
+	if c.crdt == nil {
+		return nil
+	}
+	if c.created {
+		if c.crdt.HasDelta() {
+			c.created = false
+			if c.deleted {
 				c.crdt = nil
+				return nil
 			}
-		} else if c.deleted {
-			stateAction = &protocol.CrdtStateAction{
-				Action: &protocol.CrdtStateAction_Delete{Delete: &protocol.CrdtDelete{}},
-			}
-		} else if c.crdt.HasDelta() {
-			delta := c.crdt.Delta()
 			c.crdt.resetDelta()
-			stateAction = &protocol.CrdtStateAction{
-				Action: &protocol.CrdtStateAction_Update{Update: delta},
+			return &protocol.CrdtStateAction{
+				Action: &protocol.CrdtStateAction_Create{
+					Create: c.crdt.State(),
+				},
 			}
 		}
+		if c.deleted {
+			c.created = false
+			c.crdt = nil
+		}
+		return nil
 	}
-	return stateAction
+	if c.deleted {
+		return &protocol.CrdtStateAction{
+			Action: &protocol.CrdtStateAction_Delete{Delete: &protocol.CrdtDelete{}},
+		}
+	}
+	if c.crdt.HasDelta() {
+		delta := c.crdt.Delta()
+		c.crdt.resetDelta()
+		return &protocol.CrdtStateAction{
+			Action: &protocol.CrdtStateAction_Update{Update: delta},
+		}
+	}
+	return nil
 }
