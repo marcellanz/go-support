@@ -166,7 +166,7 @@ func (sc *ShoppingCart) HandleCommand(ctx context.Context, command interface{}) 
 
 func (sc *ShoppingCart) Snapshot() (snapshot interface{}, err error) {
 	return domain.Cart{
-		Items: append(make([]*domain.LineItem, len(sc.cart)), sc.cart...),
+		Items: append(make([]*domain.LineItem, 0, len(sc.cart)), sc.cart...),
 	}, nil
 }
 
