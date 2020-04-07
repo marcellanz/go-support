@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/golang/protobuf/ptypes/any"
-	"hash/maphash"
 )
 
 type ORSet struct {
@@ -27,7 +26,7 @@ type ORSet struct {
 	added   map[uint64]*any.Any
 	removed map[uint64]*any.Any
 	cleared bool
-	anyHasher
+	*anyHasher
 }
 
 var _ CRDT = (*ORSet)(nil)
@@ -38,7 +37,7 @@ func NewORSet() *ORSet {
 		added:     make(map[uint64]*any.Any),
 		removed:   make(map[uint64]*any.Any),
 		cleared:   false,
-		anyHasher: anyHasher(maphash.MakeSeed()),
+		anyHasher: &anyHasher{},
 	}
 }
 

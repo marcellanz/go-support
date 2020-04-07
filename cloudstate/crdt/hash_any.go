@@ -21,12 +21,13 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 )
 
-type anyHasher maphash.Seed
+type anyHasher struct {
+	maphash.Hash
+}
 
-func (h anyHasher) hashAny(a *any.Any) uint64 {
-	hash := maphash.Hash{}
-	hash.SetSeed(maphash.Seed(h))
-	_, _ = hash.WriteString(a.GetTypeUrl()) // does never err
-	_, _ = hash.Write(a.GetValue())         // does never err
-	return hash.Sum64()
+func (h *anyHasher) hashAny(a *any.Any) uint64 {
+	h.Reset()
+	_, _ = h.WriteString(a.GetTypeUrl()) // does never err
+	_, _ = h.Write(a.GetValue())         // does never err
+	return h.Sum64()
 }

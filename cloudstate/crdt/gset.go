@@ -17,8 +17,6 @@ package crdt
 
 import (
 	"fmt"
-	"hash/maphash"
-
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/golang/protobuf/ptypes/any"
 )
@@ -27,7 +25,7 @@ import (
 type GSet struct {
 	value map[uint64]*any.Any
 	added map[uint64]*any.Any
-	anyHasher
+	*anyHasher
 }
 
 var _ CRDT = (*GSet)(nil)
@@ -36,7 +34,7 @@ func NewGSet() *GSet {
 	return &GSet{
 		value:     make(map[uint64]*any.Any),
 		added:     make(map[uint64]*any.Any),
-		anyHasher: anyHasher(maphash.MakeSeed()),
+		anyHasher: &anyHasher{},
 	}
 }
 

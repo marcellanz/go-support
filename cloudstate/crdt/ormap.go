@@ -20,13 +20,12 @@ import (
 	"fmt"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/golang/protobuf/ptypes/any"
-	"hash/maphash"
 )
 
 type ORMap struct {
 	value map[uint64]*orMapValue
 	delta orMapDelta
-	anyHasher
+	*anyHasher
 }
 
 type orMapValue struct {
@@ -50,7 +49,7 @@ func NewORMap() *ORMap {
 			removed: make(map[uint64]*any.Any, 0),
 			cleared: false,
 		},
-		anyHasher: anyHasher(maphash.MakeSeed()),
+		anyHasher: &anyHasher{},
 	}
 }
 
