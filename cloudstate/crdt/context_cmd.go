@@ -4,7 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/any"
+	"reflect"
+	"strings"
 )
 
 /**
@@ -19,22 +22,56 @@ import (
  *
  * @param subscriber The subscriber callback.
  */
-type ChangeFunc func(c *StreamContext) (*any.Any, error)
-type CancelFunc func(c *StreamContext) error
+type ChangeFunc func(c *CommandContext) (*any.Any, error)
+type CancelFunc func(c *CommandContext) error
 
-type StreamContext struct {
+type CommandContext struct {
 	*Context
-	CommandId   CommandId
-	change      ChangeFunc
-	cancel      CancelFunc
+	CommandId CommandId
+	change    ChangeFunc
+	cancel    CancelFunc
+
 	failed      error
-	forward     *protocol.Forward
-	sideEffects []*protocol.SideEffect
 	ended       bool
+	cmd         *protocol.Command
+	sideEffects []*protocol.SideEffect
+	forward     *protocol.Forward
 }
 
-func (c *StreamContext) ChangeFunc(f ChangeFunc) {
+func (c *CommandContext) runCommand(cmd *protocol.Command) (*any.Any, error) {
+	if c.Entity.CommandFunc == nil {
+		return nil, fmt.Errorf("no command handler found for command [%s] on CRDT entity: %v", cmd.Name, c.crdt)
+	}
+	// unmarshal the commands message
+	msgName := strings.TrimPrefix(cmd.GetPayload().GetTypeUrl(), "type.googleapis.com"+"/")
+	messageType := proto.MessageType(msgName)
+	message, ok := reflect.New(messageType.Elem()).Interface().(proto.Message)
+	if !ok {
+		return nil, fmt.Errorf("messageType is no proto.Message: %v", messageType)
+	}
+	err := proto.Unmarshal(cmd.Payload.Value, message)
+	if err != nil {
+		return nil, err
+	}
+	return c.Entity.CommandFunc(c.Instance, c, cmd.Name, messageType)
+}
+
+func (c *CommandContext) ChangeFunc(f ChangeFunc) {
+	if !c.Streamed() {
+		return
+	}
 	c.change = f
+}
+
+func (c *CommandContext) Cmd() *protocol.Command {
+	return c.cmd
+}
+
+func (c *CommandContext) Streamed() bool {
+	if c.cmd == nil {
+		return false
+	}
+	return c.cmd.Streamed
 }
 
 /**
@@ -50,39 +87,38 @@ func (c *StreamContext) ChangeFunc(f ChangeFunc) {
  *
  * @param effect The effect to perform when this stream is cancelled.
  */
-func (c *StreamContext) CancelFunc(f CancelFunc) {
+func (c *CommandContext) CancelFunc(f CancelFunc) {
+	if !c.Streamed() {
+		return
+	}
 	c.cancel = f
 }
 
 var ErrFailCalled = errors.New("context failed by context")
 
-func (c *StreamContext) Fail(err error) {
-	// TODO: has to be active, has to be not yet failed
-	// "fail(…) already previously invoked!"
-	// "This context has already forwarded."
-	c.failed = fmt.Errorf("failed with %v: %w", err, ErrFailCalled)
-}
-
-func (c *StreamContext) End() {
+func (c *CommandContext) End() {
+	if !c.Streamed() {
+		return
+	}
 	c.ended = true
 }
 
-func (c *StreamContext) Forward(f *protocol.Forward) {
+func (c *CommandContext) Forward(f *protocol.Forward) {
 	// TODO: has to ne not yet forwarded... "This context has already forwarded."
 	c.forward = f
 }
 
-func (c *StreamContext) SideEffect(e *protocol.SideEffect) {
+func (c *CommandContext) SideEffect(e *protocol.SideEffect) {
 	c.sideEffects = append(c.sideEffects, e)
 }
 
-func (c *StreamContext) clearSideEffect() {
+func (c *CommandContext) clearSideEffect() {
 	c.sideEffects = make([]*protocol.SideEffect, 0, cap(c.sideEffects)) // TODO: should we decrease that?
 }
 
 var ErrStateChanged = errors.New("CRDT change not allowed")
 
-func (c *StreamContext) changed() (reply *any.Any, err error) {
+func (c *CommandContext) changed() (reply *any.Any, err error) {
 	// spec impl: checkActive()
 	reply, err = c.change(c)
 	if c.crdt.HasDelta() {
@@ -104,22 +140,25 @@ func (c *StreamContext) changed() (reply *any.Any, err error) {
  *
  * @param effect The effect to perform when this stream is cancelled.
  */
-func (c *StreamContext) cancelled() error {
+func (c *CommandContext) cancelled() error {
 	// spec impl: checkActive()
 	return c.cancel(c)
 }
 
-func (c *Context) enableStreamFor(id CommandId) {
-	if _, ok := c.streamedCtx[id]; !ok {
-		c.streamedCtx[id] = &StreamContext{
-			CommandId:   id,
-			Context:     c,
-			sideEffects: make([]*protocol.SideEffect, 0),
-		}
+func (c *Context) commandContextFor(cmd *protocol.Command) *CommandContext {
+	return &CommandContext{
+		Context:     c,
+		cmd:         cmd,
+		CommandId:   CommandId(cmd.Id),
+		sideEffects: make([]*protocol.SideEffect, 0),
 	}
 }
 
-func (c *StreamContext) clientActionFor(reply *any.Any) *protocol.ClientAction {
+func (c *CommandContext) trackChanges() {
+	c.streamedCtx[c.CommandId] = c
+}
+
+func (c *CommandContext) clientActionFor(reply *any.Any) *protocol.ClientAction {
 	if c.failed != nil {
 		return &protocol.ClientAction{
 			Action: &protocol.ClientAction_Failure{
@@ -154,28 +193,26 @@ func (c *StreamContext) clientActionFor(reply *any.Any) *protocol.ClientAction {
 	return nil
 }
 
-func (c *StreamContext) stateAction() *protocol.CrdtStateAction {
+func (c *CommandContext) stateAction() *protocol.CrdtStateAction {
 	if c.crdt == nil {
 		return nil
 	}
-	if c.created {
-		if c.crdt.HasDelta() {
-			c.created = false
-			if c.deleted {
-				c.crdt = nil
-				return nil
-			}
-			c.crdt.resetDelta()
-			return &protocol.CrdtStateAction{
-				Action: &protocol.CrdtStateAction_Create{
-					Create: c.crdt.State(),
-				},
-			}
-		}
+	if c.created && c.crdt.HasDelta() {
+		c.created = false
 		if c.deleted {
-			c.created = false
 			c.crdt = nil
+			return nil
 		}
+		c.crdt.resetDelta()
+		return &protocol.CrdtStateAction{
+			Action: &protocol.CrdtStateAction_Create{
+				Create: c.crdt.State(),
+			},
+		}
+	}
+	if c.created && c.deleted {
+		c.created = false
+		c.crdt = nil
 		return nil
 	}
 	if c.deleted {

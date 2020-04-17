@@ -14,8 +14,3 @@
 // limitations under the License.
 
 package crdt
-
-// Fail fails the command with the given message.
-func (c *Context) Fail(err error) {
-	c.failed = err
-}

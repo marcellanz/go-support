@@ -24,9 +24,9 @@ import (
 
 func TestMarshalAnyProto(t *testing.T) {
 	event := IncrementByEvent{Value: 29}
-	any, err := marshalAny(&event)
+	any, err := MarshalAny(&event)
 	if err != nil {
-		t.Fatalf("failed to marshalAny: %v", err)
+		t.Fatalf("failed to MarshalAny: %v", err)
 	}
 	expected := fmt.Sprintf("%s/%s", protoAnyBase, "IncrementByEvent")
 	if expected != any.GetTypeUrl() {

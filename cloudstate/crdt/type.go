@@ -21,11 +21,7 @@ type CRDT interface {
 	State() *protocol.CrdtState
 	Delta() *protocol.CrdtDelta
 	HasDelta() bool
-	// TODO: think about to make this public and let anyone implement their CRDTs
-	internalCRDT
-}
 
-type internalCRDT interface {
 	applyState(*protocol.CrdtState) error
 	applyDelta(*protocol.CrdtDelta) error
 	resetDelta()

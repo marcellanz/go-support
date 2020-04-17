@@ -326,14 +326,14 @@ func (esh *EventSourcedServer) handleCommand(cmd *protocol.Command, server proto
 				_, reply, errReturned := commandHandler.HandleCommand(server.Context(), message)
 				// the error
 				if errReturned != nil {
-					// TCK says: TODO Expects entity.Failure, but gets lientAction.Action.Failure(Failure(commandId, msg)))
+					// TCK says: TODO Expects entity.Failure, but gets clientAction.Action.Failure(Failure(commandId, msg)))
 					return NewProtocolFailure(protocol.Failure{
 						CommandId:   cmd.GetId(),
 						Description: errReturned.Error(),
 					})
 				}
 				// the reply
-				callReply, err := marshalAny(reply)
+				callReply, err := MarshalAny(reply)
 				if err != nil { // this should never happen
 					return NewProtocolFailure(protocol.Failure{
 						CommandId:   cmd.GetId(),
@@ -384,7 +384,7 @@ func (*EventSourcedServer) handleSnapshots(entityContext *EntityInstanceContext)
 			return nil, fmt.Errorf("getting a snapshot has failed: %v. %w", err, ErrFailure)
 		}
 		// TODO: we expect a proto.Message but should support other formats
-		snapshot, err := marshalAny(snap)
+		snapshot, err := MarshalAny(snap)
 		if err != nil {
 			return nil, err
 		}
@@ -398,7 +398,7 @@ func (*EventSourcedServer) handleSnapshots(entityContext *EntityInstanceContext)
 
 // applyEvent applies an event to a local entity
 func (esh EventSourcedServer) applyEvent(entityInstance *EntityInstance, event interface{}) error {
-	payload, err := marshalAny(event)
+	payload, err := MarshalAny(event)
 	if err != nil {
 		return err
 	}

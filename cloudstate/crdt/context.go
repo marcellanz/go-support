@@ -24,24 +24,17 @@ type Context struct {
 	EntityId EntityId
 	// Entity describes the instance that is used as an entity
 	Entity *Entity
-	// Instance is an instance of the Entity.Entity
+	// Instance is the instance of the entity this context is for.
 	Instance interface{}
-
 	// the root crdt managed by this user function
 	crdt CRDT
 
-	// active indicates if this context is active.
-	created bool // TODO: inactivate a context in case of errors
-	active  bool // TODO: inactivate a context in case of errors
-	deleted bool // TODO: clientAction might check if the entity is deleted
-	// ctx is the stream context
-	ctx         context.Context
+	streamedCtx map[CommandId]*CommandContext
+	created     bool
+	active      bool
+	deleted     bool
 	failed      error
-	streamedCtx map[CommandId]*StreamContext
-}
-
-func (c *Context) CRDT() CRDT {
-	return c.crdt
+	ctx         context.Context
 }
 
 func (c *Context) SetCRDT(newCRDT CRDT) error {
@@ -51,6 +44,22 @@ func (c *Context) SetCRDT(newCRDT CRDT) error {
 	c.crdt = newCRDT
 	c.created = true
 	return nil
+}
+
+func (c *Context) CRDT() CRDT {
+	return c.crdt
+}
+
+// Fail fails the command with the given message.
+func (c *Context) Fail(err error) {
+	// TODO: has to be active, has to be not yet failed
+	// "fail(…) already previously invoked!"
+	c.failed = fmt.Errorf("failed with %v: %w", err, ErrFailCalled)
+}
+
+func (c *Context) Delete() {
+	c.deleted = true
+	c.crdt = nil
 }
 
 // initDefault initializes the crdt with a default value if not already set.
@@ -64,9 +73,4 @@ func (c *Context) initDefault() {
 
 func (c *Context) deactivate() {
 	c.active = false
-}
-
-func (c *Context) delete() {
-	c.deleted = true
-	c.crdt = nil
 }

@@ -22,8 +22,8 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 )
 
-// marshalAny marshals a proto.Message to a any.Any value.
-func marshalAny(pb interface{}) (*any.Any, error) {
+// MarshalAny marshals a proto.Message to a any.Any value.
+func MarshalAny(pb interface{}) (*any.Any, error) {
 	// TODO: protobufs are expected here, but Cloudstate supports other formats
 	message, ok := pb.(proto.Message)
 	if !ok {
@@ -45,7 +45,7 @@ func marshalEventsAny(entityContext *EntityInstanceContext) ([]*any.Any, error) 
 	events := make([]*any.Any, 0)
 	if emitter, ok := entityContext.EntityInstance.Instance.(EventEmitter); ok {
 		for _, evt := range emitter.Events() {
-			event, err := marshalAny(evt)
+			event, err := MarshalAny(evt)
 			if err != nil {
 				return nil, err
 			}
