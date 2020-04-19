@@ -16,8 +16,9 @@
 package crdt
 
 import (
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"testing"
+
+	"github.com/cloudstateio/go-support/cloudstate/protocol"
 )
 
 func TestVote(t *testing.T) {

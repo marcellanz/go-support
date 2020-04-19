@@ -17,6 +17,7 @@ package crdt
 
 import (
 	"fmt"
+
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 )
 

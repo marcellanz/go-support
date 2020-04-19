@@ -16,10 +16,11 @@
 package crdt
 
 import (
+	"testing"
+
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/golang/protobuf/ptypes/any"
-	"testing"
 )
 
 func TestORMap(t *testing.T) {
