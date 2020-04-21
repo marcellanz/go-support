@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Lightbend Inc.
+// Copyright 2020 Lightbend Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,9 +13,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cloudstate
+package eventsourced
 
-const (
-	EventSourced = "cloudstate.eventsourced.EventSourced"
-	Crdt         = "cloudstate.crdt.Crdt"
-)
+type Context struct {
+	EntityId EntityId
+	// Entity describes the instance that is used as an entity
+	Entity *EventSourcedEntity
+	// Instance is the instance of the entity this context is for.
+	Instance interface{}
+
+	EventEmitter
+}
+
+func (c *Context) Failed(err error) {
+}

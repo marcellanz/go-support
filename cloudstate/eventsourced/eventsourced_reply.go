@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cloudstate
+package eventsourced
 
 import (
 	"errors"
@@ -24,7 +24,6 @@ import (
 
 var ErrSendFailure = errors.New("unable to send a failure message")
 var ErrSend = errors.New("unable to send a message")
-var ErrMarshal = errors.New("unable to marshal a message")
 
 var ErrFailure = errors.New("cloudstate failure")
 var ErrClientActionFailure = errors.New("cloudstate client action failure")
