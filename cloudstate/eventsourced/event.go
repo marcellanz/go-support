@@ -13,10 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cloudstate
+package eventsourced
 
 import (
-	"context"
 	"fmt"
 )
 
@@ -86,18 +85,18 @@ func (e *eventEmitter) Clear() {
 	e.events = make([]interface{}, 0)
 }
 
-type EventHandler interface {
-	HandleEvent(ctx context.Context, event interface{}) (handled bool, err error)
-}
+//type EventHandler interface {
+//	HandleEvent(ctx context.Context, event interface{}) (handled bool, err error)
+//}
+//
+//type CommandHandler interface {
+//	HandleCommand(ctx context.Context, command interface{}) (handled bool, reply interface{}, err error)
+//}
 
-type CommandHandler interface {
-	HandleCommand(ctx context.Context, command interface{}) (handled bool, reply interface{}, err error)
-}
+//type Snapshotter interface {
+//	Snapshot() (snapshot interface{}, err error)
+//}
 
-type Snapshotter interface {
-	Snapshot() (snapshot interface{}, err error)
-}
-
-type SnapshotHandler interface {
-	HandleSnapshot(snapshot interface{}) (handled bool, err error)
-}
+//type SnapshotHandler interface {
+//	HandleSnapshot(snapshot interface{}) (handled bool, err error)
+//}

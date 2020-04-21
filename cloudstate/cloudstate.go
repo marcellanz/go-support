@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Lightbend Inc.
+// Copyright 2020 Lightbend Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import (
 	"runtime"
 
 	"github.com/cloudstateio/go-support/cloudstate/crdt"
-
+	"github.com/cloudstateio/go-support/cloudstate/eventsourced"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/golang/protobuf/descriptor"
 	"github.com/golang/protobuf/proto"
@@ -43,7 +43,7 @@ const (
 type CloudState struct {
 	server                *grpc.Server
 	entityDiscoveryServer *EntityDiscoveryServer
-	eventSourcedServer    *EventSourcedServer
+	eventSourcedServer    *eventsourced.EventSourcedServer
 	crdtServer            *crdt.Server
 }
 
@@ -56,7 +56,7 @@ func New(config Config) (*CloudState, error) {
 	cs := &CloudState{
 		server:                grpc.NewServer(),
 		entityDiscoveryServer: eds,
-		eventSourcedServer:    newEventSourcedServer(),
+		eventSourcedServer:    eventsourced.NewServer(),
 		crdtServer:            crdt.NewServer(),
 	}
 	protocol.RegisterEntityDiscoveryServer(cs.server, cs.entityDiscoveryServer)
@@ -89,26 +89,25 @@ func (dc DescriptorConfig) AddDomainDescriptor(filename string) DescriptorConfig
 }
 
 // RegisterEventSourcedEntity registers an event sourced entity for CloudState.
-func (cs *CloudState) RegisterEventSourcedEntity(ese *EventSourcedEntity, config DescriptorConfig) (err error) {
-	ese.registerOnce.Do(func() {
-		if err = ese.init(); err != nil {
-			return
-		}
-		if err = cs.eventSourcedServer.registerEntity(ese); err != nil {
-			return
-		}
-		if err = cs.entityDiscoveryServer.registerEntity(ese, config); err != nil {
-			return
-		}
-	})
-	return
+func (cs *CloudState) RegisterEventSourcedEntity(e *eventsourced.EventSourcedEntity, config DescriptorConfig) error {
+	err := cs.eventSourcedServer.Register(e)
+	if err != nil {
+		return err
+	}
+	err = cs.entityDiscoveryServer.registerEventSourcedEntity(e, config)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (cs *CloudState) RegisterCrdt(e *crdt.Entity, config DescriptorConfig) error {
-	if err := cs.crdtServer.Register(e, crdt.ServiceName(config.Service)); err != nil {
+	err := cs.crdtServer.Register(e, crdt.ServiceName(config.Service))
+	if err != nil {
 		return err
 	}
-	if err := cs.entityDiscoveryServer.registerCrdtEntity(e, config); err != nil {
+	err = cs.entityDiscoveryServer.registerCrdtEntity(e, config)
+	if err != nil {
 		return err
 	}
 	return nil
@@ -161,78 +160,77 @@ func newEntityDiscoveryServer(config Config) (*EntityDiscoveryServer, error) {
 }
 
 // Discover returns an entity spec for registered entities.
-func (r *EntityDiscoveryServer) Discover(_ context.Context, pi *protocol.ProxyInfo) (*protocol.EntitySpec, error) {
+func (s *EntityDiscoveryServer) Discover(_ context.Context, pi *protocol.ProxyInfo) (*protocol.EntitySpec, error) {
 	log.Printf("Received discovery call from sidecar [%s w%s] supporting Cloudstate %v.%v\n",
 		pi.ProxyName,
 		pi.ProxyVersion,
 		pi.ProtocolMajorVersion,
 		pi.ProtocolMinorVersion,
 	)
-	log.Printf("Responding with: %v\n", r.entitySpec.GetServiceInfo())
-	return r.entitySpec, nil
+	log.Printf("Responding with: %v\n", s.entitySpec.GetServiceInfo())
+	return s.entitySpec, nil
 }
 
 // ReportError logs any user function error reported by the Cloudstate proxy.
-func (r *EntityDiscoveryServer) ReportError(_ context.Context, fe *protocol.UserFunctionError) (*empty.Empty, error) {
+func (s *EntityDiscoveryServer) ReportError(_ context.Context, fe *protocol.UserFunctionError) (*empty.Empty, error) {
 	log.Printf("ReportError: %v\n", fe)
 	return &empty.Empty{}, nil
 }
 
-func (r *EntityDiscoveryServer) updateSpec() (err error) {
-	protoBytes, err := proto.Marshal(r.fileDescriptorSet)
+func (s *EntityDiscoveryServer) updateSpec() (err error) {
+	protoBytes, err := proto.Marshal(s.fileDescriptorSet)
 	if err != nil {
 		return errors.New("unable to Marshal FileDescriptorSet")
 	}
-	r.entitySpec.Proto = protoBytes
+	s.entitySpec.Proto = protoBytes
 	return nil
 }
 
-func (r *EntityDiscoveryServer) resolveFileDescriptors(dc DescriptorConfig) error {
-	// service
+func (s *EntityDiscoveryServer) resolveFileDescriptors(dc DescriptorConfig) error {
 	if dc.Service != "" {
-		if err := r.registerFileDescriptorProto(dc.Service); err != nil {
+		if err := s.registerFileDescriptorProto(dc.Service); err != nil {
 			return err
 		}
 	}
-	// and dependent domain descriptors
+	// dependent domain descriptors
 	for _, dp := range dc.Domain {
-		if err := r.registerFileDescriptorProto(dp); err != nil {
+		if err := s.registerFileDescriptorProto(dp); err != nil {
 			return err
 		}
 	}
 	for _, dm := range dc.DomainMessages {
-		if err := r.registerFileDescriptor(dm); err != nil {
+		if err := s.registerFileDescriptor(dm); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (r *EntityDiscoveryServer) registerEntity(e *EventSourcedEntity, config DescriptorConfig) error {
-	if err := r.resolveFileDescriptors(config); err != nil {
+func (s *EntityDiscoveryServer) registerEventSourcedEntity(e *eventsourced.EventSourcedEntity, config DescriptorConfig) error {
+	if err := s.resolveFileDescriptors(config); err != nil {
 		return fmt.Errorf("failed to resolveFileDescriptor for DescriptorConfig: %+v: %w", config, err)
 	}
-	r.entitySpec.Entities = append(r.entitySpec.Entities, &protocol.Entity{
+	s.entitySpec.Entities = append(s.entitySpec.Entities, &protocol.Entity{
 		EntityType:    EventSourced,
-		ServiceName:   e.ServiceName,
+		ServiceName:   e.ServiceName.String(),
 		PersistenceId: e.PersistenceID,
 	})
-	return r.updateSpec()
+	return s.updateSpec()
 }
 
-func (r *EntityDiscoveryServer) registerCrdtEntity(e *crdt.Entity, config DescriptorConfig) error {
-	if err := r.resolveFileDescriptors(config); err != nil {
+func (s *EntityDiscoveryServer) registerCrdtEntity(e *crdt.Entity, config DescriptorConfig) error {
+	if err := s.resolveFileDescriptors(config); err != nil {
 		return fmt.Errorf("failed to resolveFileDescriptor for DescriptorConfig: %+v: %w", config, err)
 	}
-	r.entitySpec.Entities = append(r.entitySpec.Entities, &protocol.Entity{
+	s.entitySpec.Entities = append(s.entitySpec.Entities, &protocol.Entity{
 		EntityType:  Crdt,
 		ServiceName: e.ServiceName.String(),
 	})
-	return r.updateSpec()
+	return s.updateSpec()
 }
 
-func (r *EntityDiscoveryServer) hasRegistered(filename string) bool {
-	for _, f := range r.fileDescriptorSet.File {
+func (s *EntityDiscoveryServer) hasRegistered(filename string) bool {
+	for _, f := range s.fileDescriptorSet.File {
 		if f.GetName() == filename {
 			return true
 		}
@@ -240,32 +238,32 @@ func (r *EntityDiscoveryServer) hasRegistered(filename string) bool {
 	return false
 }
 
-func (r *EntityDiscoveryServer) registerFileDescriptorProto(filename string) error {
-	if r.hasRegistered(filename) {
+func (s *EntityDiscoveryServer) registerFileDescriptorProto(filename string) error {
+	if s.hasRegistered(filename) {
 		return nil
 	}
 	descriptorProto, err := unpackFile(proto.FileDescriptor(filename))
 	if err != nil {
 		return fmt.Errorf("failed to registerFileDescriptorProto for filename: %s: %w", filename, err)
 	}
-	r.fileDescriptorSet.File = append(r.fileDescriptorSet.File, descriptorProto)
+	s.fileDescriptorSet.File = append(s.fileDescriptorSet.File, descriptorProto)
 	for _, fn := range descriptorProto.Dependency {
-		err := r.registerFileDescriptorProto(fn)
+		err := s.registerFileDescriptorProto(fn)
 		if err != nil {
 			return err
 		}
 	}
-	return r.updateSpec()
+	return s.updateSpec()
 }
 
-func (r *EntityDiscoveryServer) registerFileDescriptor(msg descriptor.Message) error {
+func (s *EntityDiscoveryServer) registerFileDescriptor(msg descriptor.Message) error {
 	fd, _ := descriptor.ForMessage(msg) // this can panic
 	if r := recover(); r != nil {
 		return fmt.Errorf("descriptor.ForMessage panicked (%v) for: %+v", r, msg)
 	}
-	if r.hasRegistered(fd.GetName()) {
+	if s.hasRegistered(fd.GetName()) {
 		return nil
 	}
-	r.fileDescriptorSet.File = append(r.fileDescriptorSet.File, fd)
+	s.fileDescriptorSet.File = append(s.fileDescriptorSet.File, fd)
 	return nil
 }

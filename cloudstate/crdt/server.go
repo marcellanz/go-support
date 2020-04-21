@@ -25,6 +25,19 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 )
 
+// Entity captures an Entity with its ServiceName.
+// It is used to be registered as an crdt entity on a Cloudstate instance.
+type Entity struct {
+	// ServiceName is the fully qualified name of the service that implements this entities interface.
+	// Setting it is mandatory.
+	ServiceName ServiceName
+	// EntityFunc creates a new entity.
+	EntityFunc func(id EntityId) interface{}
+	// DefaultFunc is a factory method to create the crdt to be used for this entity.
+	DefaultFunc func(c *Context) CRDT
+	CommandFunc func(entity interface{}, ctx *CommandContext, name string, msg interface{}) (*any.Any, error)
+}
+
 type Server struct {
 	// entities has descriptions of entities registered by service names
 	entities map[ServiceName]*Entity
@@ -52,19 +65,6 @@ func (s *Server) Register(e *Entity, serviceName ServiceName) error {
 	}
 	s.entities[serviceName] = e
 	return nil
-}
-
-// Entity captures an Entity with its ServiceName.
-// It is used to be registered as an crdt entity on a Cloudstate instance.
-type Entity struct {
-	// ServiceName is the fully qualified name of the service that implements this entities interface.
-	// Setting it is mandatory.
-	ServiceName ServiceName
-	// EntityFunc creates a new entity.
-	EntityFunc func(id EntityId) interface{}
-	// DefaultFunc is a factory method to create the crdt to be used for this entity.
-	DefaultFunc func(c *Context) CRDT
-	CommandFunc func(entity interface{}, ctx *CommandContext, name string, msg interface{}) (*any.Any, error)
 }
 
 // After invoking handle, the first message sent will always be a CrdtInit message, containing the entity ID, and,

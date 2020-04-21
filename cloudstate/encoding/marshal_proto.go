@@ -13,30 +13,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cloudstate
+package encoding
 
 import (
+	"errors"
 	"fmt"
-	"testing"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/any"
 )
 
-func TestMarshalAnyProto(t *testing.T) {
-	event := IncrementByEvent{Value: 29}
-	any, err := MarshalAny(&event)
+var ErrMarshal = errors.New("unable to marshal a message")
+
+// MarshalAny marshals a proto.Message to a any.Any value.
+func MarshalAny(pb interface{}) (*any.Any, error) {
+	// TODO: protobufs are expected here, but Cloudstate supports other formats
+	message, ok := pb.(proto.Message)
+	if !ok {
+		return nil, fmt.Errorf("got a non-proto message as protobuf: %v", pb)
+	}
+	bytes, err := proto.Marshal(message)
 	if err != nil {
-		t.Fatalf("failed to MarshalAny: %v", err)
+		return nil, fmt.Errorf("%s, %w", err, ErrMarshal)
 	}
-	expected := fmt.Sprintf("%s/%s", protoAnyBase, "IncrementByEvent")
-	if expected != any.GetTypeUrl() {
-		t.Fatalf("any.GetTypeUrl: %s is not: %s", any.GetTypeUrl(), expected)
-	}
-	event2 := &IncrementByEvent{}
-	if err := proto.Unmarshal(any.Value, event2); err != nil {
-		t.Fatalf("%v", err)
-	}
-	if event2.Value != event.Value {
-		t.Fatalf("event2.Value: %d != event.Value: %d", event2.Value, event.Value)
-	}
+	return &any.Any{
+		TypeUrl: fmt.Sprintf("%s/%s", ProtoAnyBase, proto.MessageName(message)),
+		Value:   bytes,
+	}, nil
 }
