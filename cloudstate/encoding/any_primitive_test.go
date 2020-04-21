@@ -97,7 +97,7 @@ func TestMarshalUnmarshalPrimitive(t *testing.T) {
 			switch ut := u.(type) {
 			case []byte:
 				byt := tc.value.([]byte)
-				if bytes.Compare(byt, ut) != 0 {
+				if !bytes.Equal(byt, ut) {
 					t.Errorf("err: %v. got: %+v, expected: %+v", err, u, tc.value)
 				}
 			default:
@@ -147,7 +147,7 @@ func BenchmarkMarshalUnmarshal(b *testing.B) {
 					switch ut := u.(type) {
 					case []byte:
 						byt := tc.value.([]byte)
-						if bytes.Compare(byt, ut) != 0 {
+						if !bytes.Equal(byt, ut) {
 							b.Errorf("err: %v. got: %+v, expected: %+v", err, u, tc.value)
 						}
 					default:

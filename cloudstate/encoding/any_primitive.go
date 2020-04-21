@@ -24,6 +24,7 @@ import (
 
 const (
 	PrimitiveTypeURLPrefix = "p.cloudstate.io"
+	ProtoAnyBase           = "type.googleapis.com"
 
 	primitiveTypeURLPrefixInt32  = PrimitiveTypeURLPrefix + "/int32"
 	primitiveTypeURLPrefixInt64  = PrimitiveTypeURLPrefix + "/int64"
