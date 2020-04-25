@@ -22,7 +22,7 @@ type Context struct {
 	// Instance is the instance of the entity this context is for.
 	Instance interface{}
 
-	EventEmitter
+	EventEmitter // TODO(marcellanz): check
 }
 
 func (c *Context) Failed(err error) {

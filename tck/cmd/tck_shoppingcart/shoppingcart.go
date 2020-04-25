@@ -170,7 +170,7 @@ func (sc *ShoppingCart) HandleCommand(ctx *eventsourced.Context, name string, cm
 }
 
 func (sc *ShoppingCart) Snapshot() (snapshot interface{}, err error) {
-	return domain.Cart{
+	return &domain.Cart{
 		Items: append(make([]*domain.LineItem, 0, len(sc.cart)), sc.cart...),
 	}, nil
 }

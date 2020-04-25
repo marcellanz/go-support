@@ -51,6 +51,7 @@ func (e *EntityInstance) resetSnapshotEvery() {
 // associated service.
 // Commands are dispatched through this context.
 type EntityInstanceContext struct { // TODO: EntityInstanceContext might be actually a EntityInstance
+	context *Context
 	// EntityInstance is the entity instance of this context
 	EntityInstance *EntityInstance
 	// active indicates if this context is active

@@ -219,8 +219,8 @@ func newHandler(t *testing.T) *EventSourcedServer {
 	return handler
 }
 
-func initHandler(handler *EventSourcedServer, ctx *Context, t *testing.T) {
-	err := handler.handleInit(ctx, &protocol.EventSourcedInit{
+func initHandler(handler *EventSourcedServer, t *testing.T) {
+	err := handler.handleInit(&protocol.EventSourcedInit{
 		ServiceName: "TestEventSourcedServer-Service",
 		EntityId:    "entity-0",
 	})
@@ -262,13 +262,7 @@ func TestSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	ctx := &Context{
-		EntityId:     "",
-		Entity:       nil,
-		Instance:     nil,
-		EventEmitter: NewEmitter(),
-	}
-	err = handler.handleInit(ctx, &protocol.EventSourcedInit{
+	err = handler.handleInit(&protocol.EventSourcedInit{
 		ServiceName: "TestEventSourcedServer-Service",
 		EntityId:    "entity-0",
 		Snapshot: &protocol.EventSourcedSnapshot{
@@ -287,10 +281,7 @@ func TestSnapshot(t *testing.T) {
 func TestEventSourcedServerHandlesCommandAndEvents(t *testing.T) {
 	resetTestEntity()
 	handler := newHandler(t)
-	ctx := &Context{
-		EventEmitter: NewEmitter(),
-	}
-	initHandler(handler, ctx, t)
+	initHandler(handler, t)
 	incrementedTo := int64(7)
 	incrCmdValue, err := marshal(&IncrementByCommand{Amount: incrementedTo}, t)
 	incrCommand := protocol.Command{
@@ -302,7 +293,7 @@ func TestEventSourcedServerHandlesCommandAndEvents(t *testing.T) {
 			Value:   incrCmdValue,
 		},
 	}
-	err = handler.handleCommand(ctx, &incrCommand, TestEventSourcedHandleServer{})
+	err = handler.handleCommand(&incrCommand, TestEventSourcedHandleServer{})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -323,7 +314,7 @@ func TestEventSourcedServerHandlesCommandAndEvents(t *testing.T) {
 			Value:   decrCmdValue,
 		},
 	}
-	err = handler.handleCommand(ctx, &decrCommand, TestEventSourcedHandleServer{})
+	err = handler.handleCommand(&decrCommand, TestEventSourcedHandleServer{})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

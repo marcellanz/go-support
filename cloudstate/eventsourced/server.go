@@ -32,16 +32,14 @@ import (
 // and marshals them to the event serialized form.
 func MarshalEventsAny(entityContext *EntityInstanceContext) ([]*any.Any, error) {
 	events := make([]*any.Any, 0)
-	if emitter, ok := entityContext.EntityInstance.Instance.(EventEmitter); ok {
-		for _, evt := range emitter.Events() {
-			event, err := encoding.MarshalAny(evt)
-			if err != nil {
-				return nil, err
-			}
-			events = append(events, event)
+	for _, evt := range entityContext.context.Events() {
+		event, err := encoding.MarshalAny(evt)
+		if err != nil {
+			return nil, err
 		}
-		emitter.Clear()
+		events = append(events, event)
 	}
+	entityContext.context.Clear()
 	return events, nil
 }
 
@@ -125,24 +123,21 @@ func (esh *EventSourcedServer) Handle(stream protocol.EventSourced_HandleServer)
 			return recvErr
 		}
 		if cmd := msg.GetCommand(); cmd != nil {
-			ctx := &Context{}
-			if err := esh.handleCommand(ctx, cmd, stream); err != nil {
+			if err := esh.handleCommand(cmd, stream); err != nil {
 				// TODO: in general, what happens with the stream here if an error happens?
 				failed = handleFailure(err, stream, cmd.GetId())
 			}
 			continue
 		}
 		if event := msg.GetEvent(); event != nil {
-			ctx := &Context{}
 			// TODO spec: Why does command carry the entityId and an event not?
-			if err := esh.handleEvent(ctx, entityId, event); err != nil {
+			if err := esh.handleEvent(entityId, event); err != nil {
 				failed = handleFailure(err, stream, 0)
 			}
 			continue
 		}
 		if init := msg.GetInit(); init != nil {
-			ctx := &Context{}
-			if err := esh.handleInit(ctx, init); err != nil {
+			if err := esh.handleInit(init); err != nil {
 				failed = handleFailure(err, stream, 0)
 			}
 			entityId = init.GetEntityId()
@@ -151,7 +146,7 @@ func (esh *EventSourcedServer) Handle(stream protocol.EventSourced_HandleServer)
 	}
 }
 
-func (esh *EventSourcedServer) handleInit(ctx *Context, init *protocol.EventSourcedInit) error {
+func (esh *EventSourcedServer) handleInit(init *protocol.EventSourcedInit) error {
 	id := init.GetEntityId()
 	if _, present := esh.contexts[id]; present {
 		return fmt.Errorf("unable to server.Send")
@@ -164,6 +159,14 @@ func (esh *EventSourcedServer) handleInit(ctx *Context, init *protocol.EventSour
 		},
 		active: true,
 	}
+	// TODO: move up
+	ctx := &Context{
+		EntityId:     EntityId(id),
+		Entity:       entity,
+		Instance:     esh.contexts[id].EntityInstance.Instance,
+		EventEmitter: NewEmitter(),
+	}
+	esh.contexts[id].context = ctx
 
 	if err := esh.handleInitSnapshot(ctx, init); err != nil {
 		return fmt.Errorf("unable to server.Send: %w", err)
@@ -242,7 +245,7 @@ func (esh *EventSourcedServer) subscribeEvents(ctx *Context, instance *EntityIns
 	})
 }
 
-func (esh *EventSourcedServer) handleEvent(ctx *Context, entityId string, event *protocol.EventSourcedEvent) error {
+func (esh *EventSourcedServer) handleEvent(entityId string, event *protocol.EventSourcedEvent) error {
 	if entityId == "" {
 		return NewFailureErrorf("no entityId was found from a previous init message for event sequence: %v", event.Sequence)
 	}
@@ -250,7 +253,7 @@ func (esh *EventSourcedServer) handleEvent(ctx *Context, entityId string, event 
 	if entityContext == nil {
 		return NewFailureErrorf("no entity with entityId registered: %v", entityId)
 	}
-	err := esh.handleEvents(ctx, entityContext.EntityInstance, event)
+	err := esh.handleEvents(entityContext.context, entityContext.EntityInstance, event)
 	if err != nil {
 		return NewFailureErrorf("handle event failed: %v", err)
 	}
@@ -278,7 +281,7 @@ func (esh *EventSourcedServer) handleEvent(ctx *Context, entityId string, event 
 // Beside calling the service method, we have to collect "events" the service might emit.
 // These events afterwards have to be handled by a EventHandler to update the state of the
 // entity. The Cloudstate proxy can re-play these events at any time
-func (esh *EventSourcedServer) handleCommand(ctx *Context, cmd *protocol.Command, server protocol.EventSourced_HandleServer) error {
+func (esh *EventSourcedServer) handleCommand(cmd *protocol.Command, server protocol.EventSourced_HandleServer) error {
 	msgName := strings.TrimPrefix(cmd.Payload.GetTypeUrl(), encoding.ProtoAnyBase+"/")
 	messageType := proto.MessageType(msgName)
 	if messageType.Kind() != reflect.Ptr {
@@ -302,7 +305,7 @@ func (esh *EventSourcedServer) handleCommand(ctx *Context, cmd *protocol.Command
 	// and an error as a second return value.
 	reply, errReturned := entityContext.EntityInstance.EventSourcedEntity.CommandFunc(
 		entityContext.EntityInstance.Instance,
-		ctx,
+		entityContext.context,
 		cmd.Name,
 		message,
 	)

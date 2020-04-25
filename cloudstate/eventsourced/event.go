@@ -65,7 +65,6 @@ func (e *eventEmitter) Emit(event interface{}) {
 		}
 		if err != nil && subs.OnErr != nil {
 			subs.OnErr(err)
-			// TODO: we have no context here to fail to the proxy
 		}
 	}
 	e.events = append(e.events, event)
@@ -84,19 +83,3 @@ func (e *eventEmitter) Subscribe(subs *Subscription) *Subscription {
 func (e *eventEmitter) Clear() {
 	e.events = make([]interface{}, 0)
 }
-
-//type EventHandler interface {
-//	HandleEvent(ctx context.Context, event interface{}) (handled bool, err error)
-//}
-//
-//type CommandHandler interface {
-//	HandleCommand(ctx context.Context, command interface{}) (handled bool, reply interface{}, err error)
-//}
-
-//type Snapshotter interface {
-//	Snapshot() (snapshot interface{}, err error)
-//}
-
-//type SnapshotHandler interface {
-//	HandleSnapshot(snapshot interface{}) (handled bool, err error)
-//}
