@@ -23,7 +23,9 @@ type Context struct {
 	Instance interface{}
 
 	EventEmitter // TODO(marcellanz): check
+	failed       error
 }
 
 func (c *Context) Failed(err error) {
+	c.failed = err
 }

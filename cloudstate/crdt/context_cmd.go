@@ -69,7 +69,7 @@ func (c *CommandContext) runCommand(cmd *protocol.Command) (*any.Any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return c.Entity.CommandFunc(c.Instance, c, cmd.Name, messageType)
+	return c.Entity.CommandFunc(c.Instance, c, cmd.Name, message)
 }
 
 func (c *CommandContext) ChangeFunc(f ChangeFunc) {

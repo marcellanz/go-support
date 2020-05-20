@@ -223,7 +223,7 @@ func initHandler(handler *EventSourcedServer, t *testing.T) {
 	err := handler.handleInit(&protocol.EventSourcedInit{
 		ServiceName: "TestEventSourcedServer-Service",
 		EntityId:    "entity-0",
-	})
+	}, nil)
 	if err != nil {
 		t.Errorf("%v", err)
 		t.Fail()
@@ -269,7 +269,7 @@ func TestSnapshot(t *testing.T) {
 			SnapshotSequence: 0,
 			Snapshot:         primitive,
 		},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -293,7 +293,7 @@ func TestEventSourcedServerHandlesCommandAndEvents(t *testing.T) {
 			Value:   incrCmdValue,
 		},
 	}
-	err = handler.handleCommand(&incrCommand, TestEventSourcedHandleServer{})
+	err = handler.handleCommand(&incrCommand, &runner{})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
@@ -314,7 +314,7 @@ func TestEventSourcedServerHandlesCommandAndEvents(t *testing.T) {
 			Value:   decrCmdValue,
 		},
 	}
-	err = handler.handleCommand(&decrCommand, TestEventSourcedHandleServer{})
+	err = handler.handleCommand(&decrCommand, &runner{})
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

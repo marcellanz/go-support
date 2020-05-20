@@ -16,6 +16,7 @@
 package eventsourced
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -44,6 +45,12 @@ func MarshalEventsAny(entityContext *EntityInstanceContext) ([]*any.Any, error) 
 }
 
 const snapshotEveryDefault = 100
+
+type runner struct {
+	stream        protocol.EventSourced_HandleServer
+	context       *Context
+	stateReceived bool
+}
 
 // EventSourcedEntity captures an Entity, its ServiceName and PersistenceID.
 // It is used to be registered as an event sourced entity on a CloudState instance.
@@ -78,23 +85,78 @@ type EventSourcedServer struct {
 	// entities are indexed by their service name
 	entities map[ServiceName]*EventSourcedEntity
 	// contexts are entity instance contexts indexed by their entity ids
-	contexts map[string]*EntityInstanceContext
+	contexts map[EntityId]*EntityInstanceContext
 }
 
 // newEventSourcedServer returns an initialized EventSourcedServer
 func NewServer() *EventSourcedServer {
 	return &EventSourcedServer{
 		entities: make(map[ServiceName]*EventSourcedEntity),
-		contexts: make(map[string]*EntityInstanceContext),
+		contexts: make(map[EntityId]*EntityInstanceContext),
 	}
 }
 
-func (esh *EventSourcedServer) Register(ese *EventSourcedEntity) error {
-	if _, exists := esh.entities[ese.ServiceName]; exists {
+func (s *EventSourcedServer) Register(ese *EventSourcedEntity) error {
+	if _, exists := s.entities[ese.ServiceName]; exists {
 		return fmt.Errorf("EventSourcedEntity with service name: %s is already registered", ese.ServiceName)
 	}
-	esh.entities[ese.ServiceName] = ese
+	s.entities[ese.ServiceName] = ese
 	ese.SnapshotEvery = snapshotEveryDefault
+	return nil
+}
+
+// sendFailureAndReturnWith sends a given error to the proxy and returns the same error.
+// An error might be a wrapped protocol failure or a client action failure, the failure
+// then is sent accordingly keeping a potential command-id provided.
+func sendFailure(e error, server protocol.EventSourced_HandleServer) error {
+	f := &protocol.Failure{
+		Description: e.Error(),
+	}
+	pf := &protocol.ProtocolFailure{}
+	if errors.As(e, &pf) {
+		f = pf.F
+		if f.Description == "" {
+			f.Description = errors.Unwrap(e).Error()
+		}
+		err := server.Send(&protocol.EventSourcedStreamOut{
+			Message: &protocol.EventSourcedStreamOut_Failure{
+				Failure: f,
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("send of EventSourcedStreamOut Failure failed: %w", err)
+		}
+		return nil
+	}
+	cf := &protocol.ClientFailure{}
+	if is := errors.As(e, cf); is {
+		f = pf.F
+		if f.Description == "" {
+			f.Description = errors.Unwrap(e).Error()
+		}
+		err := server.Send(&protocol.EventSourcedStreamOut{
+			Message: &protocol.EventSourcedStreamOut_Reply{
+				Reply: &protocol.EventSourcedReply{
+					CommandId: cf.F.CommandId,
+					ClientAction: &protocol.ClientAction{
+						Action: &protocol.ClientAction_Failure{Failure: f},
+					},
+				},
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("send of EventSourcedStreamOut Failure failed: %w", err)
+		}
+		return nil
+	}
+	err := server.Send(&protocol.EventSourcedStreamOut{
+		Message: &protocol.EventSourcedStreamOut_Failure{
+			Failure: f,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("send of EventSourcedStreamOut Failure failed: %w", err)
+	}
 	return nil
 }
 
@@ -108,51 +170,99 @@ func (esh *EventSourcedServer) Register(ese *EventSourcedEntity) error {
 // message. The entity should reply in order, and any events that the entity requests to be
 // persisted the entity should handle itself, applying them to its own state, as if they had
 // arrived as events when the event stream was being replayed on load.
-func (esh *EventSourcedServer) Handle(stream protocol.EventSourced_HandleServer) error {
-	var entityId string
-	var failed error
-	for {
-		if failed != nil {
-			return failed
+//
+// Error handling is done, so that any error returned triggers the stream to be closed.
+// If an error is a client failure, a ClientAction_Failure is sent with a command id set
+// if provided by the error. If an error is a protocol failure or any other error, a
+// EventSourcedStreamOut_Failure is sent. A protocol failure might provide a command id to
+// be included.
+func (s *EventSourcedServer) Handle(stream protocol.EventSourced_HandleServer) (handleErr error) {
+	defer func() {
+		if r := recover(); r != nil {
+			handleErr = sendFailure(fmt.Errorf("EventSourcedServer.Handle panic-ked with: %v", r), stream)
 		}
-		msg, recvErr := stream.Recv()
-		if recvErr == io.EOF {
+	}()
+	if err := s.handle(stream); err != nil {
+		return sendFailure(err, stream)
+	}
+	return nil
+}
+
+func (s *EventSourcedServer) handle(server protocol.EventSourced_HandleServer) error {
+	first, err := server.Recv()
+	if err == io.EOF { // the stream has ended
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	runner := &runner{stream: server}
+	switch m := first.GetMessage().(type) {
+	case *protocol.EventSourcedStreamIn_Init:
+		if err := s.handleInit(m.Init, runner); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("a message was received without having a EventSourcedInit message handled before: %v", first.GetMessage())
+	}
+
+	for {
+		select {
+		case <-runner.stream.Context().Done():
+			return runner.stream.Context().Err()
+		default:
+		}
+		// TODO: can we get inactive?
+		if runner.context.failed != nil {
+			// failed means deactivated. we may never get this far.
 			return nil
 		}
-		if recvErr != nil {
-			return recvErr
+
+		msg, err := server.Recv()
+		if err == io.EOF {
+			return nil
 		}
-		if cmd := msg.GetCommand(); cmd != nil {
-			if err := esh.handleCommand(cmd, stream); err != nil {
-				// TODO: in general, what happens with the stream here if an error happens?
-				failed = handleFailure(err, stream, cmd.GetId())
+		if err != nil {
+			return err
+		}
+		switch m := msg.GetMessage().(type) {
+		case *protocol.EventSourcedStreamIn_Command:
+			if err := s.handleCommand(m.Command, runner); err != nil {
+
+				//f := &protocol.ProtocolFailure{}
+				////we can't copy failures!!
+				//errors.As()
+				switch t := err.(type) {
+				case *protocol.ProtocolFailure:
+					t.F.CommandId = m.Command.Id
+				case *protocol.ClientFailure:
+					t.F.CommandId = m.Command.Id
+				}
+				return sendFailure(err, runner.stream) // send the error by ourselfs
 			}
-			continue
-		}
-		if event := msg.GetEvent(); event != nil {
+		case *protocol.EventSourcedStreamIn_Event:
 			// TODO spec: Why does command carry the entityId and an event not?
-			if err := esh.handleEvent(entityId, event); err != nil {
-				failed = handleFailure(err, stream, 0)
+			if err := s.handleEvent(m.Event, runner); err != nil {
+				return err
 			}
-			continue
-		}
-		if init := msg.GetInit(); init != nil {
-			if err := esh.handleInit(init); err != nil {
-				failed = handleFailure(err, stream, 0)
-			}
-			entityId = init.GetEntityId()
-			continue
+		case *protocol.EventSourcedStreamIn_Init:
+			return errors.New("duplicate init message for the same entity")
+		case nil:
+			return errors.New("empty message received")
+		default:
+			return fmt.Errorf("unknown message received: %v", msg.GetMessage())
+
 		}
 	}
 }
 
-func (esh *EventSourcedServer) handleInit(init *protocol.EventSourcedInit) error {
-	id := init.GetEntityId()
-	if _, present := esh.contexts[id]; present {
-		return fmt.Errorf("unable to server.Send")
+func (s *EventSourcedServer) handleInit(init *protocol.EventSourcedInit, r *runner) error {
+	id := EntityId(init.GetEntityId())
+	if _, present := s.contexts[id]; present {
+		return fmt.Errorf("context already present")
 	}
-	entity := esh.entities[ServiceName(init.GetServiceName())]
-	esh.contexts[id] = &EntityInstanceContext{
+	entity := s.entities[ServiceName(init.GetServiceName())]
+	s.contexts[id] = &EntityInstanceContext{
 		EntityInstance: &EntityInstance{
 			Instance:           entity.EntityFunc(EntityId(id)),
 			EventSourcedEntity: entity,
@@ -160,40 +270,44 @@ func (esh *EventSourcedServer) handleInit(init *protocol.EventSourcedInit) error
 		active: true,
 	}
 	// TODO: move up
-	ctx := &Context{
-		EntityId:     EntityId(id),
+	r.context = &Context{
+		EntityId:     id,
 		Entity:       entity,
-		Instance:     esh.contexts[id].EntityInstance.Instance,
+		Instance:     s.contexts[id].EntityInstance.Instance,
 		EventEmitter: NewEmitter(),
 	}
-	esh.contexts[id].context = ctx
+	s.contexts[id].context = r.context
 
-	if err := esh.handleInitSnapshot(ctx, init); err != nil {
+	if err := s.handleInitSnapshot(init, r); err != nil {
 		return fmt.Errorf("unable to server.Send: %w", err)
 	}
-	esh.subscribeEvents(ctx, esh.contexts[id].EntityInstance)
+	s.subscribeEvents(s.contexts[id].EntityInstance, r)
 	return nil
 }
 
-func (esh *EventSourcedServer) handleInitSnapshot(ctx *Context, init *protocol.EventSourcedInit) error {
+func (s *EventSourcedServer) handleInitSnapshot(init *protocol.EventSourcedInit, r *runner) error {
 	if init.Snapshot == nil {
 		return nil
 	}
-	entityId := init.GetEntityId()
+	entityId := EntityId(init.GetEntityId())
 
-	snapshot, err := esh.unmarshalSnapshot(init)
+	snapshot, err := s.unmarshalSnapshot(init)
 	if snapshot == nil || err != nil {
-		return NewFailureErrorf("handling snapshot failed with: %v", err)
+		return &protocol.ProtocolFailure{
+			Err: fmt.Errorf("handling snapshot failed with: %w", err),
+		}
 	}
-	err = esh.contexts[entityId].EntityInstance.EventSourcedEntity.SnapshotHandlerFunc(
-		esh.contexts[entityId].EntityInstance.Instance,
-		ctx,
+	err = s.contexts[entityId].EntityInstance.EventSourcedEntity.SnapshotHandlerFunc(
+		s.contexts[entityId].EntityInstance.Instance,
+		r.context,
 		snapshot,
 	)
 	if err != nil {
-		return NewFailureErrorf("handling snapshot failed with: %v", err)
+		return &protocol.ProtocolFailure{
+			Err: fmt.Errorf("handling snapshot failed with: %w", err),
+		}
 	}
-	esh.contexts[entityId].EntityInstance.eventSequence = init.GetSnapshot().SnapshotSequence
+	s.contexts[entityId].EntityInstance.eventSequence = init.GetSnapshot().SnapshotSequence
 	return nil
 }
 
@@ -211,53 +325,64 @@ func (EventSourcedServer) unmarshalSnapshot(init *protocol.EventSourcedInit) (in
 	case encoding.PrimitiveTypeURLPrefix:
 		snapshot, err := encoding.UnmarshalPrimitive(init.Snapshot.Snapshot)
 		if err != nil {
-			return nil, fmt.Errorf("unmarshalling snapshot failed with: %v", err)
+			return nil, &protocol.ProtocolFailure{
+				Err: fmt.Errorf("unmarshalling snapshot failed with: %w", err),
+			}
 		}
 		return snapshot, nil
 	case encoding.ProtoAnyBase:
 		msgName := strings.TrimPrefix(init.Snapshot.Snapshot.GetTypeUrl(), encoding.ProtoAnyBase+"/") // TODO: this might be something else than a proto message
 		messageType := proto.MessageType(msgName)
-		if messageType.Kind() == reflect.Ptr {
-			if message, ok := reflect.New(messageType.Elem()).Interface().(proto.Message); ok {
-				err := proto.Unmarshal(init.Snapshot.Snapshot.Value, message)
-				if err != nil {
-					return nil, fmt.Errorf("unmarshalling snapshot failed with: %v", err)
+		if messageType.Kind() != reflect.Ptr {
+			break
+		}
+		if message, ok := reflect.New(messageType.Elem()).Interface().(proto.Message); ok {
+			if err := proto.Unmarshal(init.Snapshot.Snapshot.Value, message); err != nil {
+				return nil, &protocol.ProtocolFailure{
+					Err: fmt.Errorf("unmarshalling snapshot failed with: %w", err),
 				}
-				return message, nil
 			}
+			return message, nil
 		}
 	}
-	return nil, fmt.Errorf("unmarshalling snapshot failed with: no snapshot unmarshaller found for: %v", typeURL.String())
+	return nil, &protocol.ProtocolFailure{
+		Err: fmt.Errorf("unmarshalling snapshot failed with: no snapshot unmarshaller found for: %v", typeURL.String()),
+	}
 }
 
-func (esh *EventSourcedServer) subscribeEvents(ctx *Context, instance *EntityInstance) {
-	ctx.Subscribe(&Subscription{
+func (s *EventSourcedServer) subscribeEvents(i *EntityInstance, r *runner) {
+	r.context.Subscribe(&Subscription{
 		OnNext: func(event interface{}) error {
-			err := esh.applyEvent(instance, event)
-			if err == nil {
-				instance.eventSequence++
+			if err := s.applyEvent(i, event); err != nil {
+				return err
 			}
-			return err
+			i.eventSequence++
+			return nil
 		},
 		OnErr: func(err error) {
-			ctx.Failed(err)
+			r.context.Failed(err)
 		},
 	})
 }
 
-func (esh *EventSourcedServer) handleEvent(entityId string, event *protocol.EventSourcedEvent) error {
-	if entityId == "" {
-		return NewFailureErrorf("no entityId was found from a previous init message for event sequence: %v", event.Sequence)
+func (s *EventSourcedServer) handleEvent(event *protocol.EventSourcedEvent, r *runner) error {
+	if r.context.EntityId == "" {
+		return &protocol.ProtocolFailure{
+			Err: fmt.Errorf("no entityId was found from a previous init message for event sequence: %v", event.Sequence),
+		}
 	}
-	entityContext := esh.contexts[entityId]
+	entityContext := s.contexts[r.context.EntityId]
 	if entityContext == nil {
-		return NewFailureErrorf("no entity with entityId registered: %v", entityId)
+		return &protocol.ProtocolFailure{
+			Err: fmt.Errorf("no entity with entityId registered: %v", r.context.EntityId),
+		}
 	}
-	err := esh.handleEvents(entityContext.context, entityContext.EntityInstance, event)
-	if err != nil {
-		return NewFailureErrorf("handle event failed: %v", err)
+	if err := s.handleEvents(entityContext.context, entityContext.EntityInstance, event); err != nil {
+		return &protocol.ProtocolFailure{
+			Err: fmt.Errorf("handle event failed: %v", err),
+		}
 	}
-	return err
+	return nil
 }
 
 // handleCommand handles a command received from the Cloudstate proxy.
@@ -281,7 +406,7 @@ func (esh *EventSourcedServer) handleEvent(entityId string, event *protocol.Even
 // Beside calling the service method, we have to collect "events" the service might emit.
 // These events afterwards have to be handled by a EventHandler to update the state of the
 // entity. The Cloudstate proxy can re-play these events at any time
-func (esh *EventSourcedServer) handleCommand(cmd *protocol.Command, server protocol.EventSourced_HandleServer) error {
+func (s *EventSourcedServer) handleCommand(cmd *protocol.Command, r *runner) error {
 	msgName := strings.TrimPrefix(cmd.Payload.GetTypeUrl(), encoding.ProtoAnyBase+"/")
 	messageType := proto.MessageType(msgName)
 	if messageType.Kind() != reflect.Ptr {
@@ -299,7 +424,7 @@ func (esh *EventSourcedServer) handleCommand(cmd *protocol.Command, server proto
 	}
 
 	// we're ready to handle the proto message
-	entityContext := esh.contexts[cmd.GetEntityId()]
+	entityContext := s.contexts[r.context.EntityId]
 
 	// The gRPC implementation returns the rpc return method
 	// and an error as a second return value.
@@ -312,36 +437,30 @@ func (esh *EventSourcedServer) handleCommand(cmd *protocol.Command, server proto
 	// the error
 	if errReturned != nil {
 		// TCK says: TODO Expects entity.Failure, but gets clientAction.Action.Failure(Failure(commandId, msg)))
-		return NewProtocolFailure(protocol.Failure{
-			CommandId:   cmd.GetId(),
-			Description: errReturned.Error(),
-		})
+		return &protocol.ProtocolFailure{
+			F:   &protocol.Failure{CommandId: cmd.GetId()},
+			Err: errReturned,
+		}
 	}
 	// the reply
 	callReply, err := encoding.MarshalAny(reply)
 	if err != nil { // this should never happen
-		return NewProtocolFailure(protocol.Failure{
-			CommandId:   cmd.GetId(),
-			Description: fmt.Errorf("called return value at index 0 is no proto.Message. %w", err).Error(),
-		})
+		return &protocol.ProtocolFailure{
+			F:   &protocol.Failure{CommandId: cmd.GetId()},
+			Err: fmt.Errorf("called return value at index 0 is no proto.Message. %w", err),
+		}
 	}
 	// emitted events
 	events, err := MarshalEventsAny(entityContext)
 	if err != nil {
-		return NewProtocolFailure(protocol.Failure{
-			CommandId:   cmd.GetId(),
-			Description: err.Error(),
-		})
+		return &protocol.ProtocolFailure{F: &protocol.Failure{CommandId: cmd.GetId()}, Err: err}
 	}
 	// snapshot
-	snapshot, err := esh.handleSnapshots(entityContext)
+	snapshot, err := s.handleSnapshots(entityContext)
 	if err != nil {
-		return NewProtocolFailure(protocol.Failure{
-			CommandId:   cmd.GetId(),
-			Description: err.Error(),
-		})
+		return &protocol.ProtocolFailure{F: &protocol.Failure{CommandId: cmd.GetId()}, Err: err}
 	}
-	return sendEventSourcedReply(&protocol.EventSourcedReply{
+	sourcedReply := &protocol.EventSourcedReply{
 		CommandId: cmd.GetId(),
 		ClientAction: &protocol.ClientAction{
 			Action: &protocol.ClientAction_Reply{
@@ -352,7 +471,8 @@ func (esh *EventSourcedServer) handleCommand(cmd *protocol.Command, server proto
 		},
 		Events:   events,
 		Snapshot: snapshot,
-	}, server)
+	}
+	return sendEventSourcedReply(sourcedReply, r.stream)
 }
 
 func (*EventSourcedServer) handleSnapshots(entityContext *EntityInstanceContext) (*any.Any, error) {
@@ -361,7 +481,7 @@ func (*EventSourcedServer) handleSnapshots(entityContext *EntityInstanceContext)
 	}
 	snap, err := entityContext.EntityInstance.EventSourcedEntity.SnapshotFunc(entityContext.EntityInstance.Instance)
 	if err != nil {
-		return nil, fmt.Errorf("getting a snapshot has failed: %v. %w", err, ErrFailure)
+		return nil, fmt.Errorf("getting a snapshot has failed: %v. %w", err, protocol.ErrProtocolFailure)
 	}
 	// TODO: we expect a proto.Message but should support other formats
 	snapshot, err := encoding.MarshalAny(snap)
@@ -373,12 +493,12 @@ func (*EventSourcedServer) handleSnapshots(entityContext *EntityInstanceContext)
 }
 
 // applyEvent applies an event to a local entity
-func (esh EventSourcedServer) applyEvent(entityInstance *EntityInstance, event interface{}) error {
+func (s EventSourcedServer) applyEvent(entityInstance *EntityInstance, event interface{}) error {
 	payload, err := encoding.MarshalAny(event)
 	if err != nil {
 		return err
 	}
-	return esh.handleEvents(nil, entityInstance, &protocol.EventSourcedEvent{Payload: payload})
+	return s.handleEvents(nil, entityInstance, &protocol.EventSourcedEvent{Payload: payload})
 }
 
 func (EventSourcedServer) handleEvents(ctx *Context, entityInstance *EntityInstance, events ...*protocol.EventSourcedEvent) error {

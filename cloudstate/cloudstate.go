@@ -102,7 +102,7 @@ func (cs *CloudState) RegisterEventSourcedEntity(e *eventsourced.EventSourcedEnt
 }
 
 func (cs *CloudState) RegisterCrdt(e *crdt.Entity, config DescriptorConfig) error {
-	err := cs.crdtServer.Register(e, crdt.ServiceName(config.Service))
+	err := cs.crdtServer.Register(e, crdt.ServiceName(e.ServiceName))
 	if err != nil {
 		return err
 	}

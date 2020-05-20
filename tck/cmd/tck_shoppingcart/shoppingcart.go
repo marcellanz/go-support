@@ -123,7 +123,8 @@ func (sc *ShoppingCart) HandleEvent(ctx *eventsourced.Context, event interface{}
 // AddItem implements the AddItem command handling of the shopping cart service.
 func (sc *ShoppingCart) AddItem(ctx *eventsourced.Context, li *shoppingcart.AddLineItem) (*empty.Empty, error) {
 	if li.GetQuantity() <= 0 {
-		return nil, fmt.Errorf("cannot add negative quantity of to item %s", li.GetProductId())
+		ctx.Failed(fmt.Errorf("cannot add negative quantity of to item %s", li.GetProductId()))
+		return nil, nil
 	}
 	ctx.Emit(&domain.ItemAdded{
 		Item: &domain.LineItem{
@@ -137,7 +138,8 @@ func (sc *ShoppingCart) AddItem(ctx *eventsourced.Context, li *shoppingcart.AddL
 // RemoveItem implements the RemoveItem command handling of the shopping cart service.
 func (sc *ShoppingCart) RemoveItem(ctx *eventsourced.Context, li *shoppingcart.RemoveLineItem) (*empty.Empty, error) {
 	if item, _ := sc.find(li.GetProductId()); item == nil {
-		return nil, fmt.Errorf("cannot remove item %s because it is not in the cart", li.GetProductId())
+		ctx.Failed(fmt.Errorf("cannot remove item %s because it is not in the cart", li.GetProductId()))
+		return nil, nil
 	}
 	ctx.Emit(&domain.ItemRemoved{ProductId: li.ProductId})
 	return &empty.Empty{}, nil

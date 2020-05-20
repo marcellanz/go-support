@@ -25,49 +25,10 @@ import (
 var ErrSendFailure = errors.New("unable to send a failure message")
 var ErrSend = errors.New("unable to send a message")
 
-var ErrFailure = errors.New("cloudstate failure")
-var ErrClientActionFailure = errors.New("cloudstate client action failure")
-
-func NewFailureError(s string) error {
-	return fmt.Errorf(fmt.Sprintf(s)+". %w", ErrFailure)
-}
-
-func NewFailureErrorf(format string, a ...interface{}) error {
-	return fmt.Errorf(fmt.Sprintf(format, a...)+". %w", ErrFailure)
-}
-
-func NewClientActionFailureError(s string) error {
-	return fmt.Errorf(s+". %w", ErrClientActionFailure)
-}
-
-func NewClientActionFailureErrorf(format string, a ...interface{}) error {
-	return fmt.Errorf(fmt.Sprintf(format, a...)+". %w", ErrClientActionFailure)
-}
-
-type ProtocolFailure struct {
-	protocol.Failure
-	err error
-}
-
-func (f ProtocolFailure) Error() string {
-	return f.err.Error()
-}
-
-func (f ProtocolFailure) Unwrap() error {
-	return f.err
-}
-
-func NewProtocolFailure(failure protocol.Failure) error {
-	return ProtocolFailure{
-		Failure: failure,
-		err:     ErrFailure,
-	}
-}
-
 // handleFailure checks if a CloudState failure or client action failure should
 // be sent to the proxy, otherwise handleFailure returns the original failure
 func handleFailure(failure error, server protocol.EventSourced_HandleServer, cmdId int64) error {
-	if errors.Is(failure, ErrFailure) {
+	if errors.Is(failure, protocol.ErrProtocolFailure) {
 		// FIXME: why not getting the failure from the ProtocolFailure
 		// TCK says: Failure was not received, or not well-formed: Failure(Failure(0,cloudstate failure)) was not reply (CloudStateTCK.scala:339)
 		//return sendFailure(&protocol.Failure{Description: failure.Error()}, server)
@@ -76,7 +37,7 @@ func handleFailure(failure error, server protocol.EventSourced_HandleServer, cmd
 			Description: failure.Error(),
 		}, server)
 	}
-	if errors.Is(failure, ErrClientActionFailure) {
+	if errors.Is(failure, protocol.ErrClientActionFailure) {
 		return sendClientActionFailure(&protocol.Failure{
 			CommandId:   cmdId,
 			Description: failure.Error(),
@@ -86,10 +47,10 @@ func handleFailure(failure error, server protocol.EventSourced_HandleServer, cmd
 }
 
 // sendEventSourcedReply sends a given EventSourcedReply and if it fails, handles the error wrapping
-func sendEventSourcedReply(reply *protocol.EventSourcedReply, server protocol.EventSourced_HandleServer) error {
-	err := server.Send(&protocol.EventSourcedStreamOut{
+func sendEventSourcedReply(r *protocol.EventSourcedReply, s protocol.EventSourced_HandleServer) error {
+	err := s.Send(&protocol.EventSourcedStreamOut{
 		Message: &protocol.EventSourcedStreamOut_Reply{
-			Reply: reply,
+			Reply: r,
 		},
 	})
 	if err != nil {
@@ -98,18 +59,18 @@ func sendEventSourcedReply(reply *protocol.EventSourcedReply, server protocol.Ev
 	return err
 }
 
-// sendFailure sends a given EventSourcedReply and if it fails, handles the error wrapping
-func sendFailure(failure *protocol.Failure, server protocol.EventSourced_HandleServer) error {
-	err := server.Send(&protocol.EventSourcedStreamOut{
-		Message: &protocol.EventSourcedStreamOut_Failure{
-			Failure: failure,
-		},
-	})
-	if err != nil {
-		err = fmt.Errorf("%s, %w", err, ErrSendFailure)
-	}
-	return err
-}
+//// sendFailure sends a given EventSourcedReply and if it fails, handles the error wrapping
+//func sendFailure(f *protocol.Failure, s protocol.EventSourced_HandleServer) error {
+//	err := s.Send(&protocol.EventSourcedStreamOut{
+//		Message: &protocol.EventSourcedStreamOut_Failure{
+//			Failure: f,
+//		},
+//	})
+//	if err != nil {
+//		err = fmt.Errorf("%s, %w", err, ErrSendFailure)
+//	}
+//	return err
+//}
 
 // sendClientActionFailure sends a given EventSourcedReply and if it fails, handles the error wrapping
 func sendClientActionFailure(failure *protocol.Failure, server protocol.EventSourced_HandleServer) error {

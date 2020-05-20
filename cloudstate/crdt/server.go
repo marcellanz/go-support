@@ -33,7 +33,9 @@ type Entity struct {
 	ServiceName ServiceName
 	// EntityFunc creates a new entity.
 	EntityFunc func(id EntityId) interface{}
-	// DefaultFunc is a factory method to create the crdt to be used for this entity.
+	// SetFunc is a function that sets the ...
+	SetFunc func(c *Context, crdt CRDT)
+	// DefaultFunc is a factory function to create the crdt to be used for this entity.
 	DefaultFunc func(c *Context) CRDT
 	CommandFunc func(entity interface{}, ctx *CommandContext, name string, msg interface{}) (*any.Any, error)
 }

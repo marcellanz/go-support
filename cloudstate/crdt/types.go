@@ -21,6 +21,10 @@ type (
 	CommandId   int64
 )
 
+func (i EntityId) String() string {
+	return string(i)
+}
+
 func (sn ServiceName) String() string {
 	return string(sn)
 }

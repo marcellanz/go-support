@@ -64,10 +64,15 @@ func (c *Context) Delete() {
 
 // initDefault initializes the crdt with a default value if not already set.
 func (c *Context) initDefault() {
-	if c.crdt != nil || c.Entity.DefaultFunc == nil {
+	if c.crdt != nil {
+		c.Entity.SetFunc(c, c.crdt)
+		return
+	}
+	if c.Entity.DefaultFunc == nil {
 		return
 	}
 	c.crdt = c.Entity.DefaultFunc(c)
+	// TODO !! c.created should only be set if the user function did create the crdt
 	c.created = true
 }
 
