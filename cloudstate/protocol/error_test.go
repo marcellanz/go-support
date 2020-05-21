@@ -26,7 +26,7 @@ var ErrTest1 = errors.New("test1 error")
 func TestClientFailure_Error(t *testing.T) {
 	t.Run("test protocol error", func(t *testing.T) {
 		failure0 := ProtocolFailure{
-			F:   Failure{CommandId: 0},
+			F:   &Failure{CommandId: 0},
 			Err: fmt.Errorf("its an unusual error: %w", ErrTest1),
 		}
 
