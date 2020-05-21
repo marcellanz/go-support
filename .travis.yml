@@ -2,12 +2,27 @@ language: go
 os:
   - linux
   - osx
-  - windows
 go:
   - 1.14.x
-before_install:
-  - go get -t -v ./...
-script:
-  - go test -v -race -coverprofile=coverage.txt -covermode=atomic -bench=. ./...
-after_success:
-  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then bash <(curl -s https://codecov.io/bash); fi
+
+services:
+  - docker
+
+jobs:
+  include:
+    - stage: build and test
+      name: build
+      before_install:
+        - go get -t -v ./...
+      script:
+        - go test -v -race -coverprofile=coverage.txt -covermode=atomic -bench=. ./...
+      after_success:
+        - if [ "$TRAVIS_OS_NAME" = "linux" ]; then bash <(curl -s https://codecov.io/bash); fi
+    - stage: verification
+      name: tck verification
+      script:
+        - cd tck && ./run_tck.sh
+      after_success:
+        - echo "all good"
+      after_failure:
+        - echo "uups.."
