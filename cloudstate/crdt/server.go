@@ -26,7 +26,7 @@ import (
 )
 
 // Entity captures an Entity with its ServiceName.
-// It is used to be registered as an crdt entity on a Cloudstate instance.
+// It is used to be registered as an CRDT entity on a Cloudstate instance.
 type Entity struct {
 	// ServiceName is the fully qualified name of the service that implements this entities interface.
 	// Setting it is mandatory.
@@ -35,7 +35,7 @@ type Entity struct {
 	EntityFunc func(id EntityId) interface{}
 	// SetFunc is a function that sets the ...
 	SetFunc func(c *Context, crdt CRDT)
-	// DefaultFunc is a factory function to create the crdt to be used for this entity.
+	// DefaultFunc is a factory function to create the CRDT to be used for this entity.
 	DefaultFunc func(c *Context) CRDT
 	CommandFunc func(entity interface{}, ctx *CommandContext, name string, msg interface{}) (*any.Any, error)
 }

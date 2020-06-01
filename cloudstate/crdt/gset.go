@@ -24,9 +24,9 @@ import (
 
 // A grow only set can have elements added to it, but not removed.
 type GSet struct {
-	value map[uint64]*any.Any
-	added map[uint64]*any.Any
-	*anyHasher
+	value      map[uint64]*any.Any
+	added      map[uint64]*any.Any
+	*anyHasher // TODO: give it a name
 }
 
 var _ CRDT = (*GSet)(nil)

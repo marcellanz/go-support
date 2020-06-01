@@ -41,3 +41,7 @@ func MarshalAny(pb interface{}) (*any.Any, error) {
 		Value:   bytes,
 	}, nil
 }
+
+func UnmarshalAny(x *any.Any, p proto.Message) error {
+	return proto.Unmarshal(x.Value, p)
+}
