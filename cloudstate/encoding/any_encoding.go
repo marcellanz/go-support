@@ -51,7 +51,7 @@ func DecodeFloat32(a *any.Any) float32 {
 	return i.(float32)
 }
 
-func Float64(f float32) *any.Any {
+func Float64(f float64) *any.Any {
 	primitive, _ := MarshalPrimitive(f)
 	return primitive
 }
