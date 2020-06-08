@@ -17,6 +17,7 @@ package crdt
 
 import (
 	"context"
+	"errors"
 	"fmt"
 )
 
@@ -62,18 +63,25 @@ func (c *Context) Delete() {
 	c.crdt = nil
 }
 
-// initDefault initializes the crdt with a default value if not already set.
-func (c *Context) initDefault() {
+// initDefault initializes the CRDT with a default value if not already set.
+func (c *Context) initDefault() error {
 	if c.crdt != nil {
 		c.Entity.SetFunc(c, c.crdt)
-		return
+		return nil
 	}
 	if c.Entity.DefaultFunc == nil {
-		return
+		return nil
 	}
 	c.crdt = c.Entity.DefaultFunc(c)
-	// TODO !! c.created should only be set if the user function did create the crdt
+	if c.failed != nil {
+		return c.failed
+	}
+	if c.crdt == nil {
+		return errors.New("no default CRDT set by Entity.DefaultFunc")
+	}
+	// TODO !! c.created should only be set if the user function did create the CRDT
 	c.created = true
+	return nil
 }
 
 func (c *Context) deactivate() {

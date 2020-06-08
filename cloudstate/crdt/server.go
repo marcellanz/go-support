@@ -205,6 +205,5 @@ func (s *Server) handleInit(init *protocol.CrdtInit, r *runner) error {
 		}
 	}
 	// the user entity can provide a CRDT through a default function if none is set.
-	r.context.initDefault()
-	return nil
+	return r.context.initDefault()
 }
