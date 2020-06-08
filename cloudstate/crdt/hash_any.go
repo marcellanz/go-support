@@ -22,12 +22,12 @@ import (
 )
 
 type anyHasher struct {
-	maphash.Hash
+	h maphash.Hash
 }
 
 func (h *anyHasher) hashAny(a *any.Any) uint64 {
-	h.Reset()
-	_, _ = h.WriteString(a.GetTypeUrl()) // does never err
-	_, _ = h.Write(a.GetValue())         // does never err
-	return h.Sum64()
+	h.h.Reset()
+	_, _ = h.h.WriteString(a.GetTypeUrl()) // does never err
+	_, _ = h.h.Write(a.GetValue())         // does never err
+	return h.h.Sum64()
 }

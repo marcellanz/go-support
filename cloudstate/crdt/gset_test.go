@@ -133,6 +133,7 @@ func TestGset(t *testing.T) {
 			t.Fatalf("has delta but should not")
 		}
 	})
+
 	t.Run("should reflect a delta add", func(t *testing.T) {
 		s := NewGSet()
 		s.Add(encoding.String("one"))

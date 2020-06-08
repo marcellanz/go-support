@@ -10,6 +10,7 @@ import (
 	"github.com/cloudstateio/go-support/cloudstate/crdt"
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
 	"github.com/cloudstateio/go-support/tck/crdts"
+
 	"github.com/golang/protobuf/ptypes/any"
 )
 

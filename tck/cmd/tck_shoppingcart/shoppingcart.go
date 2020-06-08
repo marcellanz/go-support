@@ -109,7 +109,7 @@ func (sc *ShoppingCart) ItemRemoved(removed *domain.ItemRemoved) error {
 //
 // returns handle set to true if we have handled the event
 // and any error that happened during the handling
-func (sc *ShoppingCart) HandleEvent(ctx *eventsourced.Context, event interface{}) error {
+func (sc *ShoppingCart) HandleEvent(_ *eventsourced.Context, event interface{}) error {
 	switch e := event.(type) {
 	case *domain.ItemAdded:
 		return sc.ItemAdded(e)
@@ -159,13 +159,13 @@ func (sc *ShoppingCart) GetCart(*eventsourced.Context, *shoppingcart.GetShopping
 }
 
 func (sc *ShoppingCart) HandleCommand(ctx *eventsourced.Context, name string, cmd proto.Message) (proto.Message, error) {
-	switch cmd := cmd.(type) {
+	switch c := cmd.(type) {
 	case *shoppingcart.GetShoppingCart:
-		return sc.GetCart(ctx, cmd)
+		return sc.GetCart(ctx, c)
 	case *shoppingcart.RemoveLineItem:
-		return sc.RemoveItem(ctx, cmd)
+		return sc.RemoveItem(ctx, c)
 	case *shoppingcart.AddLineItem:
-		return sc.AddItem(ctx, cmd)
+		return sc.AddItem(ctx, c)
 	default:
 		return nil, nil
 	}
