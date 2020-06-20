@@ -70,7 +70,7 @@ func (c *Context) initDefault() error {
 		return nil
 	}
 	if c.Entity.DefaultFunc == nil {
-		return nil
+		return errors.New("no Entity.DefaultFunc defined")
 	}
 	c.crdt = c.Entity.DefaultFunc(c)
 	if c.failed != nil {
@@ -79,7 +79,7 @@ func (c *Context) initDefault() error {
 	if c.crdt == nil {
 		return errors.New("no default CRDT set by Entity.DefaultFunc")
 	}
-	// TODO !! c.created should only be set if the user function did create the CRDT
+	c.Entity.SetFunc(c, c.crdt)
 	c.created = true
 	return nil
 }

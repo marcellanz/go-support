@@ -39,7 +39,7 @@ const (
 	SupportLibraryName    = "cloudstate-go-support"
 )
 
-// CloudState is an instance of a CloudState User Function
+// CloudState is an instance of a Cloudstate User Function
 type CloudState struct {
 	server                *grpc.Server
 	entityDiscoveryServer *EntityDiscoveryServer
@@ -142,21 +142,21 @@ type EntityDiscoveryServer struct {
 
 // newEntityDiscoveryServer returns a new and initialized EntityDiscoveryServer.
 func newEntityDiscoveryServer(config Config) (*EntityDiscoveryServer, error) {
-	svr := &EntityDiscoveryServer{}
-	svr.entitySpec = &protocol.EntitySpec{
-		Entities: make([]*protocol.Entity, 0),
-		ServiceInfo: &protocol.ServiceInfo{
-			ServiceName:           config.ServiceName,
-			ServiceVersion:        config.ServiceVersion,
-			ServiceRuntime:        fmt.Sprintf("%s %s/%s", runtime.Version(), runtime.GOOS, runtime.GOARCH),
-			SupportLibraryName:    SupportLibraryName,
-			SupportLibraryVersion: SupportLibraryVersion,
+	return &EntityDiscoveryServer{
+		entitySpec: &protocol.EntitySpec{
+			Entities: make([]*protocol.Entity, 0),
+			ServiceInfo: &protocol.ServiceInfo{
+				ServiceName:           config.ServiceName,
+				ServiceVersion:        config.ServiceVersion,
+				ServiceRuntime:        fmt.Sprintf("%s %s/%s", runtime.Version(), runtime.GOOS, runtime.GOARCH),
+				SupportLibraryName:    SupportLibraryName,
+				SupportLibraryVersion: SupportLibraryVersion,
+			},
 		},
-	}
-	svr.fileDescriptorSet = &filedescr.FileDescriptorSet{
-		File: make([]*filedescr.FileDescriptorProto, 0),
-	}
-	return svr, nil
+		fileDescriptorSet: &filedescr.FileDescriptorSet{
+			File: make([]*filedescr.FileDescriptorProto, 0),
+		},
+	}, nil
 }
 
 // Discover returns an entity spec for registered entities.

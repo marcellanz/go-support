@@ -26,7 +26,7 @@ func newEntity(id crdt.EntityId) *SyntheticCRDTs {
 	return &SyntheticCRDTs{id: id}
 }
 
-func Set(ctx *crdt.Context, c crdt.CRDT) {
+func setFunc(ctx *crdt.Context, c crdt.CRDT) {
 	i := ctx.Instance.(*SyntheticCRDTs)
 	switch v := c.(type) {
 	case *crdt.GCounter:
@@ -42,31 +42,21 @@ func Set(ctx *crdt.Context, c crdt.CRDT) {
 	}
 }
 
-func Default(c *crdt.Context) crdt.CRDT {
+func defaultFunc(c *crdt.Context) crdt.CRDT {
 	if strings.HasPrefix(c.EntityId.String(), "gcounter-") {
-		gc := crdt.NewGCounter()
-		c.Instance.(*SyntheticCRDTs).gCounter = gc
-		return gc
+		return crdt.NewGCounter()
 	}
 	if strings.HasPrefix(c.EntityId.String(), "pncounter-") {
-		pc := crdt.NewPNCounter()
-		c.Instance.(*SyntheticCRDTs).pnCounter = pc
-		return pc
+		return crdt.NewPNCounter()
 	}
 	if strings.HasPrefix(c.EntityId.String(), "gset-") {
-		gs := crdt.NewGSet()
-		c.Instance.(*SyntheticCRDTs).gSet = gs
-		return gs
+		return crdt.NewGSet()
 	}
 	if strings.HasPrefix(c.EntityId.String(), "orset-") {
-		os := crdt.NewORSet()
-		c.Instance.(*SyntheticCRDTs).orSet = os
-		return os
+		return crdt.NewORSet()
 	}
 	if strings.HasPrefix(c.EntityId.String(), "vote-") {
-		v := crdt.NewVote()
-		c.Instance.(*SyntheticCRDTs).vote = v
-		return v
+		return crdt.NewVote()
 	}
 	c.Fail(errors.New("unknown entity type"))
 	return nil
@@ -124,13 +114,15 @@ func (s *SyntheticCRDTs) Command(_ *crdt.CommandContext, name string, cmd interf
 		switch c := cmd.(type) {
 		case *tc.ORSetAdd:
 			anySupportAdd(s.orSet, c.Value)
+			return encoding.MarshalAny(&tc.ORSetValue{Values: s.orSet.Value()})
 		}
-		return encoding.MarshalAny(&tc.ORSetValue{Values: s.orSet.Value()})
-	case "RemoveGSet":
-		s.orSet.Remove(cmd.(*tc.ORSetRemove).Value)
+	case "RemoveORSet":
+		anySupportRemove(s.orSet, cmd.(*tc.ORSetRemove).Value)
 		return encoding.MarshalAny(&tc.ORSetValue{Values: s.orSet.Value()})
 	case "GetORSet":
+		return encoding.MarshalAny(&tc.ORSetValue{Values: s.orSet.Value()})
 	case "GetORSetSize":
+		return encoding.MarshalAny(&tc.ORSetSize{Value: int64(s.orSet.Size())})
 	}
 	return nil, errors.New("unhandled command")
 }
@@ -169,7 +161,36 @@ func asAnySupportType(x *any.Any) *tc.AnySupportType {
 	panic(fmt.Sprintf("no mapping found for TypeUrl: %v", x.TypeUrl)) // we're allowed to panic here :)
 }
 
-func anySupportAdd(a adder, t *tc.AnySupportType) {
+type anySupportAdder interface {
+	Add(x *any.Any)
+}
+
+type anySupportRemover interface {
+	Remove(x *any.Any)
+}
+
+func anySupportRemove(r anySupportRemover, t *tc.AnySupportType) {
+	switch v := t.Value.(type) {
+	case *tc.AnySupportType_AnyValue:
+		r.Remove(v.AnyValue)
+	case *tc.AnySupportType_StringValue:
+		r.Remove(encoding.String(v.StringValue))
+	case *tc.AnySupportType_BytesValue:
+		r.Remove(encoding.Bytes(v.BytesValue))
+	case *tc.AnySupportType_BoolValue:
+		r.Remove(encoding.Bool(v.BoolValue))
+	case *tc.AnySupportType_DoubleValue:
+		r.Remove(encoding.Float64(v.DoubleValue))
+	case *tc.AnySupportType_FloatValue:
+		r.Remove(encoding.Float32(v.FloatValue))
+	case *tc.AnySupportType_Int32Value:
+		r.Remove(encoding.Int32(v.Int32Value))
+	case *tc.AnySupportType_Int64Value:
+		r.Remove(encoding.Int64(v.Int64Value))
+	}
+}
+
+func anySupportAdd(a anySupportAdder, t *tc.AnySupportType) {
 	switch v := t.Value.(type) {
 	case *tc.AnySupportType_AnyValue:
 		a.Add(v.AnyValue)
@@ -190,10 +211,6 @@ func anySupportAdd(a adder, t *tc.AnySupportType) {
 	}
 }
 
-type adder interface {
-	Add(a *any.Any)
-}
-
 func checkToFail(c interface{}) {
 	if i, ok := c.(interface{ GetFail() bool }); ok && i.GetFail() {
 		panic("forced crash")
@@ -202,7 +219,7 @@ func checkToFail(c interface{}) {
 
 func main() {
 	server, err := cloudstate.New(cloudstate.Config{
-		ServiceName:    "io.cloudstate.tck.Crdt",
+		ServiceName:    "io.cloudstate.tck.Crdt", // the servicename the proxy gets to know about
 		ServiceVersion: "0.2.0",
 	})
 	if err != nil {
@@ -210,19 +227,20 @@ func main() {
 	}
 	err = server.RegisterCrdt(
 		&crdt.Entity{
-			ServiceName: "crdt.TckCrdt",
+			ServiceName: "crdt.TckCrdt", // this is the package + service(name) from the gRPC proto file.
+
 			EntityFunc: func(id crdt.EntityId) interface{} {
 				return newEntity(id)
 			},
-			SetFunc:     Set,
-			DefaultFunc: Default,
+			SetFunc:     setFunc,
+			DefaultFunc: defaultFunc,
 			CommandFunc: func(entity interface{}, ctx *crdt.CommandContext, name string, msg interface{}) (*any.Any, error) {
 				defer checkToFail(msg)
 				return entity.(*SyntheticCRDTs).Command(ctx, name, msg)
 			},
 		},
 		cloudstate.DescriptorConfig{
-			Service: "tck_crdt.proto",
+			Service: "tck_crdt.proto", // this is needed to find the descriptors with got for the service to be proxied.
 		},
 	)
 	if err != nil {
