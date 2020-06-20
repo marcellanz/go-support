@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cloudstate
+package discovery
 
 import (
 	"bytes"
@@ -24,8 +24,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	filedescr "github.com/golang/protobuf/protoc-gen-go/descriptor"
 )
-
-const protoAnyBase = "type.googleapis.com"
 
 func unpackFile(gz []byte) (*filedescr.FileDescriptorProto, error) {
 	r, err := gzip.NewReader(bytes.NewReader(gz))

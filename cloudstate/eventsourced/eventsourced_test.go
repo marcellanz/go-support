@@ -193,9 +193,9 @@ func (t TestEventSourcedHandleServer) Recv() (*protocol.EventSourcedStreamIn, er
 	return nil, nil
 }
 
-func newHandler(t *testing.T) *EventSourcedServer {
+func newHandler(t *testing.T) *Server {
 	handler := NewServer()
-	entity := EventSourcedEntity{
+	entity := Entity{
 		EntityFunc: func(id EntityId) interface{} {
 			resetTestEntity()
 			testEntity.Value = 0
@@ -219,7 +219,7 @@ func newHandler(t *testing.T) *EventSourcedServer {
 	return handler
 }
 
-func initHandler(handler *EventSourcedServer, t *testing.T) {
+func initHandler(handler *Server, t *testing.T) {
 	err := handler.handleInit(&protocol.EventSourcedInit{
 		ServiceName: "TestEventSourcedServer-Service",
 		EntityId:    "entity-0",

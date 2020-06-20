@@ -41,9 +41,10 @@ type Entity struct {
 }
 
 type Server struct {
+	// mu protects the map below.
+	mu sync.RWMutex
 	// entities has descriptions of entities registered by service names
 	entities map[ServiceName]*Entity
-	mu       sync.RWMutex
 }
 
 func NewServer() *Server {

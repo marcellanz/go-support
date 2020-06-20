@@ -32,10 +32,10 @@ func (id CommandId) Value() int64 {
 // The EntityInstance represents a concrete instance of
 // a event sourced entity
 type EntityInstance struct {
-	// Instance is an instance of the EventSourcedEntity.Entity
+	// Instance is an instance of the Entity.Entity
 	Instance interface{}
 	// EventSourcedEntity describes the instance
-	EventSourcedEntity *EventSourcedEntity
+	EventSourcedEntity *Entity
 	eventSequence      int64
 }
 

@@ -9,6 +9,7 @@ import (
 	"github.com/cloudstateio/go-support/cloudstate"
 	"github.com/cloudstateio/go-support/cloudstate/crdt"
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
+	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/cloudstateio/go-support/tck/crdts"
 
 	"github.com/golang/protobuf/ptypes/any"
@@ -175,14 +176,14 @@ func (cs *CRDTs) Command(ctx *crdt.CommandContext, name string, cmd interface{})
 }
 
 func main() {
-	server, err := cloudstate.New(cloudstate.Config{
+	server, err := cloudstate.New(protocol.Config{
 		ServiceName:    "com.example.crdts.CrdtExample0",
 		ServiceVersion: "0.2.0",
 	})
 	if err != nil {
 		log.Fatalf("cloudstate.New failed: %v", err)
 	}
-	err = server.RegisterCrdt(
+	err = server.RegisterCRDT(
 		&crdt.Entity{
 			ServiceName: "com.example.crdts.CrdtExample",
 			EntityFunc:  func(id crdt.EntityId) interface{} { return newCRDTs() },
@@ -192,7 +193,7 @@ func main() {
 				return entity.(*CRDTs).Command(ctx, name, msg)
 			},
 		},
-		cloudstate.DescriptorConfig{
+		protocol.DescriptorConfig{
 			Service: "crdts/crdt-example.proto",
 		},
 	)
