@@ -46,19 +46,3 @@ func (e *EntityInstance) shouldSnapshot() bool {
 func (e *EntityInstance) resetSnapshotEvery() {
 	e.eventSequence = 0
 }
-
-// A EntityInstanceContext represents a event sourced entity together with its
-// associated service.
-// Commands are dispatched through this context.
-type EntityInstanceContext struct { // TODO: EntityInstanceContext might be actually a EntityInstance
-	context *Context
-	// EntityInstance is the entity instance of this context
-	EntityInstance *EntityInstance
-	// active indicates if this context is active
-	active bool // TODO: inactivate a context in case of errors
-}
-
-// ServiceName returns the contexts service name.
-func (c EntityInstanceContext) ServiceName() string {
-	return c.EntityInstance.EventSourcedEntity.ServiceName.String()
-}

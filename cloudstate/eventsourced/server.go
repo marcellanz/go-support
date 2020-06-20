@@ -31,16 +31,16 @@ import (
 
 // marshalEventsAny receives the events emitted through the handling of a command
 // and marshals them to the event serialized form.
-func MarshalEventsAny(entityContext *EntityInstanceContext) ([]*any.Any, error) {
+func MarshalEventsAny(entityContext *Context) ([]*any.Any, error) {
 	events := make([]*any.Any, 0)
-	for _, evt := range entityContext.context.Events() {
+	for _, evt := range entityContext.Events() {
 		event, err := encoding.MarshalAny(evt)
 		if err != nil {
 			return nil, err
 		}
 		events = append(events, event)
 	}
-	entityContext.context.Clear()
+	entityContext.Clear()
 	return events, nil
 }
 
@@ -84,15 +84,12 @@ type EventSourcedEntity struct {
 type EventSourcedServer struct {
 	// entities are indexed by their service name
 	entities map[ServiceName]*EventSourcedEntity
-	// contexts are entity instance contexts indexed by their entity ids
-	contexts map[EntityId]*EntityInstanceContext
 }
 
 // newEventSourcedServer returns an initialized EventSourcedServer
 func NewServer() *EventSourcedServer {
 	return &EventSourcedServer{
 		entities: make(map[ServiceName]*EventSourcedEntity),
-		contexts: make(map[EntityId]*EntityInstanceContext),
 	}
 }
 
@@ -212,12 +209,10 @@ func (s *EventSourcedServer) handle(server protocol.EventSourced_HandleServer) e
 			return runner.stream.Context().Err()
 		default:
 		}
-		// TODO: can we get inactive?
 		if runner.context.failed != nil {
 			// failed means deactivated. we may never get this far.
 			return nil
 		}
-
 		msg, err := server.Recv()
 		if err == io.EOF {
 			return nil
@@ -228,7 +223,6 @@ func (s *EventSourcedServer) handle(server protocol.EventSourced_HandleServer) e
 		switch m := msg.GetMessage().(type) {
 		case *protocol.EventSourcedStreamIn_Command:
 			if err := s.handleCommand(m.Command, runner); err != nil {
-
 				//f := &protocol.ProtocolFailure{}
 				////we can't copy failures!!
 				//errors.As()
@@ -258,30 +252,23 @@ func (s *EventSourcedServer) handle(server protocol.EventSourced_HandleServer) e
 
 func (s *EventSourcedServer) handleInit(init *protocol.EventSourcedInit, r *runner) error {
 	id := EntityId(init.GetEntityId())
-	if _, present := s.contexts[id]; present {
-		return fmt.Errorf("context already present")
-	}
 	entity := s.entities[ServiceName(init.GetServiceName())]
-	s.contexts[id] = &EntityInstanceContext{
-		EntityInstance: &EntityInstance{
-			Instance:           entity.EntityFunc(EntityId(id)),
-			EventSourcedEntity: entity,
-		},
-		active: true,
-	}
-	// TODO: move up
+
 	r.context = &Context{
-		EntityId:     id,
-		Entity:       entity,
-		Instance:     s.contexts[id].EntityInstance.Instance,
-		EventEmitter: NewEmitter(),
+		EntityId: id,
+		EntityInstance: &EntityInstance{
+			EventSourcedEntity: entity,
+			Instance:           entity.EntityFunc(id),
+		},
+		EventEmitter:  NewEmitter(),
+		eventSequence: 0,
+		active:        true,
 	}
-	s.contexts[id].context = r.context
 
 	if err := s.handleInitSnapshot(init, r); err != nil {
 		return fmt.Errorf("unable to server.Send: %w", err)
 	}
-	s.subscribeEvents(s.contexts[id].EntityInstance, r)
+	r.subscribeEvents()
 	return nil
 }
 
@@ -289,16 +276,15 @@ func (s *EventSourcedServer) handleInitSnapshot(init *protocol.EventSourcedInit,
 	if init.Snapshot == nil {
 		return nil
 	}
-	entityId := EntityId(init.GetEntityId())
-
 	snapshot, err := s.unmarshalSnapshot(init)
 	if snapshot == nil || err != nil {
 		return &protocol.ProtocolFailure{
 			Err: fmt.Errorf("handling snapshot failed with: %w", err),
 		}
 	}
-	err = s.contexts[entityId].EntityInstance.EventSourcedEntity.SnapshotHandlerFunc(
-		s.contexts[entityId].EntityInstance.Instance,
+
+	err = r.context.EntityInstance.EventSourcedEntity.SnapshotHandlerFunc(
+		r.context.EntityInstance.Instance,
 		r.context,
 		snapshot,
 	)
@@ -307,7 +293,7 @@ func (s *EventSourcedServer) handleInitSnapshot(init *protocol.EventSourcedInit,
 			Err: fmt.Errorf("handling snapshot failed with: %w", err),
 		}
 	}
-	s.contexts[entityId].EntityInstance.eventSequence = init.GetSnapshot().SnapshotSequence
+	r.context.EntityInstance.eventSequence = init.GetSnapshot().SnapshotSequence
 	return nil
 }
 
@@ -350,13 +336,13 @@ func (EventSourcedServer) unmarshalSnapshot(init *protocol.EventSourcedInit) (in
 	}
 }
 
-func (s *EventSourcedServer) subscribeEvents(i *EntityInstance, r *runner) {
+func (r *runner) subscribeEvents() {
 	r.context.Subscribe(&Subscription{
 		OnNext: func(event interface{}) error {
-			if err := s.applyEvent(i, event); err != nil {
+			if err := r.applyEvent(r.context.EntityInstance, event); err != nil {
 				return err
 			}
-			i.eventSequence++
+			r.context.eventSequence++
 			return nil
 		},
 		OnErr: func(err error) {
@@ -371,13 +357,12 @@ func (s *EventSourcedServer) handleEvent(event *protocol.EventSourcedEvent, r *r
 			Err: fmt.Errorf("no entityId was found from a previous init message for event sequence: %v", event.Sequence),
 		}
 	}
-	entityContext := s.contexts[r.context.EntityId]
-	if entityContext == nil {
+	if r.context == nil {
 		return &protocol.ProtocolFailure{
 			Err: fmt.Errorf("no entity with entityId registered: %v", r.context.EntityId),
 		}
 	}
-	if err := s.handleEvents(entityContext.context, entityContext.EntityInstance, event); err != nil {
+	if err := r.handleEvents(r.context.EntityInstance, event); err != nil {
 		return &protocol.ProtocolFailure{
 			Err: fmt.Errorf("handle event failed: %v", err),
 		}
@@ -423,14 +408,11 @@ func (s *EventSourcedServer) handleCommand(cmd *protocol.Command, r *runner) err
 		return fmt.Errorf("%s, %w", err, encoding.ErrMarshal)
 	}
 
-	// we're ready to handle the proto message
-	entityContext := s.contexts[r.context.EntityId]
-
 	// The gRPC implementation returns the rpc return method
 	// and an error as a second return value.
-	reply, errReturned := entityContext.EntityInstance.EventSourcedEntity.CommandFunc(
-		entityContext.EntityInstance.Instance,
-		entityContext.context,
+	reply, errReturned := r.context.EntityInstance.EventSourcedEntity.CommandFunc(
+		r.context.EntityInstance.Instance,
+		r.context,
 		cmd.Name,
 		message,
 	)
@@ -451,12 +433,12 @@ func (s *EventSourcedServer) handleCommand(cmd *protocol.Command, r *runner) err
 		}
 	}
 	// emitted events
-	events, err := MarshalEventsAny(entityContext)
+	events, err := MarshalEventsAny(r.context)
 	if err != nil {
 		return &protocol.ProtocolFailure{F: &protocol.Failure{CommandId: cmd.GetId()}, Err: err}
 	}
 	// snapshot
-	snapshot, err := s.handleSnapshots(entityContext)
+	snapshot, err := r.handleSnapshots(r.context.EntityInstance)
 	if err != nil {
 		return &protocol.ProtocolFailure{F: &protocol.Failure{CommandId: cmd.GetId()}, Err: err}
 	}
@@ -475,11 +457,11 @@ func (s *EventSourcedServer) handleCommand(cmd *protocol.Command, r *runner) err
 	return sendEventSourcedReply(sourcedReply, r.stream)
 }
 
-func (*EventSourcedServer) handleSnapshots(entityContext *EntityInstanceContext) (*any.Any, error) {
-	if !entityContext.EntityInstance.shouldSnapshot() {
+func (r *runner) handleSnapshots(i *EntityInstance) (*any.Any, error) {
+	if !i.shouldSnapshot() {
 		return nil, nil
 	}
-	snap, err := entityContext.EntityInstance.EventSourcedEntity.SnapshotFunc(entityContext.EntityInstance.Instance)
+	snap, err := i.EventSourcedEntity.SnapshotFunc(i.Instance)
 	if err != nil {
 		return nil, fmt.Errorf("getting a snapshot has failed: %v. %w", err, protocol.ErrProtocolFailure)
 	}
@@ -488,20 +470,20 @@ func (*EventSourcedServer) handleSnapshots(entityContext *EntityInstanceContext)
 	if err != nil {
 		return nil, err
 	}
-	entityContext.EntityInstance.resetSnapshotEvery()
+	i.resetSnapshotEvery()
 	return snapshot, nil
 }
 
 // applyEvent applies an event to a local entity
-func (s EventSourcedServer) applyEvent(entityInstance *EntityInstance, event interface{}) error {
+func (r *runner) applyEvent(entityInstance *EntityInstance, event interface{}) error {
 	payload, err := encoding.MarshalAny(event)
 	if err != nil {
 		return err
 	}
-	return s.handleEvents(nil, entityInstance, &protocol.EventSourcedEvent{Payload: payload})
+	return r.handleEvents(entityInstance, &protocol.EventSourcedEvent{Payload: payload})
 }
 
-func (EventSourcedServer) handleEvents(ctx *Context, entityInstance *EntityInstance, events ...*protocol.EventSourcedEvent) error {
+func (r *runner) handleEvents(entityInstance *EntityInstance, events ...*protocol.EventSourcedEvent) error {
 	if entityInstance.EventSourcedEntity.EventFunc == nil {
 		return nil
 	}
@@ -523,7 +505,7 @@ func (EventSourcedServer) handleEvents(ctx *Context, entityInstance *EntityInsta
 			return fmt.Errorf("%s, %w", err, encoding.ErrMarshal)
 		}
 		// we're ready to handle the proto message
-		err = entityInstance.EventSourcedEntity.EventFunc(entityInstance.Instance, ctx, message)
+		err = entityInstance.EventSourcedEntity.EventFunc(entityInstance.Instance, r.context, message)
 		if err != nil {
 			return err // FIXME/TODO: is this correct? if we fail here, nothing is safe afterwards.
 		}

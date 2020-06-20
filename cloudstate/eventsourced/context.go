@@ -17,13 +17,14 @@ package eventsourced
 
 type Context struct {
 	EntityId EntityId
-	// Entity describes the instance that is used as an entity
-	Entity *EventSourcedEntity
-	// Instance is the instance of the entity this context is for.
-	Instance interface{}
+	// EntityInstance is the instance of the entity this context is for.
+	EntityInstance *EntityInstance
 
 	EventEmitter // TODO(marcellanz): check
-	failed       error
+
+	failed        error
+	active        bool
+	eventSequence int64
 }
 
 func (c *Context) Failed(err error) {
