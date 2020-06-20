@@ -9,6 +9,7 @@ import (
 	"github.com/cloudstateio/go-support/cloudstate"
 	"github.com/cloudstateio/go-support/cloudstate/crdt"
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
+	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	tc "github.com/cloudstateio/go-support/tck/proto/crdt"
 	"github.com/golang/protobuf/ptypes/any"
 )
@@ -218,14 +219,14 @@ func checkToFail(c interface{}) {
 }
 
 func main() {
-	server, err := cloudstate.New(cloudstate.Config{
+	server, err := cloudstate.New(protocol.Config{
 		ServiceName:    "io.cloudstate.tck.Crdt", // the servicename the proxy gets to know about
 		ServiceVersion: "0.2.0",
 	})
 	if err != nil {
 		log.Fatalf("cloudstate.New failed: %v", err)
 	}
-	err = server.RegisterCrdt(
+	err = server.RegisterCRDT(
 		&crdt.Entity{
 			ServiceName: "crdt.TckCrdt", // this is the package + service(name) from the gRPC proto file.
 
@@ -239,7 +240,7 @@ func main() {
 				return entity.(*SyntheticCRDTs).Command(ctx, name, msg)
 			},
 		},
-		cloudstate.DescriptorConfig{
+		protocol.DescriptorConfig{
 			Service: "tck_crdt.proto", // this is needed to find the descriptors with got for the service to be proxied.
 		},
 	)
