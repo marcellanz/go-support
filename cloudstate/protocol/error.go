@@ -35,15 +35,15 @@ var ErrClientActionFailure = errors.New("cloudstate client action failure")
 
 type ClientFailure struct {
 	F   *Failure
-	err error
+	Err error
 }
 
 func (f ClientFailure) Error() string {
-	return f.err.Error()
+	return f.Err.Error()
 }
 
 func (f ClientFailure) Unwrap() error {
-	return f.err
+	return f.Err
 }
 
 type ProtocolFailure struct {

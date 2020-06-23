@@ -25,27 +25,6 @@ import (
 var ErrSendFailure = errors.New("unable to send a failure message")
 var ErrSend = errors.New("unable to send a message")
 
-// handleFailure checks if a CloudState failure or client action failure should
-// be sent to the proxy, otherwise handleFailure returns the original failure
-func handleFailure(failure error, server protocol.EventSourced_HandleServer, cmdId int64) error {
-	if errors.Is(failure, protocol.ErrProtocolFailure) {
-		// FIXME: why not getting the failure from the ProtocolFailure
-		// TCK says: Failure was not received, or not well-formed: Failure(Failure(0,cloudstate failure)) was not reply (CloudStateTCK.scala:339)
-		//return sendFailure(&protocol.Failure{Description: failure.Error()}, server)
-		return sendClientActionFailure(&protocol.Failure{
-			CommandId:   cmdId,
-			Description: failure.Error(),
-		}, server)
-	}
-	if errors.Is(failure, protocol.ErrClientActionFailure) {
-		return sendClientActionFailure(&protocol.Failure{
-			CommandId:   cmdId,
-			Description: failure.Error(),
-		}, server)
-	}
-	return failure
-}
-
 // sendEventSourcedReply sends a given EventSourcedReply and if it fails, handles the error wrapping
 func sendEventSourcedReply(r *protocol.EventSourcedReply, s protocol.EventSourced_HandleServer) error {
 	err := s.Send(&protocol.EventSourcedStreamOut{
@@ -55,39 +34,6 @@ func sendEventSourcedReply(r *protocol.EventSourcedReply, s protocol.EventSource
 	})
 	if err != nil {
 		return fmt.Errorf("%s, %w", err, ErrSend)
-	}
-	return err
-}
-
-//// sendFailure sends a given EventSourcedReply and if it fails, handles the error wrapping
-//func sendFailure(f *protocol.Failure, s protocol.EventSourced_HandleServer) error {
-//	err := s.Send(&protocol.EventSourcedStreamOut{
-//		Message: &protocol.EventSourcedStreamOut_Failure{
-//			Failure: f,
-//		},
-//	})
-//	if err != nil {
-//		err = fmt.Errorf("%s, %w", err, ErrSendFailure)
-//	}
-//	return err
-//}
-
-// sendClientActionFailure sends a given EventSourcedReply and if it fails, handles the error wrapping
-func sendClientActionFailure(failure *protocol.Failure, server protocol.EventSourced_HandleServer) error {
-	err := server.Send(&protocol.EventSourcedStreamOut{
-		Message: &protocol.EventSourcedStreamOut_Reply{
-			Reply: &protocol.EventSourcedReply{
-				CommandId: failure.CommandId,
-				ClientAction: &protocol.ClientAction{
-					Action: &protocol.ClientAction_Failure{
-						Failure: failure,
-					},
-				},
-			},
-		},
-	})
-	if err != nil {
-		err = fmt.Errorf("%s, %w", err, ErrSendFailure)
 	}
 	return err
 }

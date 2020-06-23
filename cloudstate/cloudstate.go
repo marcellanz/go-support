@@ -51,12 +51,10 @@ func New(c protocol.Config) (*CloudState, error) {
 
 // RegisterEventSourcedEntity registers an event sourced entity for CloudState.
 func (cs *CloudState) RegisterEventSourcedEntity(e *eventsourced.Entity, config protocol.DescriptorConfig) error {
-	err := cs.eventSourcedServer.Register(e)
-	if err != nil {
+	if err := cs.eventSourcedServer.Register(e); err != nil {
 		return err
 	}
-	err = cs.entityDiscoveryServer.RegisterEventSourcedEntity(e, config)
-	if err != nil {
+	if err := cs.entityDiscoveryServer.RegisterEventSourcedEntity(e, config); err != nil {
 		return err
 	}
 	return nil
@@ -64,12 +62,10 @@ func (cs *CloudState) RegisterEventSourcedEntity(e *eventsourced.Entity, config 
 
 // RegisterCRDT registers a CRDT entity for CloudState.
 func (cs *CloudState) RegisterCRDT(e *crdt.Entity, config protocol.DescriptorConfig) error {
-	err := cs.crdtServer.Register(e, e.ServiceName)
-	if err != nil {
+	if err := cs.crdtServer.Register(e, e.ServiceName); err != nil {
 		return err
 	}
-	err = cs.entityDiscoveryServer.RegisterCRDTEntity(e, config)
-	if err != nil {
+	if err := cs.entityDiscoveryServer.RegisterCRDTEntity(e, config); err != nil {
 		return err
 	}
 	return nil

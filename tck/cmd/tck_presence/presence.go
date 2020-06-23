@@ -71,14 +71,14 @@ func (p *Presence) StreamedCommand(c *crdt.CommandContext, name string, cmd inte
 }
 
 func main() {
-	server, err := cloudstate.New(cloudstate.Config{
+	server, err := cloudstate.New(protocol.Config{
 		ServiceName:    "presence",
 		ServiceVersion: "0.1.0",
 	})
 	if err != nil {
 		log.Fatalf("cloudstate.New failed: %v", err)
 	}
-	err = server.RegisterCrdt(
+	err = server.RegisterCRDT(
 		&crdt.Entity{
 			ServiceName: "presence",
 			EntityFunc:  func(id crdt.EntityId) interface{} { return &Presence{} },
@@ -87,7 +87,7 @@ func main() {
 				return p.(*Presence).StreamedCommand(ctx, name, msg)
 			},
 		},
-		cloudstate.DescriptorConfig{
+		protocol.DescriptorConfig{
 			Service: "presence.proto",
 		},
 	)

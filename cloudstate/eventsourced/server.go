@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/url"
 	"reflect"
 	"strings"
@@ -101,61 +102,6 @@ func (s *Server) Register(ese *Entity) error {
 	return nil
 }
 
-// sendFailureAndReturnWith sends a given error to the proxy and returns the same error.
-// An error might be a wrapped protocol failure or a client action failure, the failure
-// then is sent accordingly keeping a potential command-id provided.
-func sendFailure(e error, server protocol.EventSourced_HandleServer) error {
-	f := &protocol.Failure{
-		Description: e.Error(),
-	}
-	pf := &protocol.ProtocolFailure{}
-	if errors.As(e, &pf) {
-		f = pf.F
-		if f.Description == "" {
-			f.Description = errors.Unwrap(e).Error()
-		}
-		err := server.Send(&protocol.EventSourcedStreamOut{
-			Message: &protocol.EventSourcedStreamOut_Failure{
-				Failure: f,
-			},
-		})
-		if err != nil {
-			return fmt.Errorf("send of EventSourcedStreamOut Failure failed: %w", err)
-		}
-		return nil
-	}
-	cf := &protocol.ClientFailure{}
-	if is := errors.As(e, cf); is {
-		f = pf.F
-		if f.Description == "" {
-			f.Description = errors.Unwrap(e).Error()
-		}
-		err := server.Send(&protocol.EventSourcedStreamOut{
-			Message: &protocol.EventSourcedStreamOut_Reply{
-				Reply: &protocol.EventSourcedReply{
-					CommandId: cf.F.CommandId,
-					ClientAction: &protocol.ClientAction{
-						Action: &protocol.ClientAction_Failure{Failure: f},
-					},
-				},
-			},
-		})
-		if err != nil {
-			return fmt.Errorf("send of EventSourcedStreamOut Failure failed: %w", err)
-		}
-		return nil
-	}
-	err := server.Send(&protocol.EventSourcedStreamOut{
-		Message: &protocol.EventSourcedStreamOut_Failure{
-			Failure: f,
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("send of EventSourcedStreamOut Failure failed: %w", err)
-	}
-	return nil
-}
-
 // Handle handles the stream. One stream will be established per active entity.
 // Once established, the first message sent will be Init, which contains the entity ID, and,
 // if the entity has previously persisted a snapshot, it will contain that snapshot. It will
@@ -175,10 +121,13 @@ func sendFailure(e error, server protocol.EventSourced_HandleServer) error {
 func (s *Server) Handle(stream protocol.EventSourced_HandleServer) (handleErr error) {
 	defer func() {
 		if r := recover(); r != nil {
+			// tell the proxy, and panic
 			handleErr = sendFailure(fmt.Errorf("Server.Handle panic-ked with: %v", r), stream)
+			panic(r)
 		}
 	}()
 	if err := s.handle(stream); err != nil {
+		log.Print(err)
 		return sendFailure(err, stream)
 	}
 	return nil
@@ -221,17 +170,18 @@ func (s *Server) handle(server protocol.EventSourced_HandleServer) error {
 		}
 		switch m := msg.GetMessage().(type) {
 		case *protocol.EventSourcedStreamIn_Command:
-			if err := s.handleCommand(m.Command, runner); err != nil {
-				//f := &protocol.ProtocolFailure{}
-				////we can't copy failures!!
-				//errors.As()
-				switch t := err.(type) {
-				case *protocol.ProtocolFailure:
-					t.F.CommandId = m.Command.Id
-				case *protocol.ClientFailure:
-					t.F.CommandId = m.Command.Id
-				}
-				return sendFailure(err, runner.stream) // send the error by ourselfs
+			err := s.handleCommand(m.Command, runner)
+			if err == nil {
+				continue
+			}
+			switch t := err.(type) {
+			case *protocol.ProtocolFailure:
+				t.F.CommandId = m.Command.Id
+			case *protocol.ClientFailure:
+				t.F.CommandId = m.Command.Id
+			}
+			if err := sendFailure(err, runner.stream); err != nil {
+				return err
 			}
 		case *protocol.EventSourcedStreamIn_Event:
 			// TODO spec: Why does command carry the entityId and an event not?
@@ -244,7 +194,6 @@ func (s *Server) handle(server protocol.EventSourced_HandleServer) error {
 			return errors.New("empty message received")
 		default:
 			return fmt.Errorf("unknown message received: %v", msg.GetMessage())
-
 		}
 	}
 }
@@ -397,10 +346,7 @@ func (s *Server) handleCommand(cmd *protocol.Command, r *runner) error {
 	// The gRPC implementation returns the rpc return method
 	// and an error as a second return value.
 	reply, errReturned := r.context.EntityInstance.EventSourcedEntity.CommandFunc(
-		r.context.EntityInstance.Instance,
-		r.context,
-		cmd.Name,
-		message,
+		r.context.EntityInstance.Instance, r.context, cmd.Name, message,
 	)
 	// the error
 	if errReturned != nil {
@@ -409,6 +355,15 @@ func (s *Server) handleCommand(cmd *protocol.Command, r *runner) error {
 			F:   &protocol.Failure{CommandId: cmd.GetId()},
 			Err: errReturned,
 		}
+	}
+	// context failed
+	if r.context.failed != nil {
+		cf := &protocol.ClientFailure{
+			F:   &protocol.Failure{CommandId: cmd.GetId()},
+			Err: r.context.failed,
+		}
+		r.context.failed = nil
+		return cf
 	}
 	// the reply
 	callReply, err := encoding.MarshalAny(reply)
@@ -506,7 +461,7 @@ func (r *runner) handleEvents(entityInstance *EntityInstance, events ...*protoco
 		if !ok {
 			continue
 		}
-		// and marshal onto it what we got as an any.Any onto it
+		// and marshal what we got as an any.Any onto it
 		err := proto.Unmarshal(event.Payload.Value, message)
 		if err != nil {
 			return fmt.Errorf("%s, %w", err, encoding.ErrMarshal)
