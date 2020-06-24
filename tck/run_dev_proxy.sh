@@ -10,7 +10,7 @@ PROXY="cloudstate-proxy-$(rnd)"
 
 set -x
 # run the proxy
-docker run -d --name "$PROXY" -p 9000:9000 -e USER_FUNCTION_HOST=host.docker.internal -e USER_FUNCTION_PORT=8090 \
+docker run --rm --name "$PROXY" -p 9000:9000 -e USER_FUNCTION_HOST=host.docker.internal -e USER_FUNCTION_PORT=8090 \
   "${PROXY_IMAGE}" -Dcloudstate.proxy.passivation-timeout=30s || exit $?
 tck_status=$?
 
