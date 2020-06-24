@@ -5,7 +5,7 @@ function rnd() {
   cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w ${1:-32} | head -n 1
 }
 
-FUNC_IMAGE=${1:-gcr.io/mrcllnz/cloudstate-go-tck-dev:latest}
+FUNC_IMAGE=${1:-cloudstateio/cloudstate-go-tck:latest}
 FUNC="cloudstate-function-$(rnd)"
 PROXY_IMAGE=${2:-cloudstateio/cloudstate-proxy-dev-mode:latest}
 PROXY="cloudstate-proxy-$(rnd)"
