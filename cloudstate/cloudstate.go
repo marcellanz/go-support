@@ -62,7 +62,7 @@ func (cs *CloudState) RegisterEventSourcedEntity(e *eventsourced.Entity, config 
 
 // RegisterCRDT registers a CRDT entity for CloudState.
 func (cs *CloudState) RegisterCRDT(e *crdt.Entity, config protocol.DescriptorConfig) error {
-	if err := cs.crdtServer.Register(e, e.ServiceName); err != nil {
+	if err := cs.crdtServer.Register(e); err != nil {
 		return err
 	}
 	if err := cs.entityDiscoveryServer.RegisterCRDTEntity(e, config); err != nil {

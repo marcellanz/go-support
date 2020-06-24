@@ -1,12 +1,13 @@
 package discovery
 
 import (
+	"sync"
+
 	"context"
 	"errors"
 	"fmt"
 	"log"
 	"runtime"
-	"sync"
 
 	"github.com/cloudstateio/go-support/cloudstate/crdt"
 	"github.com/cloudstateio/go-support/cloudstate/eventsourced"

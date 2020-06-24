@@ -39,7 +39,7 @@ func sendFailure(e error, server protocol.EventSourced_HandleServer) error {
 			},
 		})
 		if err != nil {
-			return fmt.Errorf("send of EventSourcedStreamOut Failure failed with:%v, %w", err, e)
+			return fmt.Errorf("send of EventSourcedStreamOut Failure failed with: %w", err)
 		}
 		return nil
 	}
@@ -67,7 +67,7 @@ func sendFailure(e error, server protocol.EventSourced_HandleServer) error {
 			},
 		})
 		if err != nil {
-			return fmt.Errorf("send of EventSourcedStreamOut Failure failed with:%v, %w", err, e)
+			return fmt.Errorf("send of EventSourcedStreamOut Failure failed with: %w", err)
 		}
 		return nil
 	}
@@ -80,7 +80,7 @@ func sendFailure(e error, server protocol.EventSourced_HandleServer) error {
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("send of EventSourcedStreamOut Failure failed with:%v, %w", err, e)
+		return fmt.Errorf("send of EventSourcedStreamOut Failure failed with: %w", err)
 	}
 	return nil
 }

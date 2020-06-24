@@ -16,13 +16,17 @@
 package crdt
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"sync"
 
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/golang/protobuf/ptypes/any"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Entity captures an Entity with its ServiceName.
@@ -47,6 +51,7 @@ type Server struct {
 	entities map[ServiceName]*Entity
 }
 
+// NewServer returns an initialized Server
 func NewServer() *Server {
 	return &Server{
 		entities: make(map[ServiceName]*Entity),
@@ -57,16 +62,16 @@ func NewServer() *Server {
 // Whenever a internalCRDT.Server receives an CrdInit for an instance of a crdt entity identified by its
 // EntityId and a ServiceName, the internalCRDT.Server handles such entities through their lifecycle.
 // The handled entities value are captured by a context that is held fo each of them.
-func (s *Server) Register(e *Entity, serviceName ServiceName) error {
+func (s *Server) Register(e *Entity) error {
 	if e.EntityFunc == nil {
 		return fmt.Errorf("the entity has to define an EntityFunc but did not")
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, exists := s.entities[serviceName]; exists {
-		return fmt.Errorf("serviceName already registered: %v", serviceName)
+	if _, exists := s.entities[e.ServiceName]; exists {
+		return fmt.Errorf("an entity with service name: %s is already registered", e.ServiceName)
 	}
-	s.entities[serviceName] = e
+	s.entities[e.ServiceName] = e
 	return nil
 }
 
@@ -76,14 +81,22 @@ func (s *Server) Register(e *Entity, serviceName ServiceName) error {
 // user function to replace its entire value.
 // The user function must respond with one reply per command in. They do not necessarily have to be sent in the same
 // order that the commands were sent, the command ID is used to correlate commands to replies.
-func (s *Server) Handle(stream protocol.Crdt_HandleServer) (handleErr error) {
+func (s *Server) Handle(stream protocol.Crdt_HandleServer) error {
 	defer func() {
 		if r := recover(); r != nil {
-			handleErr = sendFailureAndReturnWith(fmt.Errorf("CrdtServer.Handle panic-ked with: %v", r), stream)
+			_ = sendFailure(fmt.Errorf("CrdtServer.Handle panic-ked with: %v", r), stream)
+			panic(r)
 		}
 	}()
 	if err := s.handle(stream); err != nil {
-		return sendFailureAndReturnWith(err, stream)
+		if status.Code(err) == codes.Canceled {
+			return err
+		}
+		log.Print(err)
+		if sendErr := sendFailure(err, stream); sendErr != nil {
+			log.Print(sendErr)
+		}
+		return status.Error(codes.Aborted, err.Error())
 	}
 	return nil
 }
@@ -91,6 +104,9 @@ func (s *Server) Handle(stream protocol.Crdt_HandleServer) (handleErr error) {
 func (s *Server) handle(stream protocol.Crdt_HandleServer) error {
 	first, err := stream.Recv()
 	if err == io.EOF { // the stream has ended
+		return nil
+	}
+	if err == context.Canceled {
 		return nil
 	}
 	if err != nil {
@@ -113,13 +129,8 @@ func (s *Server) handle(stream protocol.Crdt_HandleServer) error {
 
 	// handle all other messages after a CrdtInit message has been received.
 	for {
-		select {
-		case <-runner.stream.Context().Done():
-			return runner.stream.Context().Err()
-		default:
-		}
 		if runner.context.deleted || !runner.context.active {
-			return nil
+			return nil // TODO: this will close the stream but not tell the proxy why.
 		}
 		if runner.context.failed != nil {
 			// failed means deactivated. we may never get this far.
@@ -194,9 +205,9 @@ func (s *Server) handleInit(init *protocol.CrdtInit, r *runner) error {
 		EntityId:    id,
 		Entity:      entity,
 		Instance:    entity.EntityFunc(id),
+		active:      true,
 		created:     false,
 		ctx:         r.stream.Context(), // this context is stable as long as the runner runs
-		active:      true,
 		streamedCtx: make(map[CommandId]*CommandContext),
 	}
 	// the init msg may have an initial state
