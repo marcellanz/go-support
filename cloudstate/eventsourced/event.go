@@ -15,10 +15,6 @@
 
 package eventsourced
 
-import (
-	"fmt"
-)
-
 type OnNext func(event interface{}) error
 type OnErr func(err error)
 type Subscription struct {
@@ -54,17 +50,12 @@ type eventEmitter struct {
 // This both validates that the event can be applied to the current state, as well as
 // updates the state so that subsequent processing in the command handler can use it.
 func (e *eventEmitter) Emit(event interface{}) {
-	for _, subs := range e.subscriptions {
-		if !subs.active {
+	for _, s := range e.subscriptions {
+		if !s.active {
 			continue
 		}
-		err := subs.OnNext(event)
-		if r := recover(); r != nil {
-			subs.OnErr(fmt.Errorf("panicked with: %v", r))
-			continue
-		}
-		if err != nil && subs.OnErr != nil {
-			subs.OnErr(err)
+		if err := s.OnNext(event); err != nil {
+			s.OnErr(err)
 		}
 	}
 	e.events = append(e.events, event)
@@ -74,10 +65,10 @@ func (e *eventEmitter) Events() []interface{} {
 	return e.events
 }
 
-func (e *eventEmitter) Subscribe(subs *Subscription) *Subscription {
-	subs.active = true
-	e.subscriptions = append(e.subscriptions, subs)
-	return subs
+func (e *eventEmitter) Subscribe(s *Subscription) *Subscription {
+	s.active = true
+	e.subscriptions = append(e.subscriptions, s)
+	return s
 }
 
 func (e *eventEmitter) Clear() {
