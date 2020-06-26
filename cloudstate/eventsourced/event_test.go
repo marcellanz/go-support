@@ -26,7 +26,7 @@ type AnEntity struct {
 }
 
 func TestMultipleSubscribers(t *testing.T) {
-	e := AnEntity{EventEmitter: NewEmitter()}
+	e := AnEntity{EventEmitter: newEmitter()}
 	n := int64(0)
 	e.Subscribe(&Subscription{
 		OnNext: func(event interface{}) error {
@@ -55,7 +55,7 @@ func TestMultipleSubscribers(t *testing.T) {
 }
 
 func TestUnsubscribe(t *testing.T) {
-	e := AnEntity{EventEmitter: NewEmitter()}
+	e := AnEntity{EventEmitter: newEmitter()}
 	n := int64(0)
 	sub1 := &Subscription{
 		OnNext: func(event interface{}) error {
@@ -86,7 +86,7 @@ func TestUnsubscribe(t *testing.T) {
 }
 
 func TestEventEmitter(t *testing.T) {
-	e := AnEntity{EventEmitter: NewEmitter()}
+	e := AnEntity{EventEmitter: newEmitter()}
 	s := make([]string, 0)
 	ee := fmt.Errorf("int types are no supported")
 	e.Subscribe(&Subscription{

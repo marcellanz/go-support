@@ -15,10 +15,6 @@
 
 package protocol
 
-import (
-	"errors"
-)
-
 /*
 
 Failure is used in two places.
@@ -29,22 +25,6 @@ The second place that Failure is used is by itself, as a top level message in th
 
 Does it make sense to use the same message for both purposes? Maybe, maybe not.
 */
-
-var ErrProtocolFailure = errors.New("cloudstate protocol failure")
-var ErrClientActionFailure = errors.New("cloudstate client action failure")
-
-type ClientFailure struct {
-	F   *Failure
-	Err error
-}
-
-func (f ClientFailure) Error() string {
-	return f.Err.Error()
-}
-
-func (f ClientFailure) Unwrap() error {
-	return f.Err
-}
 
 type ProtocolFailure struct {
 	F   *Failure

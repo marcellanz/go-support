@@ -15,6 +15,10 @@
 
 package eventsourced
 
+import (
+	"github.com/golang/protobuf/proto"
+)
+
 type (
 	ServiceName string
 	EntityId    string
@@ -29,20 +33,29 @@ func (id CommandId) Value() int64 {
 	return int64(id)
 }
 
-// The EntityInstance represents a concrete instance of
-// a event sourced entity
-type EntityInstance struct {
-	// Instance is an instance of the Entity.Entity
-	Instance interface{}
-	// EventSourcedEntity describes the instance
-	EventSourcedEntity *Entity
-	eventSequence      int64
-}
+// Entity describes an event sourced entity. It is used to be registered as
+// an event sourced entity on a CloudState instance.
+type Entity struct {
+	// ServiceName is the fully qualified name of the service that implements this entities interface.
+	// Setting it is mandatory.
+	ServiceName ServiceName
+	// PersistenceID is used to namespace events in the journal, useful for
+	// when you share the same database between multiple entities. It defaults to
+	// the simple name for the entity type.
+	// It’s good practice to select one explicitly, this means your database
+	// isn’t depend on type names in your code.
+	// Setting it is mandatory.
+	PersistenceID string
+	// The snapshotEvery parameter controls how often snapshots are taken,
+	// so that the entity doesn't need to be recovered from the whole journal
+	// each time it’s loaded. If left unset, it defaults to 100.
+	// Setting it to a negative number will result in snapshots never being taken.
+	SnapshotEvery int64
+	// EntityFactory is a factory method which generates a new Entity.
 
-func (e *EntityInstance) shouldSnapshot() bool {
-	return e.eventSequence >= e.EventSourcedEntity.SnapshotEvery
-}
-
-func (e *EntityInstance) resetSnapshotEvery() {
-	e.eventSequence = 0
+	EntityFunc          func(id EntityId) interface{}
+	CommandFunc         func(entity interface{}, ctx *Context, name string, msg proto.Message) (reply proto.Message, err error)
+	EventFunc           func(entity interface{}, ctx *Context, event interface{}) error
+	SnapshotFunc        func(entity interface{}, ctx *Context) (snapshot interface{}, err error)
+	SnapshotHandlerFunc func(entity interface{}, ctx *Context, snapshot interface{}) error
 }

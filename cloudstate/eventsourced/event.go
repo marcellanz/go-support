@@ -38,7 +38,7 @@ type EventEmitter interface {
 	Clear()
 }
 
-func NewEmitter() *eventEmitter {
+func newEmitter() *eventEmitter {
 	return &eventEmitter{
 		events:        make([]interface{}, 0),
 		subscriptions: make([]*Subscription, 0),

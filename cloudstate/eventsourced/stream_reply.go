@@ -16,24 +16,14 @@
 package eventsourced
 
 import (
-	"errors"
-	"fmt"
-
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 )
 
-var ErrSendFailure = errors.New("unable to send a failure message")
-var ErrSend = errors.New("unable to send a message")
-
 // sendEventSourcedReply sends a given EventSourcedReply and if it fails, handles the error wrapping
 func sendEventSourcedReply(r *protocol.EventSourcedReply, s protocol.EventSourced_HandleServer) error {
-	err := s.Send(&protocol.EventSourcedStreamOut{
+	return s.Send(&protocol.EventSourcedStreamOut{
 		Message: &protocol.EventSourcedStreamOut_Reply{
 			Reply: r,
 		},
 	})
-	if err != nil {
-		return fmt.Errorf("%s, %w", err, ErrSend)
-	}
-	return err
 }

@@ -27,7 +27,7 @@ import (
 )
 
 /**
- * Register an on change callback for this command.
+ * register an on change callback for this command.
  *
  * <p>The callback will be invoked any time the CRDT changes. The callback may inspect the CRDT,
  * but any attempt to modify the CRDT will be ignored and the CRDT will crash.
@@ -92,7 +92,7 @@ func (c *CommandContext) Streamed() bool {
 
 /**
  * TODO: rewrite as Go documentation
- * Register an on cancel callback for this command.
+ * register an on cancel callback for this command.
  *
  * <p>This will be invoked if the client initiates a stream cancel. It will not be invoked if the
  * entity cancels the stream itself via {@link SubscriptionContext#endStream()} from an {@link
@@ -145,7 +145,7 @@ func (c *CommandContext) changed() (reply *any.Any, err error) {
 
 /**
  * TODO: rewrite as Go documentation
- * Register an on cancel callback for this command.
+ * register an on cancel callback for this command.
  *
  * <p>This will be invoked if the client initiates a stream cancel. It will not be invoked if the
  * entity cancels the stream itself via {@link SubscriptionContext#endStream()} from an {@link

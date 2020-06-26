@@ -38,29 +38,27 @@ func main() {
 		ServiceVersion: "0.1.0",
 	})
 	if err != nil {
-		log.Fatalf("CloudState.New failed: %v", err)
+		log.Fatalf("cloudstate.New failed: %v", err)
 	}
-	err = server.RegisterEventSourcedEntity(&eventsourced.Entity{
+	err = server.RegisterEventSourced(&eventsourced.Entity{
 		ServiceName:   "com.example.shoppingcart.ShoppingCart",
 		PersistenceID: "ShoppingCart",
-		EntityFunc:    NewShoppingCart,
+		EntityFunc:    newShoppingCart,
 		CommandFunc: func(entity interface{}, ctx *eventsourced.Context, name string, msg proto.Message) (proto.Message, error) {
 			return entity.(*ShoppingCart).HandleCommand(ctx, name, msg)
 		},
-		SnapshotFunc: func(entity interface{}) (snapshot interface{}, err error) {
-			return entity.(*ShoppingCart).Snapshot()
+		SnapshotFunc: func(entity interface{}, ctx *eventsourced.Context) (snapshot interface{}, err error) {
+			return entity.(*ShoppingCart).Snapshot(ctx)
 		},
 		SnapshotHandlerFunc: func(entity interface{}, ctx *eventsourced.Context, snapshot interface{}) error {
-			return entity.(*ShoppingCart).HandleSnapshot(snapshot)
+			return entity.(*ShoppingCart).HandleSnapshot(ctx, snapshot)
 		},
 		EventFunc: func(entity interface{}, ctx *eventsourced.Context, event interface{}) error {
 			return entity.(*ShoppingCart).HandleEvent(ctx, event)
 		},
-	},
-		protocol.DescriptorConfig{
-			Service: "shoppingcart/shoppingcart.proto",
-		}.AddDomainDescriptor("domain.proto"),
-	)
+	}, protocol.DescriptorConfig{
+		Service: "shoppingcart/shoppingcart.proto",
+	}.AddDomainDescriptor("domain.proto"))
 
 	if err != nil {
 		log.Fatalf("CloudState failed to register entity: %v", err)
@@ -77,8 +75,8 @@ type ShoppingCart struct {
 	cart []*domain.LineItem
 }
 
-// NewShoppingCart returns a new and initialized instance of the ShoppingCart entity.
-func NewShoppingCart(eventsourced.EntityId) interface{} {
+// newShoppingCart returns a new and initialized instance of the ShoppingCart entity.
+func newShoppingCart(eventsourced.EntityId) interface{} {
 	return &ShoppingCart{
 		cart: make([]*domain.LineItem, 0),
 	}
@@ -172,13 +170,13 @@ func (sc *ShoppingCart) HandleCommand(ctx *eventsourced.Context, name string, cm
 	}
 }
 
-func (sc *ShoppingCart) Snapshot() (snapshot interface{}, err error) {
+func (sc *ShoppingCart) Snapshot(*eventsourced.Context) (snapshot interface{}, err error) {
 	return &domain.Cart{
 		Items: append(make([]*domain.LineItem, 0, len(sc.cart)), sc.cart...),
 	}, nil
 }
 
-func (sc *ShoppingCart) HandleSnapshot(snapshot interface{}) error {
+func (sc *ShoppingCart) HandleSnapshot(ctx *eventsourced.Context, snapshot interface{}) error {
 	switch value := snapshot.(type) {
 	case domain.Cart:
 		sc.cart = append(sc.cart[:0], value.Items...)

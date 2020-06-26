@@ -16,12 +16,14 @@
 package eventsourced
 
 type Context struct {
+	// EntityId
 	EntityId EntityId
-	// EntityInstance is the instance of the entity this context is for.
-	EntityInstance *EntityInstance
+	// Instance is an instance of the registered entity.
+	Instance interface{}
+	// EventSourcedEntity describes the instance hold by the EntityInstance.
+	EventSourcedEntity *Entity
 
-	EventEmitter // TODO(marcellanz): check
-
+	EventEmitter
 	failed        error
 	active        bool
 	eventSequence int64
@@ -29,4 +31,12 @@ type Context struct {
 
 func (c *Context) Failed(err error) {
 	c.failed = err
+}
+
+func (c *Context) shouldSnapshot() bool {
+	return c.eventSequence >= c.EventSourcedEntity.SnapshotEvery
+}
+
+func (c *Context) resetSnapshotEvery() {
+	c.eventSequence = 0
 }

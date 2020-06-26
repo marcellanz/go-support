@@ -49,8 +49,8 @@ func New(c protocol.Config) (*CloudState, error) {
 	return cs, nil
 }
 
-// RegisterEventSourcedEntity registers an event sourced entity for CloudState.
-func (cs *CloudState) RegisterEventSourcedEntity(e *eventsourced.Entity, config protocol.DescriptorConfig) error {
+// RegisterEventSourced registers an event sourced entity for CloudState.
+func (cs *CloudState) RegisterEventSourced(e *eventsourced.Entity, config protocol.DescriptorConfig) error {
 	if err := cs.eventSourcedServer.Register(e); err != nil {
 		return err
 	}
