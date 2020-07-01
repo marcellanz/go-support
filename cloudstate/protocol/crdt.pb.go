@@ -554,7 +554,7 @@ type CrdtState_Orset struct {
 }
 
 type CrdtState_Lwwregister struct {
-	// A Last-Write-Wins Register
+	// A Last-Write-Wins register
 	Lwwregister *LWWRegisterState `protobuf:"bytes,5,opt,name=lwwregister,proto3,oneof"`
 }
 
@@ -794,9 +794,9 @@ func (x *ORSetState) GetItems() []*any.Any {
 	return nil
 }
 
-// A Last-Write-Wins Register
+// A Last-Write-Wins register
 //
-// A LWW-Register holds a single value, with the current value being selected based on when it was last written.
+// A LWW-register holds a single value, with the current value being selected based on when it was last written.
 // The time of the last write may either be determined using the proxies clock, or may be based on a custom, domain
 // specific value.
 type LWWRegisterState struct {

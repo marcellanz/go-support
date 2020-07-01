@@ -37,7 +37,7 @@ func (r *runner) handleSnapshots() (*any.Any, error) {
 	if !r.context.shouldSnapshot() {
 		return nil, nil
 	}
-	snap, err := r.context.EventSourcedEntity.SnapshotFunc(r.context.Instance, r.context)
+	snap, err := r.context.Instance.Snapshot(r.context)
 	if err != nil {
 		return nil, fmt.Errorf("getting a snapshot has failed: %w", err)
 	}
@@ -50,61 +50,61 @@ func (r *runner) handleSnapshots() (*any.Any, error) {
 	return snapshot, nil
 }
 
-func (r *runner) handleEvents(events ...*protocol.EventSourcedEvent) error {
-	if r.context.EventSourcedEntity.EventFunc == nil {
-		return nil
+func (r *runner) handleEvent(event *protocol.EventSourcedEvent) error {
+	// TODO: here's the point where events can be protobufs, serialized as json or other formats
+	msgName := strings.TrimPrefix(event.Payload.GetTypeUrl(), encoding.ProtoAnyBase+"/")
+	messageType := proto.MessageType(msgName)
+	if messageType.Kind() != reflect.Ptr {
+		return fmt.Errorf("messageType.Kind() is not a pointer type: %v", messageType)
 	}
-	for _, event := range events {
-		// TODO: here's the point where events can be protobufs, serialized as json or other formats
-		msgName := strings.TrimPrefix(event.Payload.GetTypeUrl(), encoding.ProtoAnyBase+"/")
-		messageType := proto.MessageType(msgName)
-		if messageType.Kind() != reflect.Ptr {
-			return fmt.Errorf("messageType.Kind() is not a pointer type: %v", messageType)
-		}
-		// get a zero-ed message of this type
-		message, ok := reflect.New(messageType.Elem()).Interface().(proto.Message)
-		if !ok {
-			return fmt.Errorf("unable to create a new zero-ed message of type: %v", messageType)
-		}
-		// and marshal what we got as an any.Any onto it
-		err := proto.Unmarshal(event.Payload.Value, message)
-		if err != nil {
-			return fmt.Errorf("%s, %w", err, encoding.ErrMarshal)
-		}
-		// we're ready to handle the proto message
-		err = r.context.EventSourcedEntity.EventFunc(r.context.Instance, r.context, message)
-		if err != nil {
-			return err
-		}
-		if r.context.failed != nil {
-			// TODO: we send a client failure
-		}
+	// get a zero-ed message of this type
+	message, ok := reflect.New(messageType.Elem()).Interface().(proto.Message)
+	if !ok {
+		return fmt.Errorf("unable to create a new zero-ed message of type: %v", messageType)
+	}
+	// and marshal what we got as an any.Any onto it
+	err := proto.Unmarshal(event.Payload.Value, message)
+	if err != nil {
+		return fmt.Errorf("%s, %w", err, encoding.ErrMarshal)
+	}
+	// we're ready to handle the proto message
+	err = r.context.Instance.HandleEvent(r.context, message)
+	if err != nil {
+		return err
+	}
+	if r.context.failed != nil {
+		// TODO: we send a client failure
+		return err
 	}
 	return nil
 }
 
 func (r *runner) subscribeEvents() {
-	r.context.Subscribe(&Subscription{
-		OnNext: func(event interface{}) error {
-			if err := r.applyEvent(event); err != nil {
-				return err
-			}
-			r.context.eventSequence++
+	s := &Subscriber{}
+	s.OnNext = func(event interface{}) error {
+		if !r.context.active {
 			return nil
-		},
-		OnErr: func(err error) {
-			r.context.Failed(err)
-		},
-	})
+		}
+		if err := r.applyEvent(event); err != nil {
+			return err
+		}
+		r.context.eventSequence++
+		return nil
+	}
+	s.OnErr = func(err error) {
+		s.active = false
+		r.context.Failed(err)
+	}
+	r.context.Subscribe(s)
 }
 
-// applyEvent applies an event to a local entity
+// applyEvent applies an event to a local entity.
 func (r *runner) applyEvent(event interface{}) error {
 	payload, err := encoding.MarshalAny(event)
 	if err != nil {
 		return err
 	}
-	return r.handleEvents(&protocol.EventSourcedEvent{Payload: payload})
+	return r.handleEvent(&protocol.EventSourcedEvent{Payload: payload})
 }
 
 func (r *runner) handleInitSnapshot(snapshot *protocol.EventSourcedSnapshot) error {
@@ -112,11 +112,7 @@ func (r *runner) handleInitSnapshot(snapshot *protocol.EventSourcedSnapshot) err
 	if val == nil || err != nil {
 		return fmt.Errorf("handling snapshot failed with: %w", err)
 	}
-	err = r.context.EventSourcedEntity.SnapshotHandlerFunc(
-		r.context.Instance,
-		r.context,
-		val,
-	)
+	err = r.context.Instance.HandleSnapshot(r.context, val)
 	if err != nil {
 		return fmt.Errorf("handling snapshot failed with: %w", err)
 	}
@@ -159,13 +155,6 @@ func (r *runner) unmarshalSnapshot(s *protocol.EventSourcedSnapshot) (interface{
 	return nil, fmt.Errorf("no snapshot unmarshaller found for: %v", typeURL.String())
 }
 
-func (r *runner) handleEvent(event *protocol.EventSourcedEvent) error {
-	if err := r.handleEvents(event); err != nil {
-		return fmt.Errorf("handle event failed: %v", err)
-	}
-	return nil
-}
-
 // handleCommand handles a command received from the Cloudstate proxy.
 //
 // TODO: remove these following lines of comment
@@ -205,9 +194,7 @@ func (r *runner) handleCommand(cmd *protocol.Command) error {
 	}
 	// The gRPC implementation returns the rpc return method
 	// and an error as a second return value.
-	reply, errReturned := r.context.EventSourcedEntity.CommandFunc(
-		r.context.Instance, r.context, cmd.Name, message,
-	)
+	reply, errReturned := r.context.Instance.HandleCommand(r.context, cmd.Name, message)
 	// if a commandFunc returns an error, we deliver this as a
 	// protocol failure, attaching the command id.
 	if errReturned != nil {
@@ -218,9 +205,9 @@ func (r *runner) handleCommand(cmd *protocol.Command) error {
 		}
 	}
 	// if the context failed, the context.failed error
-	// is an error value the user expressed to send back to
-	// the client. it is sent right away back to the client here
-	// as a "normal" step in the processing of a command, hence, it's
+	// is an error value the user expressed to be sent
+	// right away back to the client here as a "normal"
+	// step in the processing of a command, hence, it's
 	// not exceptional.
 	if r.context.failed != nil {
 		defer func() {

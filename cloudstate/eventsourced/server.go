@@ -176,6 +176,7 @@ func (s *Server) handleInit(init *protocol.EventSourcedInit, r *runner) error {
 	if entity.EntityFunc == nil {
 		return fmt.Errorf("entity.EntityFunc not defined: %v", serviceName)
 	}
+
 	id := EntityId(init.GetEntityId())
 	r.context = &Context{
 		EntityId:           id,
@@ -183,8 +184,7 @@ func (s *Server) handleInit(init *protocol.EventSourcedInit, r *runner) error {
 		Instance:           entity.EntityFunc(id),
 		EventEmitter:       newEmitter(),
 		active:             true,
-		// TODO: preserve context here? r.stream.Context()
-		eventSequence: 0,
+		eventSequence:      0,
 	}
 	if snapshot := init.GetSnapshot(); snapshot != nil {
 		if err := r.handleInitSnapshot(snapshot); err != nil {

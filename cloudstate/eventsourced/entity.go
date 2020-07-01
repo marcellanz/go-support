@@ -53,9 +53,12 @@ type Entity struct {
 	SnapshotEvery int64
 	// EntityFactory is a factory method which generates a new Entity.
 
-	EntityFunc          func(id EntityId) interface{}
-	CommandFunc         func(entity interface{}, ctx *Context, name string, msg proto.Message) (reply proto.Message, err error)
-	EventFunc           func(entity interface{}, ctx *Context, event interface{}) error
-	SnapshotFunc        func(entity interface{}, ctx *Context) (snapshot interface{}, err error)
-	SnapshotHandlerFunc func(entity interface{}, ctx *Context, snapshot interface{}) error
+	EntityFunc func(id EntityId) Handler
+}
+
+type Handler interface {
+	HandleCommand(ctx *Context, name string, cmd proto.Message) (reply proto.Message, err error)
+	HandleEvent(ctx *Context, event interface{}) error
+	Snapshot(ctx *Context) (snapshot interface{}, err error)
+	HandleSnapshot(ctx *Context, snapshot interface{}) error
 }

@@ -18,10 +18,10 @@ package eventsourced
 type Context struct {
 	// EntityId
 	EntityId EntityId
-	// Instance is an instance of the registered entity.
-	Instance interface{}
 	// EventSourcedEntity describes the instance hold by the EntityInstance.
 	EventSourcedEntity *Entity
+	// Instance is an instance of the registered entity.
+	Instance Handler
 
 	EventEmitter
 	failed        error

@@ -17,15 +17,12 @@ package eventsourced
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"os"
 	"testing"
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 )
@@ -34,8 +31,8 @@ type TestEntity struct {
 	Value int64
 }
 
-func (e TestEntity) HandleCommand(ctx *Context, command proto.Message) (reply proto.Message, err error) {
-	switch cmd := command.(type) {
+func (e *TestEntity) HandleCommand(ctx *Context, name string, msg proto.Message) (reply proto.Message, err error) {
+	switch cmd := msg.(type) {
 	case *IncrementByCommand:
 		return e.IncrementByCommand(ctx, cmd)
 	case *DecrementByCommand:
@@ -54,11 +51,11 @@ func (e TestEntity) ProtoMessage() {
 func (e TestEntity) Reset() {
 }
 
-func (e *TestEntity) Snapshot() (snapshot interface{}, err error) {
+func (e *TestEntity) Snapshot(*Context) (snapshot interface{}, err error) {
 	return encoding.MarshalPrimitive(e.Value)
 }
 
-func (e *TestEntity) HandleSnapshot(snapshot interface{}) error {
+func (e *TestEntity) HandleSnapshot(_ *Context, snapshot interface{}) error {
 	switch v := snapshot.(type) {
 	case int64:
 		e.Value = v
@@ -196,22 +193,13 @@ func (t TestEventSourcedHandleServer) Recv() (*protocol.EventSourcedStreamIn, er
 func newHandler(t *testing.T) *Server {
 	handler := NewServer()
 	entity := Entity{
-		EntityFunc: func(id EntityId) interface{} {
+		EntityFunc: func(id EntityId) Handler {
 			resetTestEntity()
 			testEntity.Value = 0
 			return testEntity
 		},
 		ServiceName:   "TestEventSourcedServer-Service",
 		SnapshotEvery: 0,
-		SnapshotHandlerFunc: func(entity interface{}, ctx *Context, snapshot interface{}) error {
-			return entity.(*TestEntity).HandleSnapshot(snapshot)
-		},
-		CommandFunc: func(entity interface{}, ctx *Context, name string, msg proto.Message) (reply proto.Message, err error) {
-			return entity.(*TestEntity).HandleCommand(ctx, msg)
-		},
-		EventFunc: func(entity interface{}, ctx *Context, event interface{}) error {
-			return entity.(*TestEntity).HandleEvent(ctx, event)
-		},
 	}
 	if err := handler.Register(&entity); err != nil {
 		t.Errorf("%v", err)
@@ -248,14 +236,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestErrSend(t *testing.T) {
-	err0 := ErrSendFailure
-	err1 := fmt.Errorf("on reply: %w", ErrSendFailure)
-	if !errors.Is(err1, err0) {
-		t.Fatalf("err1 is no err0 but should")
-	}
-}
-
 func TestSnapshot(t *testing.T) {
 	resetTestEntity()
 	handler := newHandler(t)
@@ -281,49 +261,53 @@ func TestSnapshot(t *testing.T) {
 }
 
 // TODO: fix
-func _TestEventSourcedServerHandlesCommandAndEvents(t *testing.T) {
-	resetTestEntity()
-	handler := newHandler(t)
-	initHandler(handler, t)
-	incrementedTo := int64(7)
-	incrCmdValue, err := marshal(&IncrementByCommand{Amount: incrementedTo}, t)
-	incrCommand := protocol.Command{
-		EntityId: "entity-0",
-		Id:       1,
-		Name:     "IncrementByCommand",
-		Payload: &any.Any{
-			TypeUrl: "type.googleapis.com/IncrementByCommand",
-			Value:   incrCmdValue,
-		},
-	}
-	err = handler.handleCommand(&incrCommand, &runner{
-		context: handler.contexts[EntityId(incrCommand.EntityId)].context,
-	})
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	if testEntity.Value != incrementedTo {
-		t.Fatalf("testEntity.Value: (%v) != incrementedTo: (%v)", testEntity.Value, incrementedTo)
-	}
-
-	decrCmdValue, err := proto.Marshal(&DecrementByCommand{Amount: incrementedTo})
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	decrCommand := protocol.Command{
-		EntityId: "entity-0",
-		Id:       1,
-		Name:     "DecrementByCommand",
-		Payload: &any.Any{
-			TypeUrl: "type.googleapis.com/DecrementByCommand",
-			Value:   decrCmdValue,
-		},
-	}
-	err = handler.handleCommand(&decrCommand, &runner{})
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	if testEntity.Value != 0 {
-		t.Fatalf("testEntity.Value != 0")
-	}
-}
+//func _TestEventSourcedServerHandlesCommandAndEvents(t *testing.T) {
+//	resetTestEntity()
+//	handler := newHandler(t)
+//	initHandler(handler, t)
+//	incrementedTo := int64(7)
+//	incrCmdValue, err := marshal(&IncrementByCommand{Amount: incrementedTo}, t)
+//	incrCommand := protocol.Command{
+//		EntityId: "entity-0",
+//		Id:       1,
+//		Name:     "IncrementByCommand",
+//		Payload: &any.Any{
+//			TypeUrl: "type.googleapis.com/IncrementByCommand",
+//			Value:   incrCmdValue,
+//		},
+//	}
+//	err = &runner{
+//		context: ,
+//	}.handleCommand(&incrCommand)
+//
+//	//err = handler.handleCommand(&incrCommand, &runner{
+//	//	context: handler.contexts[EntityId(incrCommand.EntityId)].context,
+//	//})
+//	if err != nil {
+//		t.Fatalf("%v", err)
+//	}
+//	if testEntity.Value != incrementedTo {
+//		t.Fatalf("testEntity.Value: (%v) != incrementedTo: (%v)", testEntity.Value, incrementedTo)
+//	}
+//
+//	decrCmdValue, err := proto.Marshal(&DecrementByCommand{Amount: incrementedTo})
+//	if err != nil {
+//		t.Fatalf("%v", err)
+//	}
+//	decrCommand := protocol.Command{
+//		EntityId: "entity-0",
+//		Id:       1,
+//		Name:     "DecrementByCommand",
+//		Payload: &any.Any{
+//			TypeUrl: "type.googleapis.com/DecrementByCommand",
+//			Value:   decrCmdValue,
+//		},
+//	}
+//	err = handler.handleCommand(&decrCommand, &runner{})
+//	if err != nil {
+//		t.Fatalf("%v", err)
+//	}
+//	if testEntity.Value != 0 {
+//		t.Fatalf("testEntity.Value != 0")
+//	}
+//}
