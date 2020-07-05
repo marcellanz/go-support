@@ -21,6 +21,9 @@ import (
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 )
 
+// A Flag is a boolean value that starts as false, and can be set to true.
+// Once set to true, it cannot be set back to false. A flag is a very simple CRDT,
+// the merge function is simply a boolean or over the two flag values being merged.
 type Flag struct {
 	value bool
 	delta bool

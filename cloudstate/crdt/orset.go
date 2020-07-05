@@ -22,6 +22,15 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 )
 
+// ORSet, or Observed-Removed Set, is a set that can have items both added
+// and removed from it. It is implemented by maintaining a set of unique tags
+// for each element which are generated on addition into the set. When an
+// element is removed, all the tags that that node currently observes are added
+// to the removal set, so as long as there haven’t been any new additions that
+// the node hasn’t seen when it removed the element, the element will be removed.
+// A naive implementation of this will accumulate tombstones as elements are removed,
+// however the Cloudstate reference implementation provides an implementation
+// that cleans up tombstones.
 type ORSet struct {
 	value   map[uint64]*any.Any
 	added   map[uint64]*any.Any

@@ -22,6 +22,13 @@ import (
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 )
 
+// GCounter, or Grow-only Counter, is a counter that can only be incremented.
+// It works by tracking a separate counter value for each node, and taking the
+// sum of the values for all the nodes to get the current counter value. Since
+// each node only updates its own counter value, each node can coordinate those
+// updates to ensure they are consistent. Then the merge function, if it sees
+// two different values for the same node, simply takes the highest value,
+// because that has to be the most recent value that the node published.
 type GCounter struct {
 	value uint64
 	delta uint64

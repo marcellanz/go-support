@@ -22,7 +22,9 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 )
 
-// A grow only set can have elements added to it, but not removed.
+// GSet, or Grow-only Set, is a set that can only have items added to it.
+// A GSet is a very simple CRDT, its merge function is defined by taking
+// the union of the two GSets being merged.
 type GSet struct {
 	value      map[uint64]*any.Any
 	added      map[uint64]*any.Any

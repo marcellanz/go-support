@@ -22,8 +22,13 @@ import (
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 )
 
-// A Vote CRDT allows all nodes an a cluster to vote on
-// a condition, such as whether a user is online.
+// A Vote is a CRDT which allows nodes to vote on a condition. It’s similar
+// to a GCounter, each node has its own counter, and an odd value is considered
+// a vote for the condition, while an even value is considered a vote against.
+// The result of the vote is decided by taking the votes of all nodes that are
+// currently members of the cluster (when a node leave, its vote is discarded).
+// Multiple decision strategies can be used to decide the result of the vote,
+// such as at least one, majority and all.
 type Vote struct {
 	selfVote        bool
 	selfVoteChanged bool // delta seen

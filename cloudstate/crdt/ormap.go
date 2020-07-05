@@ -23,6 +23,11 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 )
 
+// ORMap, or Observed-Removed Map, is similar to an ORSet, with the addition
+// that the values of the set serve as keys for a map, and the values of the
+// map are themselves, CRDTs. When a value for the same key in an ORMap is
+// modified concurrently on two different nodes, the values from the two nodes
+// are merged together.
 type ORMap struct {
 	value map[uint64]*orMapValue
 	delta orMapDelta

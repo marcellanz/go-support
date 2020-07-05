@@ -22,6 +22,10 @@ import (
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 )
 
+// PNCounter, or Positive-Negative Counter, is a counter that can both be incremented
+// and decremented. It works by combining two GCounters, a positive one, that tracks
+// increments, and a negative one, that tracks decrements. The final counter value is
+// computed by subtracting the negative GCounter from the positive GCounter.
 type PNCounter struct {
 	value int64
 	delta int64

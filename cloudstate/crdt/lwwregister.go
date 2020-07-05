@@ -22,6 +22,17 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 )
 
+// LWWRegister, or Last-Write-Wins Register, is a CRDT that can hold any value,
+// along with a clock value and node id to indicate when it was updated by which
+// node. If two nodes have two different versions of the value, the one with the
+// highest clock value wins. If the clock values are equal, then a stable function
+// on the nodes is used to determine it (eg, the node with the lowest address).
+// Note that LWWRegisters do not support partial updates of their values. If the
+// register holds a person object, and one node updates the age property, while
+// another concurrently updates the name property, only one of those updates will
+// eventually win. By default, LWWRegister’s are vulnerable to clock skew between nodes.
+// Cloudstate supports optionally providing a custom clock value should a more
+// trustworthy ordering for updates be available.
 type LWWRegister struct {
 	value            *any.Any
 	clock            Clock
