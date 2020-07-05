@@ -53,7 +53,9 @@ func (s *Server) Register(e *Entity) error {
 	if _, exists := s.entities[e.ServiceName]; exists {
 		return fmt.Errorf("an entity with service name: %s is already registered", e.ServiceName)
 	}
-	e.SnapshotEvery = snapshotEveryDefault
+	if e.SnapshotEvery == 0 {
+		e.SnapshotEvery = snapshotEveryDefault
+	}
 	s.entities[e.ServiceName] = e
 	return nil
 }
@@ -182,7 +184,6 @@ func (s *Server) handleInit(init *protocol.EventSourcedInit, r *runner) error {
 		EntityId:           id,
 		EventSourcedEntity: entity,
 		Instance:           entity.EntityFunc(id),
-		EventEmitter:       newEmitter(),
 		active:             true,
 		eventSequence:      0,
 		ctx:                r.stream.Context(),
@@ -192,6 +193,5 @@ func (s *Server) handleInit(init *protocol.EventSourcedInit, r *runner) error {
 			return err
 		}
 	}
-	r.subscribeEvents()
 	return nil
 }

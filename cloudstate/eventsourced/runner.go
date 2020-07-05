@@ -83,25 +83,6 @@ func (r *runner) handleEvent(event *protocol.EventSourcedEvent) error {
 	return nil
 }
 
-func (r *runner) subscribeEvents() {
-	s := &Subscriber{}
-	s.OnNext = func(event interface{}) error {
-		if !r.context.active {
-			return nil
-		}
-		if err := r.applyEvent(event); err != nil {
-			return err
-		}
-		r.context.eventSequence++
-		return nil
-	}
-	s.OnErr = func(err error) {
-		s.active = false
-		r.context.Failed(err)
-	}
-	r.context.Subscribe(s)
-}
-
 // applyEvent applies an event to a local entity.
 func (r *runner) applyEvent(event interface{}) error {
 	payload, err := encoding.MarshalAny(event)

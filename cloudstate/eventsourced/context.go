@@ -25,11 +25,27 @@ type Context struct {
 	// Instance is an instance of the registered entity.
 	Instance Handler
 
-	EventEmitter
 	failed        error
 	active        bool
 	eventSequence int64
+	events        []interface{}
 	ctx           context.Context
+}
+
+func (c *Context) Events() []interface{} {
+	return c.events
+}
+
+func (c *Context) ClearEvents() {
+	c.events = make([]interface{}, 0)
+}
+
+func (c *Context) Emit(event interface{}) {
+	if err := c.Instance.HandleEvent(c, event); err != nil {
+		c.Failed(err)
+	}
+	c.events = append(c.events, event)
+	c.eventSequence++
 }
 
 func (c *Context) StreamCtx() context.Context {

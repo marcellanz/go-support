@@ -16,6 +16,6 @@ func MarshalEventsAny(entityContext *Context) ([]*any.Any, error) {
 		}
 		events = append(events, event)
 	}
-	entityContext.Clear()
+	entityContext.ClearEvents()
 	return events, nil
 }

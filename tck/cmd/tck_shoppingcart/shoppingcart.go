@@ -44,6 +44,7 @@ func main() {
 		ServiceName:   "com.example.shoppingcart.ShoppingCart",
 		PersistenceID: "ShoppingCart",
 		EntityFunc:    newShoppingCart,
+		SnapshotEvery: 2,
 	}, protocol.DescriptorConfig{
 		Service: "shoppingcart/shoppingcart.proto",
 	}.AddDomainDescriptor("domain.proto"))
