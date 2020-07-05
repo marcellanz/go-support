@@ -59,6 +59,9 @@ type Entity struct {
 type Handler interface {
 	HandleCommand(ctx *Context, name string, cmd proto.Message) (reply proto.Message, err error)
 	HandleEvent(ctx *Context, event interface{}) error
+}
+
+type Snapshooter interface {
 	Snapshot(ctx *Context) (snapshot interface{}, err error)
 	HandleSnapshot(ctx *Context, snapshot interface{}) error
 }

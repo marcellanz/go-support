@@ -37,7 +37,11 @@ func (r *runner) handleSnapshots() (*any.Any, error) {
 	if !r.context.shouldSnapshot() {
 		return nil, nil
 	}
-	snap, err := r.context.Instance.Snapshot(r.context)
+	s, ok := r.context.Instance.(Snapshooter)
+	if !ok {
+		return nil, nil
+	}
+	snap, err := s.Snapshot(r.context)
 	if err != nil {
 		return nil, fmt.Errorf("getting a snapshot has failed: %w", err)
 	}
@@ -112,7 +116,11 @@ func (r *runner) handleInitSnapshot(snapshot *protocol.EventSourcedSnapshot) err
 	if val == nil || err != nil {
 		return fmt.Errorf("handling snapshot failed with: %w", err)
 	}
-	err = r.context.Instance.HandleSnapshot(r.context, val)
+	s, ok := r.context.Instance.(Snapshooter)
+	if !ok {
+		return fmt.Errorf("entity instance does not implement eventsourced.Snapshooter")
+	}
+	err = s.HandleSnapshot(r.context, val)
 	if err != nil {
 		return fmt.Errorf("handling snapshot failed with: %w", err)
 	}
