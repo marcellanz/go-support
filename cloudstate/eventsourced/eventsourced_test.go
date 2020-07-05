@@ -243,7 +243,7 @@ func TestSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	r := &runner{}
+	r := &runner{stream: TestEventSourcedHandleServer{}}
 	err = handler.handleInit(&protocol.EventSourcedInit{
 		ServiceName: "TestEventSourcedServer-Service",
 		EntityId:    "entity-0",
