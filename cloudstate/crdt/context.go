@@ -38,6 +38,10 @@ type Context struct {
 	ctx         context.Context
 }
 
+func (c *Context) StreamCtx() context.Context {
+	return c.ctx
+}
+
 func (c *Context) SetCRDT(newCRDT CRDT) error {
 	if c.crdt != nil {
 		return fmt.Errorf("crdt has been already created")

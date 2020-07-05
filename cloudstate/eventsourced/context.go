@@ -15,6 +15,8 @@
 
 package eventsourced
 
+import "context"
+
 type Context struct {
 	// EntityId
 	EntityId EntityId
@@ -27,6 +29,11 @@ type Context struct {
 	failed        error
 	active        bool
 	eventSequence int64
+	ctx           context.Context
+}
+
+func (c *Context) StreamCtx() context.Context {
+	return c.ctx
 }
 
 func (c *Context) Failed(err error) {

@@ -185,6 +185,7 @@ func (s *Server) handleInit(init *protocol.EventSourcedInit, r *runner) error {
 		EventEmitter:       newEmitter(),
 		active:             true,
 		eventSequence:      0,
+		ctx:                r.stream.Context(),
 	}
 	if snapshot := init.GetSnapshot(); snapshot != nil {
 		if err := r.handleInitSnapshot(snapshot); err != nil {
