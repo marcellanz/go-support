@@ -16,6 +16,7 @@
 package eventsourced
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"reflect"
@@ -184,14 +185,18 @@ func (r *runner) handleCommand(cmd *protocol.Command) error {
 	// The gRPC implementation returns the rpc return method
 	// and an error as a second return value.
 	reply, errReturned := r.context.Instance.HandleCommand(r.context, cmd.Name, message)
-	// if a commandFunc returns an error, we deliver this as a
-	// protocol failure, attaching the command id.
 	if errReturned != nil {
-		// TCK says: TODO Expects entity.Failure, but gets clientAction.Action.Failure(Failure(commandId, msg)))
-		return &protocol.ProtocolFailure{
-			F:   &protocol.Failure{CommandId: cmd.GetId()},
-			Err: errReturned,
+		// if a commandFunc returns an error, we deliver this as a
+		// protocol failure, attaching the command id.
+		err := &protocol.Error{}
+		if errors.As(errReturned, &err) {
+			// TCK says: TODO Expects entity.Failure, but gets clientAction.Action.Failure(Failure(commandId, msg)))
+			return &protocol.ProtocolFailure{
+				F:   &protocol.Failure{CommandId: cmd.GetId()},
+				Err: err.E,
+			}
 		}
+		r.context.fail(errReturned)
 	}
 	// if the context failed, the context.failed error
 	// is an error value the user expressed to be sent
