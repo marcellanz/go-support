@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Lightbend Inc.
+// Copyright 2019 Lightbend Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,5 +13,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package cloudstate implements the Cloudstate event sourced and entity discovery protocol.
-package cloudstate
+// Package crdt implements the Cloudstate CRDT state model support.
+package crdt
