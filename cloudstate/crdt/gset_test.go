@@ -46,7 +46,7 @@ func TestGset(t *testing.T) {
 	t.Run("should have no elements when instantiated", func(t *testing.T) {
 		s := NewGSet()
 		if s.Size() != 0 {
-			t.Fail()
+			t.FailNow()
 		}
 		if s.HasDelta() {
 			t.Fatal("has delta but should not")
@@ -183,7 +183,7 @@ func TestGset(t *testing.T) {
 			}
 		}
 		if !foundOne {
-			t.Errorf("delta should include two")
+			t.Fatalf("delta should include two")
 		}
 	})
 
@@ -198,14 +198,14 @@ func TestGset(t *testing.T) {
 		for _, any := range s.value {
 			p, err := encoding.UnmarshalPrimitive(any)
 			if err != nil {
-				t.Fail()
+				t.FailNow()
 			}
 			i, ok := p.(int32)
 			if !ok {
-				t.Fail()
+				t.FailNow()
 			}
 			if i != 5 {
-				t.Fail()
+				t.FailNow()
 			}
 		}
 	})
@@ -222,7 +222,7 @@ func TestGset(t *testing.T) {
 		}
 		s.Add(json)
 		if s.Size() != 1 {
-			t.Errorf("s.Size %v; want: %v", s.Size(), 1)
+			t.Fatalf("s.Size %v; want: %v", s.Size(), 1)
 		}
 		json, err = encoding.JSON(
 			a{
@@ -234,7 +234,7 @@ func TestGset(t *testing.T) {
 		}
 		s.Add(json)
 		if s.Size() != 1 {
-			t.Errorf("s.Size %v; want: %v", s.Size(), 1)
+			t.Fatalf("s.Size %v; want: %v", s.Size(), 1)
 		}
 	})
 }

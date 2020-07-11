@@ -52,7 +52,7 @@ func TestORSet(t *testing.T) {
 			t.Fatalf("s.Delta()).GetAdded()): %v; want: %v", alen, 1)
 		}
 		if !contains(delta.GetOrset().GetAdded(), "one") {
-			t.Error("did not found one")
+			t.Fatal("did not found one")
 		}
 		if s.HasDelta() {
 			t.Fatalf("set has delta")
@@ -66,7 +66,7 @@ func TestORSet(t *testing.T) {
 			t.Fatalf("len(GetAdded()): %v; want: %v", alen, 2)
 		}
 		if !contains(s.Added(), "two", "three") {
-			t.Error("did not found two and three")
+			t.Fatal("did not found two and three")
 		}
 		s.resetDelta()
 		if s.HasDelta() {

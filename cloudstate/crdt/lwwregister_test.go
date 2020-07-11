@@ -32,25 +32,25 @@ func TestLWWRegister(t *testing.T) {
 		example := Example{}
 		err := encoding.UnmarshalJSON(r.Value(), &example)
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		if example.Field1 != "foo" {
-			t.Errorf("example.Field1: %v; want: %v", example.Field1, "foo")
+			t.Fatalf("example.Field1: %v; want: %v", example.Field1, "foo")
 		}
 		if r.HasDelta() {
-			t.Errorf("register has delta but should not")
+			t.Fatalf("register has delta but should not")
 		}
 		state := encDecState(r.State())
 		err = encoding.UnmarshalJSON(state.GetLwwregister().GetValue(), &example)
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		r.resetDelta()
 		if example.Field1 != "foo" {
-			t.Errorf("example.Field1: %v; want: %v", example.Field1, "foo")
+			t.Fatalf("example.Field1: %v; want: %v", example.Field1, "foo")
 		}
 		if r.clock != Default {
-			t.Errorf("r.clock: %v; want: %v", r.clock, Default)
+			t.Fatalf("r.clock: %v; want: %v", r.clock, Default)
 		}
 	})
 
@@ -72,10 +72,10 @@ func TestLWWRegister(t *testing.T) {
 		example := Example{}
 		err := encoding.UnmarshalJSON(r.Value(), &example)
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		if example.Field1 != "foo" {
-			t.Errorf("example.Field1: %v; want: %v", example.Field1, "foo")
+			t.Fatalf("example.Field1: %v; want: %v", example.Field1, "foo")
 		}
 	})
 
@@ -85,26 +85,26 @@ func TestLWWRegister(t *testing.T) {
 		example := Example{}
 		err := encoding.UnmarshalJSON(r.value, &example)
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		if example.Field1 != "bar" {
-			t.Errorf("example.Field1: %v; want: %v", example.Field1, "bar")
+			t.Fatalf("example.Field1: %v; want: %v", example.Field1, "bar")
 		}
 		d := encDecDelta(r.Delta())
 		r.resetDelta()
 		e := Example{}
 		err = encoding.UnmarshalJSON(d.GetLwwregister().GetValue(), &e)
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		if example.Field1 != "bar" {
-			t.Errorf("example.Field1: %v; want: %v", example.Field1, "bar")
+			t.Fatalf("example.Field1: %v; want: %v", example.Field1, "bar")
 		}
 		if r.clock != Default {
-			t.Errorf("r.clock: %v; want: %v", r.clock, Default)
+			t.Fatalf("r.clock: %v; want: %v", r.clock, Default)
 		}
 		if r.HasDelta() {
-			t.Errorf("register has delta but should not")
+			t.Fatalf("register has delta but should not")
 		}
 	})
 
@@ -114,17 +114,17 @@ func TestLWWRegister(t *testing.T) {
 		example := Example{}
 		err := encoding.UnmarshalJSON(r.value, &example)
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		if example.Field1 != "bar" {
-			t.Errorf("example.Field1: %v; want: %v", example.Field1, "bar")
+			t.Fatalf("example.Field1: %v; want: %v", example.Field1, "bar")
 		}
 		d := encDecDelta(r.Delta())
 		r.resetDelta()
 		e := Example{}
 		err = encoding.UnmarshalJSON(d.GetLwwregister().GetValue(), &e)
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		if example.Field1 != "bar" {
 			t.Fatalf("example.Field1: %v; want: %v", example.Field1, "bar")

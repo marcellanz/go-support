@@ -44,7 +44,7 @@ func TestFlag(t *testing.T) {
 	t.Run("should be disabled when instantiated", func(t *testing.T) {
 		f := NewFlag()
 		if f.Value() {
-			t.Errorf("flag should be false but was not")
+			t.Fatal("flag should be false but was not")
 		}
 	})
 	t.Run("should reflect a state update", func(t *testing.T) {
@@ -53,7 +53,7 @@ func TestFlag(t *testing.T) {
 			t.Fatal(err)
 		}
 		if !f.Value() {
-			t.Errorf("flag should be true but was not")
+			t.Fatal("flag should be true but was not")
 		}
 	})
 	t.Run("should reflect a delta update", func(t *testing.T) {
@@ -62,33 +62,33 @@ func TestFlag(t *testing.T) {
 			t.Fatal(err)
 		}
 		if !f.Value() {
-			t.Errorf("flag should be true but was not")
+			t.Fatal("flag should be true but was not")
 		}
 	})
 	t.Run("should generate deltas", func(t *testing.T) {
 		f := NewFlag()
 		f.Enable()
 		if !encDecDelta(f.Delta()).GetFlag().GetValue() {
-			t.Errorf("flag delta should be true but was not")
+			t.Fatal("flag delta should be true but was not")
 		}
 		f.resetDelta()
 		if f.HasDelta() {
-			t.Errorf("flag should have no delta")
+			t.Fatal("flag should have no delta")
 		}
 	})
 	t.Run("should return its state", func(t *testing.T) {
 		f := NewFlag()
 		if encDecState(f.State()).GetFlag().GetValue() {
-			t.Errorf("value should be false but was not")
+			t.Fatal("value should be false but was not")
 		}
 		f.resetDelta()
 		f.Enable()
 		if !encDecState(f.State()).GetFlag().GetValue() {
-			t.Errorf("delta should be true but was not")
+			t.Fatal("delta should be true but was not")
 		}
 		f.resetDelta()
 		if f.HasDelta() {
-			t.Errorf("flag should have no delta")
+			t.Fatal("flag should have no delta")
 		}
 	})
 }
@@ -97,11 +97,11 @@ func TestFlagAdditional(t *testing.T) {
 	t.Run("should return correct delta on zero value", func(t *testing.T) {
 		f := NewFlag()
 		if f.Delta().GetFlag().GetValue() != false {
-			t.Errorf("flag delta should be false but was not")
+			t.Fatal("flag delta should be false but was not")
 		}
 		f.Enable()
 		if f.Delta().GetFlag().GetValue() != true {
-			t.Errorf("flag delta should be true but was not")
+			t.Fatal("flag delta should be true but was not")
 		}
 	})
 	t.Run("apply invalid delta", func(t *testing.T) {
