@@ -1,3 +1,19 @@
+//
+// Copyright 2019 Lightbend Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Package discovery implements the Cloudstate entity discovery server.
 package discovery
 
 import (
@@ -51,7 +67,7 @@ func NewServer(config protocol.Config) *EntityDiscoveryServer {
 
 // Discover returns an entity spec for registered entities.
 func (s *EntityDiscoveryServer) Discover(_ context.Context, pi *protocol.ProxyInfo) (*protocol.EntitySpec, error) {
-	log.Printf("Received discovery call from sidecar [%s w%s] supporting Cloudstate %v.%v\n",
+	log.Printf("Received discovery call from sidecar [%s %s] supporting Cloudstate %v.%v\n",
 		pi.ProxyName,
 		pi.ProxyVersion,
 		pi.ProtocolMajorVersion,
@@ -119,7 +135,7 @@ func (s *EntityDiscoveryServer) RegisterCRDTEntity(e *crdt.Entity, config protoc
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.entitySpec.Entities = append(s.entitySpec.Entities, &protocol.Entity{
-		EntityType:  protocol.Crdt,
+		EntityType:  protocol.CRDT,
 		ServiceName: e.ServiceName.String(),
 	})
 	return s.updateSpec()

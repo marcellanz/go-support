@@ -124,7 +124,7 @@ func (s *Server) handle(server protocol.EventSourced_HandleServer) error {
 			return err
 		}
 	default:
-		return fmt.Errorf("a message was received without having a EventSourcedInit message handled before: %v", first.GetMessage())
+		return fmt.Errorf("a message was received without having an EventSourcedInit message handled before: %v", first.GetMessage())
 	}
 	for {
 		if runner.context.failed != nil {
