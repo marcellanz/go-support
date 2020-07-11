@@ -55,9 +55,6 @@ type CommandContext struct {
 }
 
 func (c *CommandContext) runCommand(cmd *protocol.Command) (*any.Any, error) {
-	if c.Entity.CommandFunc == nil {
-		return nil, fmt.Errorf("no command handler found for command [%s] on CRDT entity: %v", cmd.Name, c.crdt)
-	}
 	// unmarshal the commands message
 	msgName := strings.TrimPrefix(cmd.GetPayload().GetTypeUrl(), "type.googleapis.com"+"/")
 	messageType := proto.MessageType(msgName)
@@ -69,7 +66,7 @@ func (c *CommandContext) runCommand(cmd *protocol.Command) (*any.Any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return c.Entity.CommandFunc(c.Instance, c, cmd.Name, message)
+	return c.Instance.HandleCommand(c, cmd.Name, message)
 }
 
 func (c *CommandContext) ChangeFunc(f ChangeFunc) {
@@ -90,19 +87,14 @@ func (c *CommandContext) Streamed() bool {
 	return c.cmd.Streamed
 }
 
-/**
- * TODO: rewrite as Go documentation
- * register an on cancel callback for this command.
- *
- * <p>This will be invoked if the client initiates a stream cancel. It will not be invoked if the
- * entity cancels the stream itself via {@link SubscriptionContext#endStream()} from an {@link
- * StreamedCommandContext#onChange(Function)} callback.
- *
- * <p>An on cancel callback may update the CRDT, and may emit side effects via the passed in
- * {@link StreamCancelledContext}.
- *
- * @param effect The effect to perform when this stream is cancelled.
- */
+// CancelFunc registers an on cancel handler for this command.
+//
+// The registered function will be invoked if the client initiates a stream cancel. It will not
+// be invoked if the entity cancels the stream itself via {@link SubscriptionContext#endStream()} from an {@link
+// StreamedCommandContext#onChange(Function)} callback.
+// <p>An on cancel callback may update the CRDT, and may emit side effects via the passed in
+// {@link StreamCancelledContext}.
+// @param effect The effect to perform when this stream is cancelled.
 func (c *CommandContext) CancelFunc(f CancelFunc) {
 	if !c.Streamed() {
 		return
@@ -112,7 +104,7 @@ func (c *CommandContext) CancelFunc(f CancelFunc) {
 
 var ErrFailCalled = errors.New("context failed by context")
 
-func (c *CommandContext) End() {
+func (c *CommandContext) EndStream() {
 	if !c.Streamed() {
 		return
 	}

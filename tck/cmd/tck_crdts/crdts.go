@@ -11,6 +11,7 @@ import (
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/cloudstateio/go-support/tck/crdts"
+	"github.com/golang/protobuf/proto"
 
 	"github.com/golang/protobuf/ptypes/any"
 )
@@ -28,55 +29,51 @@ func newCRDTs() *CRDTs {
 	return &CRDTs{crashedFor: make(map[crdt.EntityId]bool)}
 }
 
-func (cs *CRDTs) crashNextTime(id crdt.EntityId) {
-	if cs.crashedFor[id] == false {
-		cs.crashedFor[id] = true
+func (entity *CRDTs) crashNextTime(id crdt.EntityId) {
+	if entity.crashedFor[id] == false {
+		entity.crashedFor[id] = true
 	}
 }
 
-func Set(ctx *crdt.Context, c crdt.CRDT) {
+func (entity *CRDTs) Set(_ *crdt.Context, c crdt.CRDT) {
 	switch v := c.(type) {
 	case *crdt.GCounter:
-		ctx.Instance.(*CRDTs).gCounter = v
+		entity.gCounter = v
 	case *crdt.PNCounter:
-		ctx.Instance.(*CRDTs).pnCounter = v
+		entity.pnCounter = v
 	case *crdt.GSet:
-		ctx.Instance.(*CRDTs).gSet = v
+		entity.gSet = v
 	case *crdt.ORSet:
-		ctx.Instance.(*CRDTs).orSet = v
+		entity.orSet = v
 	case *crdt.Vote:
-		ctx.Instance.(*CRDTs).vote = v
+		entity.vote = v
 	}
 }
 
-func Default(c *crdt.Context) crdt.CRDT {
-	if strings.HasPrefix(c.EntityId.String(), "gcounter-") {
-		i := c.Instance.(*CRDTs)
-		i.gCounter = crdt.NewGCounter()
-		return i.gCounter
+func (entity *CRDTs) Default(ctx *crdt.Context) crdt.CRDT {
+	if strings.HasPrefix(ctx.EntityId.String(), "gcounter-") {
+		entity.gCounter = crdt.NewGCounter()
+		return entity.gCounter
 	}
-	if strings.HasPrefix(c.EntityId.String(), "pncounter-") {
-		i := c.Instance.(*CRDTs)
-		i.pnCounter = crdt.NewPNCounter()
-		return i.pnCounter
+	if strings.HasPrefix(ctx.EntityId.String(), "pncounter-") {
+		entity.pnCounter = crdt.NewPNCounter()
+		return entity.pnCounter
 	}
-	if strings.HasPrefix(c.EntityId.String(), "gset-") {
-		i := c.Instance.(*CRDTs)
-		i.gSet = crdt.NewGSet()
-		return i.gSet
+	if strings.HasPrefix(ctx.EntityId.String(), "gset-") {
+		entity.gSet = crdt.NewGSet()
+		return entity.gSet
 	}
-	if strings.HasPrefix(c.EntityId.String(), "orset-") {
-		i := c.Instance.(*CRDTs)
-		i.orSet = crdt.NewORSet()
-		return i.orSet
+	if strings.HasPrefix(ctx.EntityId.String(), "orset-") {
+		entity.orSet = crdt.NewORSet()
+		return entity.orSet
 	}
-	c.Fail(errors.New("unknown entity type"))
+	ctx.Fail(errors.New("unknown entity type"))
 	return nil
 }
 
-func (cs *CRDTs) Command(ctx *crdt.CommandContext, name string, cmd interface{}) (*any.Any, error) {
-	if cs.crashedFor[ctx.EntityId] {
-		cs.crashedFor[ctx.EntityId] = true
+func (entity *CRDTs) HandleCommand(ctx *crdt.CommandContext, name string, cmd proto.Message) (*any.Any, error) {
+	if entity.crashedFor[ctx.EntityId] {
+		entity.crashedFor[ctx.EntityId] = true
 		panic("forced crash")
 	}
 	fmt.Printf("got: %+v, %v\n", name, cmd)
@@ -84,37 +81,37 @@ func (cs *CRDTs) Command(ctx *crdt.CommandContext, name string, cmd interface{})
 	case "IncrementGCounter":
 		switch c := cmd.(type) {
 		case *crdts.UpdateCounter:
-			defer cs.crashNextTime(ctx.EntityId)
-			cs.gCounter.Increment(uint64(c.GetValue()))
-			return encoding.MarshalAny(&crdts.CounterValue{Value: int64(cs.gCounter.Value())})
+			defer entity.crashNextTime(ctx.EntityId)
+			entity.gCounter.Increment(uint64(c.GetValue()))
+			return encoding.MarshalAny(&crdts.CounterValue{Value: int64(entity.gCounter.Value())})
 		}
 	case "GetGCounter":
 		switch cmd.(type) {
 		case *crdts.Get:
-			return encoding.MarshalAny(&crdts.CounterValue{Value: int64(cs.gCounter.Value())})
+			return encoding.MarshalAny(&crdts.CounterValue{Value: int64(entity.gCounter.Value())})
 		}
 	case "UpdatePNCounter":
 		switch c := cmd.(type) {
 		case *crdts.UpdateCounter:
-			defer cs.crashNextTime(ctx.EntityId)
-			cs.pnCounter.Increment(c.GetValue())
-			return encoding.MarshalAny(&crdts.CounterValue{Value: cs.pnCounter.Value()})
+			defer entity.crashNextTime(ctx.EntityId)
+			entity.pnCounter.Increment(c.GetValue())
+			return encoding.MarshalAny(&crdts.CounterValue{Value: entity.pnCounter.Value()})
 		}
 	case "GetPNCounter":
 		switch cmd.(type) {
 		case *crdts.Get:
-			return encoding.MarshalAny(&crdts.CounterValue{Value: cs.pnCounter.Value()})
+			return encoding.MarshalAny(&crdts.CounterValue{Value: entity.pnCounter.Value()})
 		}
 	case "MutateGSet":
 		switch m := cmd.(type) {
 		case *crdts.MutateSet:
-			defer cs.crashNextTime(ctx.EntityId)
+			defer entity.crashNextTime(ctx.EntityId)
 			for _, v := range m.GetAdd() {
 				x, err := encoding.MarshalAny(v)
 				if err != nil {
 					return nil, err
 				}
-				cs.gSet.Add(x)
+				entity.gSet.Add(x)
 			}
 			if len(m.GetRemove()) > 0 {
 				panic("a growing set can't remove items")
@@ -122,13 +119,13 @@ func (cs *CRDTs) Command(ctx *crdt.CommandContext, name string, cmd interface{})
 			if m.Clear {
 				panic("a growing set can't be cleared")
 			}
-			return encoding.MarshalAny(&crdts.SetSize{Size: int32(cs.gSet.Size())})
+			return encoding.MarshalAny(&crdts.SetSize{Size: int32(entity.gSet.Size())})
 		}
 	case "GetGSet":
 		switch cmd.(type) {
 		case *crdts.Get:
 			sv := &crdts.SetValue{}
-			for _, x := range cs.gSet.Value() {
+			for _, x := range entity.gSet.Value() {
 				v := &crdts.SomeValue{}
 				if err := encoding.UnmarshalAny(x, v); err != nil {
 					return nil, err
@@ -140,28 +137,28 @@ func (cs *CRDTs) Command(ctx *crdt.CommandContext, name string, cmd interface{})
 	case "MutateORSet":
 		switch m := cmd.(type) {
 		case *crdts.MutateSet:
-			defer cs.crashNextTime(ctx.EntityId)
+			defer entity.crashNextTime(ctx.EntityId)
 			for _, v := range m.GetAdd() {
 				x, err := encoding.MarshalAny(v)
 				if err != nil {
 					return nil, err
 				}
-				cs.orSet.Add(x)
+				entity.orSet.Add(x)
 			}
 			for _, v := range m.GetRemove() {
 				x, err := encoding.MarshalAny(v)
 				if err != nil {
 					return nil, err
 				}
-				cs.orSet.Remove(x)
+				entity.orSet.Remove(x)
 			}
-			return encoding.MarshalAny(&crdts.SetSize{Size: int32(cs.orSet.Size())})
+			return encoding.MarshalAny(&crdts.SetSize{Size: int32(entity.orSet.Size())})
 		}
 	case "GetORSet":
 		switch cmd.(type) {
 		case *crdts.Get:
 			sv := &crdts.SetValue{}
-			for _, x := range cs.orSet.Value() {
+			for _, x := range entity.orSet.Value() {
 				v := &crdts.SomeValue{}
 				if err := encoding.UnmarshalAny(x, v); err != nil {
 					return nil, err
@@ -186,12 +183,7 @@ func main() {
 	err = server.RegisterCRDT(
 		&crdt.Entity{
 			ServiceName: "com.example.crdts.CrdtExample",
-			EntityFunc:  func(id crdt.EntityId) interface{} { return newCRDTs() },
-			SetFunc:     Set,
-			DefaultFunc: Default,
-			CommandFunc: func(entity interface{}, ctx *crdt.CommandContext, name string, msg interface{}) (*any.Any, error) {
-				return entity.(*CRDTs).Command(ctx, name, msg)
-			},
+			EntityFunc:  func(id crdt.EntityId) crdt.EntityHandler { return newCRDTs() },
 		},
 		protocol.DescriptorConfig{
 			Service: "crdts/crdt-example.proto",

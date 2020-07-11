@@ -17,5 +17,5 @@ package protocol
 
 const (
 	EventSourced = "cloudstate.eventsourced.EventSourced"
-	Crdt         = "cloudstate.crdt.Crdt"
+	CRDT         = "cloudstate.crdt.Crdt"
 )

@@ -23,7 +23,7 @@ type Context struct {
 	// EventSourcedEntity describes the instance hold by the EntityInstance.
 	EventSourcedEntity *Entity
 	// Instance is an instance of the registered entity.
-	Instance Handler
+	Instance EntityHandler
 
 	failed        error
 	active        bool
@@ -36,13 +36,19 @@ func (c *Context) Events() []interface{} {
 	return c.events
 }
 
-func (c *Context) ClearEvents() {
+func (c *Context) ResetEvents() {
 	c.events = make([]interface{}, 0)
 }
 
 func (c *Context) Emit(event interface{}) {
+	if c.failed != nil {
+		// we can't fail sooner but won't handle events
+		// after one failed anymore.
+		return
+	}
 	if err := c.Instance.HandleEvent(c, event); err != nil {
-		c.Failed(err)
+		c.fail(err)
+		return
 	}
 	c.events = append(c.events, event)
 	c.eventSequence++
@@ -52,7 +58,7 @@ func (c *Context) StreamCtx() context.Context {
 	return c.ctx
 }
 
-func (c *Context) Failed(err error) {
+func (c *Context) fail(err error) {
 	c.failed = err
 }
 

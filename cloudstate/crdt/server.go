@@ -24,25 +24,9 @@ import (
 	"sync"
 
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
-	"github.com/golang/protobuf/ptypes/any"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-// Entity captures an Entity with its ServiceName.
-// It is used to be registered as an CRDT entity on a Cloudstate instance.
-type Entity struct {
-	// ServiceName is the fully qualified name of the service that implements this entities interface.
-	// Setting it is mandatory.
-	ServiceName ServiceName
-	// EntityFunc creates a new entity.
-	EntityFunc func(id EntityId) interface{}
-	// SetFunc is a function that sets the ...
-	SetFunc func(c *Context, crdt CRDT)
-	// DefaultFunc is a factory function to create the CRDT to be used for this entity.
-	DefaultFunc func(c *Context) CRDT
-	CommandFunc func(entity interface{}, ctx *CommandContext, name string, msg interface{}) (*any.Any, error)
-}
 
 type Server struct {
 	// mu protects the map below.
@@ -51,7 +35,7 @@ type Server struct {
 	entities map[ServiceName]*Entity
 }
 
-// NewServer returns an initialized Server
+// NewServer returns an initialized Server.
 func NewServer() *Server {
 	return &Server{
 		entities: make(map[ServiceName]*Entity),
@@ -210,7 +194,7 @@ func (s *Server) handleInit(init *protocol.CrdtInit, r *runner) error {
 		ctx:         r.stream.Context(), // this context is stable as long as the runner runs
 		streamedCtx: make(map[CommandId]*CommandContext),
 	}
-	// the init msg may have an initial state
+	// the init msg may have an initial state.
 	if state := init.GetState(); state != nil {
 		if err := r.handleState(state); err != nil {
 			return err

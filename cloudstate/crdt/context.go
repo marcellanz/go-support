@@ -23,11 +23,11 @@ import (
 
 type Context struct {
 	EntityId EntityId
-	// Entity describes the instance that is used as an entity
+	// Entity describes the instance that is used as an entity.
 	Entity *Entity
 	// Instance is the instance of the entity this context is for.
-	Instance interface{}
-	// the root crdt managed by this user function
+	Instance EntityHandler
+	// the root CRDT managed by this user function.
 	crdt CRDT
 
 	streamedCtx map[CommandId]*CommandContext
@@ -67,23 +67,20 @@ func (c *Context) Delete() {
 	c.crdt = nil
 }
 
-// initDefault initializes the CRDT with a default value if not already set.
+// initDefault initializes the CRDT with a default value if it's not already set.
 func (c *Context) initDefault() error {
 	if c.crdt != nil {
-		c.Entity.SetFunc(c, c.crdt)
+		c.Instance.Set(c, c.crdt)
 		return nil
 	}
-	if c.Entity.DefaultFunc == nil {
-		return errors.New("no Entity.DefaultFunc defined")
-	}
-	c.crdt = c.Entity.DefaultFunc(c)
+	c.crdt = c.Instance.Default(c)
 	if c.failed != nil {
 		return c.failed
 	}
 	if c.crdt == nil {
-		return errors.New("no default CRDT set by Entity.DefaultFunc")
+		return errors.New("no default CRDT set by entities Default function")
 	}
-	c.Entity.SetFunc(c, c.crdt)
+	c.Instance.Set(c, c.crdt)
 	c.created = true
 	return nil
 }

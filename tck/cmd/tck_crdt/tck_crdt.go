@@ -11,6 +11,7 @@ import (
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	tc "github.com/cloudstateio/go-support/tck/proto/crdt"
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/any"
 )
 
@@ -27,23 +28,22 @@ func newEntity(id crdt.EntityId) *SyntheticCRDTs {
 	return &SyntheticCRDTs{id: id}
 }
 
-func setFunc(ctx *crdt.Context, c crdt.CRDT) {
-	i := ctx.Instance.(*SyntheticCRDTs)
+func (s *SyntheticCRDTs) Set(_ *crdt.Context, c crdt.CRDT) {
 	switch v := c.(type) {
 	case *crdt.GCounter:
-		i.gCounter = v
+		s.gCounter = v
 	case *crdt.PNCounter:
-		i.pnCounter = v
+		s.pnCounter = v
 	case *crdt.GSet:
-		i.gSet = v
+		s.gSet = v
 	case *crdt.ORSet:
-		i.orSet = v
+		s.orSet = v
 	case *crdt.Vote:
-		i.vote = v
+		s.vote = v
 	}
 }
 
-func defaultFunc(c *crdt.Context) crdt.CRDT {
+func (s *SyntheticCRDTs) Default(c *crdt.Context) crdt.CRDT {
 	if strings.HasPrefix(c.EntityId.String(), "gcounter-") {
 		return crdt.NewGCounter()
 	}
@@ -63,7 +63,8 @@ func defaultFunc(c *crdt.Context) crdt.CRDT {
 	return nil
 }
 
-func (s *SyntheticCRDTs) Command(_ *crdt.CommandContext, name string, cmd interface{}) (*any.Any, error) {
+func (s *SyntheticCRDTs) HandleCommand(_ *crdt.CommandContext, name string, cmd proto.Message) (*any.Any, error) {
+	defer checkToFail(cmd)
 	fmt.Printf("got: %v, %+v\n", name, cmd)
 	switch name {
 	case "IncrementGCounter":
@@ -76,7 +77,6 @@ func (s *SyntheticCRDTs) Command(_ *crdt.CommandContext, name string, cmd interf
 		}
 	case "GetGCounter":
 		return encoding.MarshalAny(&tc.GCounterValue{Value: s.gCounter.Value()})
-
 	case "IncrementPNCounter":
 		switch c := cmd.(type) {
 		case *tc.PNCounterIncrement:
@@ -91,7 +91,6 @@ func (s *SyntheticCRDTs) Command(_ *crdt.CommandContext, name string, cmd interf
 		}
 	case "GetPNCounter":
 		return encoding.MarshalAny(&tc.PNCounterValue{Value: s.pnCounter.Value()})
-
 	case "AddGSet":
 		switch c := cmd.(type) {
 		case *tc.GSetAdd:
@@ -229,14 +228,8 @@ func main() {
 	err = server.RegisterCRDT(
 		&crdt.Entity{
 			ServiceName: "crdt.TckCrdt", // this is the package + service(name) from the gRPC proto file.
-			EntityFunc: func(id crdt.EntityId) interface{} {
+			EntityFunc: func(id crdt.EntityId) crdt.EntityHandler {
 				return newEntity(id)
-			},
-			SetFunc:     setFunc,
-			DefaultFunc: defaultFunc,
-			CommandFunc: func(entity interface{}, ctx *crdt.CommandContext, name string, msg interface{}) (*any.Any, error) {
-				defer checkToFail(msg)
-				return entity.(*SyntheticCRDTs).Command(ctx, name, msg)
 			},
 		},
 		protocol.DescriptorConfig{

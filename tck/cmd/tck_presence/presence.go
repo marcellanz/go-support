@@ -10,10 +10,12 @@ import (
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/cloudstateio/go-support/tck/presence"
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/any"
 )
 
 type Presence struct {
+	vote *crdt.Vote
 }
 
 // a command
@@ -32,7 +34,6 @@ func (p *Presence) Connect(c *crdt.CommandContext) *any.Any {
 		flag.Enable()
 		return nil, nil
 	})
-
 	c.CancelFunc(func(c *crdt.CommandContext) error {
 		c.SideEffect(&protocol.SideEffect{
 			ServiceName: "Service1",
@@ -47,12 +48,19 @@ func (p *Presence) Connect(c *crdt.CommandContext) *any.Any {
 		c.Fail(fmt.Errorf("its a failure"))
 	}
 	if false {
-		c.End()
+		c.EndStream()
 	}
 	return nil
 }
 
-func (p *Presence) StreamedCommand(c *crdt.CommandContext, name string, cmd interface{}) (*any.Any, error) {
+func (p *Presence) Default(ctx *crdt.Context) crdt.CRDT {
+	return crdt.NewVote()
+}
+func (p *Presence) Set(ctx *crdt.Context, c crdt.CRDT) {
+	p.vote = c.(*crdt.Vote)
+}
+
+func (p *Presence) HandleCommand(c *crdt.CommandContext, name string, cmd proto.Message) (*any.Any, error) {
 	if !c.Streamed() {
 		panic("I thought it is streamed")
 	}
@@ -81,11 +89,7 @@ func main() {
 	err = server.RegisterCRDT(
 		&crdt.Entity{
 			ServiceName: "presence",
-			EntityFunc:  func(id crdt.EntityId) interface{} { return &Presence{} },
-			DefaultFunc: func(c *crdt.Context) crdt.CRDT { return crdt.NewFlag() },
-			CommandFunc: func(p interface{}, ctx *crdt.CommandContext, name string, msg interface{}) (*any.Any, error) {
-				return p.(*Presence).StreamedCommand(ctx, name, msg)
-			},
+			EntityFunc:  func(id crdt.EntityId) crdt.EntityHandler { return &Presence{} },
 		},
 		protocol.DescriptorConfig{
 			Service: "presence.proto",
