@@ -27,7 +27,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-// CloudState is an instance of a Cloudstate User Function
+// CloudState is an instance of a Cloudstate User Function.
 type CloudState struct {
 	grpcServer            *grpc.Server
 	entityDiscoveryServer *discovery.EntityDiscoveryServer
@@ -71,6 +71,10 @@ func (cs *CloudState) RegisterCRDT(e *crdt.Entity, config protocol.DescriptorCon
 	return nil
 }
 
+func (cs *CloudState) RunWithListener(lis net.Listener) error {
+	return cs.grpcServer.Serve(lis)
+}
+
 // Run runs the CloudState instance.
 func (cs *CloudState) Run() error {
 	host, ok := os.LookupEnv("HOST")
@@ -85,8 +89,13 @@ func (cs *CloudState) Run() error {
 	if err != nil {
 		return fmt.Errorf("failed to listen: %v", err)
 	}
-	if e := cs.grpcServer.Serve(lis); e != nil {
+	if e := cs.RunWithListener(lis); e != nil {
 		return fmt.Errorf("failed to grpcServer.Serve for: %v", lis)
 	}
 	return nil
+}
+
+func (cs *CloudState) Stop() {
+	cs.grpcServer.GracefulStop()
+	fmt.Println("CloudState stopped")
 }
