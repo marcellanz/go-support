@@ -47,7 +47,10 @@ type CommandContext struct {
 	change    ChangeFunc
 	cancel    CancelFunc
 
-	failed      error
+	failed error
+	// ended means, we will send a streamed message
+	// where we mark the message as the last one in the stream
+	// and therefore, the streamed command has ended.
 	ended       bool
 	cmd         *protocol.Command
 	sideEffects []*protocol.SideEffect
@@ -66,7 +69,11 @@ func (c *CommandContext) runCommand(cmd *protocol.Command) (*any.Any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return c.Instance.HandleCommand(c, cmd.Name, message)
+	reply, err := c.Instance.HandleCommand(c, cmd.Name, message)
+	if err != nil {
+		c.Fail(err)
+	}
+	return reply, err
 }
 
 func (c *CommandContext) ChangeFunc(f ChangeFunc) {
@@ -102,7 +109,7 @@ func (c *CommandContext) CancelFunc(f CancelFunc) {
 	c.cancel = f
 }
 
-var ErrFailCalled = errors.New("context failed by context")
+var ErrCtxFailCalled = errors.New("context failed by context")
 
 func (c *CommandContext) EndStream() {
 	if !c.Streamed() {
@@ -112,7 +119,9 @@ func (c *CommandContext) EndStream() {
 }
 
 func (c *CommandContext) Forward(f *protocol.Forward) {
-	// TODO: has to ne not yet forwarded... "This context has already forwarded."
+	if c.forward != nil {
+		c.Fail(errors.New("this context has already forwarded"))
+	}
 	c.forward = f
 }
 
@@ -166,7 +175,7 @@ func (c *CommandContext) trackChanges() {
 	c.streamedCtx[c.CommandId] = c
 }
 
-func (c *CommandContext) clientActionFor(reply *any.Any) *protocol.ClientAction {
+func (c *CommandContext) clientActionFor(reply *any.Any) (*protocol.ClientAction, error) {
 	if c.failed != nil {
 		return &protocol.ClientAction{
 			Action: &protocol.ClientAction_Failure{
@@ -175,13 +184,13 @@ func (c *CommandContext) clientActionFor(reply *any.Any) *protocol.ClientAction 
 					Description: c.failed.Error(),
 				},
 			},
-		}
+		}, nil
 	}
 	if reply != nil {
 		if c.forward != nil {
 			// spec impl: "Both a reply was returned, and a forward message was sent, choose one or the other."
 			// TODO notallowed: "This context has already forwarded."
-			return nil
+			return nil, errors.New("this context has already forwarded")
 		}
 		return &protocol.ClientAction{
 			Action: &protocol.ClientAction_Reply{
@@ -189,16 +198,16 @@ func (c *CommandContext) clientActionFor(reply *any.Any) *protocol.ClientAction 
 					Payload: reply,
 				},
 			},
-		}
+		}, nil
 	}
 	if c.forward != nil {
 		return &protocol.ClientAction{
 			Action: &protocol.ClientAction_Forward{
 				Forward: c.forward,
 			},
-		}
+		}, nil
 	}
-	return nil
+	return nil, nil
 }
 
 func (c *CommandContext) stateAction() *protocol.CrdtStateAction {

@@ -28,30 +28,6 @@ type runner struct {
 	stateReceived bool
 }
 
-func (r *runner) sendStreamedMessage(msg *protocol.CrdtStreamedMessage) error {
-	return r.stream.Send(&protocol.CrdtStreamOut{
-		Message: &protocol.CrdtStreamOut_StreamedMessage{
-			StreamedMessage: msg,
-		},
-	})
-}
-
-func (r *runner) sendCancelledMessage(msg *protocol.CrdtStreamCancelledResponse) error {
-	return r.stream.Send(&protocol.CrdtStreamOut{
-		Message: &protocol.CrdtStreamOut_StreamCancelledResponse{
-			StreamCancelledResponse: msg,
-		},
-	})
-}
-
-func (r *runner) sendCrdtReply(reply *protocol.CrdtReply) error {
-	return r.stream.Send(&protocol.CrdtStreamOut{
-		Message: &protocol.CrdtStreamOut_Reply{
-			Reply: reply,
-		},
-	})
-}
-
 // A CrdtState message is sent to indicate the user function should replace its current value with this value. If the user function
 // does not have a current value, either because the commandContextFor function didn't send one and the user function hasn't
 // updated the value itself in response to a command, or because the value was deleted, this must be sent before
@@ -106,18 +82,24 @@ func (r *runner) handleCancellation(cancelled *protocol.StreamCancelled) error {
 	return nil
 }
 
-func (r *runner) handleCommand(cmd *protocol.Command) error {
+func (r *runner) handleCommand(cmd *protocol.Command) (streamError error) {
 	ctx := r.context.commandContextFor(cmd)
 	reply, err := ctx.runCommand(cmd)
+	// on any error, the context gets deactivated
 	if err != nil {
-		ctx.deactivate()
+		ctx.deactivate() // this will close the stream
 	}
-	if errors.Is(err, ErrFailCalled) {
-		reply = nil // this triggers a ClientAction_Failure be created later by clientActionFor
+	// if the user function has failed, a client action failure will be sent
+	if ctx.failed != nil {
+		reply = nil
 	} else if err != nil {
+		// on any other error, we return and close the stream
 		return err
 	}
-	clientAction := ctx.clientActionFor(reply)
+	clientAction, err := ctx.clientActionFor(reply)
+	if err != nil {
+		return err
+	}
 	if ctx.failed != nil {
 		return r.sendStreamedMessage(&protocol.CrdtStreamedMessage{
 			CommandId:    ctx.CommandId.Value(),
@@ -138,8 +120,7 @@ func (r *runner) handleCommand(cmd *protocol.Command) error {
 	// after the command handling, and any stateActions should get handled by existing change handlers
 	// => that is the reason the scala impl copies them over later. TODO: explain in SPEC feedback
 	if stateAction != nil {
-		err := r.handleChange()
-		if err != nil {
+		if err := r.handleChange(); err != nil {
 			return err
 		}
 	}
@@ -156,14 +137,17 @@ func (r *runner) handleChange() error {
 		}
 		reply, err := ctx.changed()
 		if err != nil {
-			ctx.deactivate() // TODO: why/how?
+			ctx.deactivate() // TODO: why/how? failed, active, deleted; hows that to work?
 		}
-		if errors.Is(err, ErrFailCalled) {
+		if errors.Is(err, ErrCtxFailCalled) {
 			reply = nil
 		} else if err != nil {
 			return err
 		}
-		clientAction := ctx.clientActionFor(reply)
+		clientAction, err := ctx.clientActionFor(reply)
+		if err != nil {
+			return err
+		}
 		if ctx.failed != nil {
 			delete(ctx.streamedCtx, ctx.CommandId)
 			msg := &protocol.CrdtStreamedMessage{
@@ -177,10 +161,7 @@ func (r *runner) handleChange() error {
 		}
 		if clientAction != nil || ctx.ended || len(ctx.sideEffects) > 0 {
 			if ctx.ended {
-				// ended means, we will send a streamed message
-				// where we mark the message as the last one in the stream
-				// and therefore, the streamed command has ended.
-				delete(ctx.streamedCtx, ctx.CommandId) // TODO: do we race here somehow?
+				delete(ctx.streamedCtx, ctx.CommandId)
 			}
 			msg := &protocol.CrdtStreamedMessage{
 				CommandId:    ctx.CommandId.Value(),
@@ -196,4 +177,28 @@ func (r *runner) handleChange() error {
 		}
 	}
 	return nil
+}
+
+func (r *runner) sendStreamedMessage(msg *protocol.CrdtStreamedMessage) error {
+	return r.stream.Send(&protocol.CrdtStreamOut{
+		Message: &protocol.CrdtStreamOut_StreamedMessage{
+			StreamedMessage: msg,
+		},
+	})
+}
+
+func (r *runner) sendCancelledMessage(msg *protocol.CrdtStreamCancelledResponse) error {
+	return r.stream.Send(&protocol.CrdtStreamOut{
+		Message: &protocol.CrdtStreamOut_StreamCancelledResponse{
+			StreamCancelledResponse: msg,
+		},
+	})
+}
+
+func (r *runner) sendCrdtReply(reply *protocol.CrdtReply) error {
+	return r.stream.Send(&protocol.CrdtStreamOut{
+		Message: &protocol.CrdtStreamOut_Reply{
+			Reply: reply,
+		},
+	})
 }

@@ -22,6 +22,7 @@ import (
 )
 
 type Context struct {
+	// EntityId is the ID of the entity.
 	EntityId EntityId
 	// Entity describes the instance that is used as an entity.
 	Entity *Entity
@@ -30,21 +31,26 @@ type Context struct {
 	// the root CRDT managed by this user function.
 	crdt CRDT
 
+	// ctx is the context.Context from the stream this context is assigned to.
+	ctx context.Context
+	// streamedCtx are streaming command contexts.
 	streamedCtx map[CommandId]*CommandContext
-	created     bool
-	active      bool
-	deleted     bool
-	failed      error
-	ctx         context.Context
+	// created defines if the CRDT was created by the user function.
+	created bool
+	active  bool
+	deleted bool
+	failed  error
 }
 
+// StreamCtx returns the context.Context from the stream this context is assigned to.
 func (c *Context) StreamCtx() context.Context {
 	return c.ctx
 }
 
+// SetCRDT lets the user function set the CRDT for the entity.
 func (c *Context) SetCRDT(newCRDT CRDT) error {
 	if c.crdt != nil {
-		return fmt.Errorf("crdt has been already created")
+		return fmt.Errorf("the CRTD has already been created")
 	}
 	c.crdt = newCRDT
 	c.created = true
@@ -57,11 +63,14 @@ func (c *Context) CRDT() CRDT {
 
 // Fail fails the command with the given message.
 func (c *Context) Fail(err error) {
-	// TODO: has to be active, has to be not yet failed
-	// "fail(…) already previously invoked!"
-	c.failed = fmt.Errorf("failed with %v: %w", err, ErrFailCalled)
+	// TODO: has to be active, has to be not yet failed => "fail(…) already previously invoked!"
+	if c.failed != nil {
+		return
+	}
+	c.failed = fmt.Errorf("failed with %v: %w", err, ErrCtxFailCalled)
 }
 
+// Delete marks the CRDT to be deleted.
 func (c *Context) Delete() {
 	c.deleted = true
 	c.crdt = nil
@@ -69,17 +78,20 @@ func (c *Context) Delete() {
 
 // initDefault initializes the CRDT with a default value if it's not already set.
 func (c *Context) initDefault() error {
+	// with a handled state, the CRDT might already be set.
 	if c.crdt != nil {
 		c.Instance.Set(c, c.crdt)
 		return nil
 	}
+	// with no state given the entity instance can provide one.
 	c.crdt = c.Instance.Default(c)
 	if c.failed != nil {
 		return c.failed
 	}
 	if c.crdt == nil {
-		return errors.New("no default CRDT set by entities Default function")
+		return errors.New("no default CRDT set by the entities Default function")
 	}
+	// the entity gets the CRDT to be set.
 	c.Instance.Set(c, c.crdt)
 	c.created = true
 	return nil

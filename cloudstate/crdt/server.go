@@ -107,10 +107,6 @@ func (s *Server) handle(stream protocol.Crdt_HandleServer) error {
 	default:
 		return fmt.Errorf("a message was received without having an CrdtInit message first: %v", m)
 	}
-	if runner.context.EntityId == "" { // never happens, but if.
-		return fmt.Errorf("a message was received without having a CrdtInit message handled before: %v", first.GetMessage())
-	}
-
 	// handle all other messages after a CrdtInit message has been received.
 	for {
 		if runner.context.deleted || !runner.context.active {
@@ -160,9 +156,6 @@ func (s *Server) handle(stream protocol.Crdt_HandleServer) error {
 			if err := runner.handleCancellation(m.StreamCancelled); err != nil {
 				return err
 			}
-			if err := runner.handleChange(); err != nil {
-				return err
-			}
 		case *protocol.CrdtStreamIn_Init:
 			return errors.New("duplicate init message for the same entity")
 		case nil:
@@ -174,12 +167,15 @@ func (s *Server) handle(stream protocol.Crdt_HandleServer) error {
 }
 
 func (s *Server) handleInit(init *protocol.CrdtInit, r *runner) error {
+	if init.GetServiceName() == "" || init.GetEntityId() == "" {
+		return fmt.Errorf("no servicename or entity id was defined for init: %+v", init)
+	}
 	serviceName := ServiceName(init.GetServiceName())
 	s.mu.RLock()
 	entity, exists := s.entities[serviceName]
 	s.mu.RUnlock()
 	if !exists {
-		return fmt.Errorf("received a command for an unknown crdt service: %v", serviceName)
+		return fmt.Errorf("received CrdtInit for an unknown crdt service: %v", serviceName)
 	}
 	if entity.EntityFunc == nil {
 		return fmt.Errorf("entity.EntityFunc not defined: %v", serviceName)
