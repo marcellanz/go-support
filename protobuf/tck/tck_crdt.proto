@@ -1,0 +1,232 @@
+// Copyright 2020 Lightbend Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Extension for specifying which field in a message is to be considered an
+// entity key, for the purposes associating gRPC calls with entities and
+// sharding.
+
+syntax = "proto3";
+
+import "google/protobuf/any.proto";
+import "google/protobuf/empty.proto";
+import "cloudstate/entity_key.proto";
+
+package crdt;
+
+option java_package = "io.cloudstate.tck";
+option go_package = "github.com/cloudstateio/go-support/tck/proto/crdt;crdt";
+
+service TckCrdt {
+  rpc IncrementGCounter (GCounterIncrement) returns (GCounterValue);
+  rpc GetGCounter (Get) returns (GCounterValue);
+
+  rpc IncrementPNCounter (PNCounterIncrement) returns (PNCounterValue);
+  rpc DecrementPNCounter (PNCounterDecrement) returns (PNCounterValue);
+  rpc GetPNCounter (Get) returns (PNCounterValue);
+
+  rpc AddGSet (GSetAdd) returns (GSetValue);
+  rpc GetGSet (Get) returns (GSetValue);
+  rpc GetGSetAnySupport (Get) returns (GSetValueAnySupport);
+  rpc GetGSetSize (Get) returns (GSetSize);
+
+  rpc AddORSet (ORSetAdd) returns (ORSetValue);
+  rpc RemoveORSet (ORSetRemove) returns (ORSetValue);
+  rpc GetORSet (Get) returns (ORSetValue);
+  rpc GetORSetSize (Get) returns (ORSetSize);
+
+  rpc EnableFlag (FlagEnable) returns (FlagValue);
+  rpc GetFlag (Get) returns (FlagValue);
+
+  rpc SetLWWRegister (LWWRegisterSet) returns (LWWRegisterValue);
+  rpc SetLWWRegisterWithClock (LWWRegisterSetWithClock) returns (LWWRegisterValue);
+  rpc GetLWWRegisterValue (Get) returns (LWWRegisterValue);
+
+  rpc SetORMap (ORMapSet) returns (ORMapEntries);
+  rpc DeleteORMap (ORMapKey) returns (ORMapEntries);
+  rpc ClearORMap (ORMapKey) returns (ORMapEntries);
+  rpc GetORMapSize (Get) returns (ORMapSize);
+  rpc GetORMapEntries (Get) returns (ORMapEntries);
+  rpc GetORMapKeys (Get) returns (ORMapKeys);
+
+  rpc VoteVote (Vote) returns (SelfVote);
+  rpc GetVoteSelfVote (Get) returns (SelfVote);
+  rpc GetVoters (Get) returns (Voters);
+}
+
+message Get {
+  string key = 1 [(.cloudstate.entity_key) = true];
+  bool fail = 2;
+}
+
+message AnySupportType {
+  oneof value {
+    google.protobuf.Any any_value = 3;
+    string string_value = 4;
+    bytes bytes_value = 5;
+    int32 int32_value = 6;
+    int64 int64_value = 7;
+    float float_value = 8;
+    double double_value = 9;
+    bool bool_value = 10;
+  }
+}
+
+message GCounterIncrement {
+  string key = 1 [(.cloudstate.entity_key) = true];
+  bool fail = 2;
+  uint64 value = 3;
+}
+
+message GCounterValue {
+  uint64 value = 2;
+}
+
+message PNCounterIncrement {
+  string key = 1 [(.cloudstate.entity_key) = true];
+  bool fail = 2;
+  int64 value = 3;
+}
+
+message PNCounterDecrement {
+  string key = 1 [(.cloudstate.entity_key) = true];
+  bool fail = 2;
+  int64 value = 3;
+}
+
+message PNCounterValue {
+  int64 value = 2;
+}
+
+message GSetAdd {
+  string key = 1 [(.cloudstate.entity_key) = true];
+  bool fail = 2;
+  AnySupportType value = 3;
+}
+
+message GSetValue {
+  repeated google.protobuf.Any values = 1;
+}
+
+message GSetValueAnySupport {
+  repeated AnySupportType values = 1;
+}
+
+message GSetSize {
+  sint64 value = 1;
+}
+
+message ORSetAdd {
+  string key = 1 [(.cloudstate.entity_key) = true];
+  bool fail = 2;
+  AnySupportType value = 3;
+}
+
+message ORSetRemove {
+  string key = 1 [(.cloudstate.entity_key) = true];
+  bool fail = 2;
+  AnySupportType value = 3;
+}
+
+message ORSetValue {
+  repeated google.protobuf.Any values = 1;
+}
+
+message ORSetSize {
+  sint64 value = 1;
+}
+
+message FlagEnable {
+  string key = 1 [(.cloudstate.entity_key) = true];
+  bool fail = 2;
+}
+
+message FlagValue {
+  bool value = 1;
+}
+
+message LWWRegisterSet {
+  string key = 1 [(.cloudstate.entity_key) = true];
+  bool fail = 2;
+  google.protobuf.Any value = 3;
+}
+
+// copy from crdt.proto
+enum CrdtClock {
+  // Use the default clock for deciding the last write, which is the system clocks
+  // milliseconds since epoch.
+  DEFAULT = 0;
+  // Use the reverse semantics with the default clock, to enable first write wins.
+  REVERSE = 1;
+  // Use a custom clock value, set using custom_clock_value.
+  CUSTOM = 2;
+  // Use a custom clock value, but automatically increment it by one if the clock
+  // value from the current value is equal to the custom_clock_value.
+  CUSTOM_AUTO_INCREMENT = 3;
+}
+
+message LWWRegisterSetWithClock {
+  string key = 1 [(.cloudstate.entity_key) = true];
+  bool fail = 2;
+  google.protobuf.Any value = 3;
+  CrdtClock clock = 4;
+  int64 custom_clock_value = 5;
+}
+
+message LWWRegisterValue {
+  google.protobuf.Any value = 1;
+}
+
+message ORMapSet {
+  string key = 1 [(.cloudstate.entity_key) = true];
+  bool fail = 2;
+  google.protobuf.Any entry_key = 3;
+  google.protobuf.Any value = 4;
+}
+
+message ORMapKey {
+  string key = 1 [(.cloudstate.entity_key) = true];
+  bool fail = 2;
+  google.protobuf.Any value = 3;
+}
+
+message ORMapEntry {
+  google.protobuf.Any entry_key = 1;
+  google.protobuf.Any value = 2;
+}
+
+message ORMapEntries {
+  repeated ORMapEntry values = 1;
+}
+
+message ORMapSize {
+  sint64 value = 1;
+}
+
+message ORMapKeys {
+  repeated google.protobuf.Any values = 1;
+}
+
+message Vote {
+  string key = 1 [(.cloudstate.entity_key) = true];
+  bool fail = 2;
+  bool value = 3;
+}
+
+message SelfVote {
+  bool value = 1;
+}
+
+message Voters {
+  uint32 value = 1;
+}

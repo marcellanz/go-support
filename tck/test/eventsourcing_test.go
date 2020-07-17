@@ -1,3 +1,18 @@
+//
+// Copyright 2020 Lightbend Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package test
 
 import (
@@ -16,9 +31,7 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 )
 
-const bufSize = 1024 * 1024
-
-func TestShoppingCart(t *testing.T) {
+func TestEventsourcingShoppingCart(t *testing.T) {
 	server, _ := cloudstate.New(protocol.Config{
 		ServiceName:    "shopping-cart",
 		ServiceVersion: "9.9.8",
@@ -32,7 +45,7 @@ func TestShoppingCart(t *testing.T) {
 		Service: "shoppingcart/shoppingcart.proto",
 	}.AddDomainDescriptor("domain.proto"))
 
-	lis := bufconn.Listen(bufSize)
+	lis := bufconn.Listen(1024 * 1024)
 	defer server.Stop()
 	go func() {
 		if err := server.RunWithListener(lis); err != nil {
