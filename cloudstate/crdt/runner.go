@@ -40,6 +40,7 @@ func (r *runner) handleState(state *protocol.CrdtState) error {
 	if err := r.context.crdt.applyState(state); err != nil {
 		return err
 	}
+	r.context.Instance.Set(r.context, r.context.crdt)
 	r.stateReceived = true
 	return nil
 }
@@ -82,7 +83,13 @@ func (r *runner) handleCancellation(cancelled *protocol.StreamCancelled) error {
 	return nil
 }
 
+// handleCommand handles the received command.
+// Cloudstate CRDTs support handling server streamed calls, that is, when the gRPC service call for a CRDT marks the return type as streamed. When a user function receives a streamed message, it is allowed to update the CRDT, on two occasions - when the call is first received, and when the client cancels the stream. If it wishes to make updates at other times, it can do so by emitting effects with the streamed messages that it sends down the stream.
+// A user function can send a message down a stream in response to anything, however the Cloudstate supplied support libraries only allow sending messages in response to the CRDT changing. In this way, use cases that require monitoring the state of a CRDT can be implemented.
 func (r *runner) handleCommand(cmd *protocol.Command) (streamError error) {
+	if r.context.EntityId != EntityId(cmd.EntityId) {
+		return fmt.Errorf("given cmd.EntityId: %s does not match the initialized entityId: %s", cmd.EntityId, r.context.EntityId)
+	}
 	ctx := r.context.commandContextFor(cmd)
 	reply, err := ctx.runCommand(cmd)
 	// on any error, the context gets deactivated

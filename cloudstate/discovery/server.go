@@ -17,13 +17,12 @@
 package discovery
 
 import (
-	"sync"
-
 	"context"
 	"errors"
 	"fmt"
 	"log"
 	"runtime"
+	"sync"
 
 	"github.com/cloudstateio/go-support/cloudstate/crdt"
 	"github.com/cloudstateio/go-support/cloudstate/eventsourced"
@@ -75,7 +74,7 @@ func (s *EntityDiscoveryServer) Discover(_ context.Context, pi *protocol.ProxyIn
 	)
 	log.Printf("Responding with: %v\n", s.entitySpec.GetServiceInfo())
 	// TODO: s.entitySpec can be written potentially but should not after we started to run the server.
-	// check hot to enforce that after CloudState.Run has started.
+	// check how to enforce that after CloudState.Run has started.
 	return s.entitySpec, nil
 }
 

@@ -168,7 +168,7 @@ func (s *Server) handle(stream protocol.Crdt_HandleServer) error {
 
 func (s *Server) handleInit(init *protocol.CrdtInit, r *runner) error {
 	if init.GetServiceName() == "" || init.GetEntityId() == "" {
-		return fmt.Errorf("no servicename or entity id was defined for init: %+v", init)
+		return fmt.Errorf("no service name or entity id was defined for init: %+v", init)
 	}
 	serviceName := ServiceName(init.GetServiceName())
 	s.mu.RLock()
