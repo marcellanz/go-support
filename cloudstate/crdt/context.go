@@ -21,6 +21,7 @@ import (
 	"fmt"
 )
 
+// Context holds the context of a running entity.
 type Context struct {
 	// EntityId is the ID of the entity.
 	EntityId EntityId
@@ -30,19 +31,20 @@ type Context struct {
 	Instance EntityHandler
 	// the root CRDT managed by this user function.
 	crdt CRDT
-
 	// ctx is the context.Context from the stream this context is assigned to.
 	ctx context.Context
-	// streamedCtx are streaming command contexts.
+	// streamedCtx are command contexts of streamed commands.
 	streamedCtx map[CommandId]*CommandContext
 	// created defines if the CRDT was created by the user function.
 	created bool
 	active  bool
 	deleted bool
-	failed  error
+	// failed holds an internal error occurred during message processing where no error path was possible.
+	// user function Emit calls are an example.
+	failed error
 }
 
-// StreamCtx returns the context.Context from the stream this context is assigned to.
+// StreamCtx returns the context.Context from the transport stream this context is assigned to.
 func (c *Context) StreamCtx() context.Context {
 	return c.ctx
 }
@@ -61,19 +63,19 @@ func (c *Context) CRDT() CRDT {
 	return c.crdt
 }
 
-// Fail fails the command with the given message.
-func (c *Context) Fail(err error) {
+// Delete marks the CRDT to be deleted initiated by the user function.
+func (c *Context) Delete() {
+	c.deleted = true
+	c.crdt = nil
+}
+
+// fail fails the command with the given message.
+func (c *Context) fail(err error) {
 	// TODO: has to be active, has to be not yet failed => "fail(…) already previously invoked!"
 	if c.failed != nil {
 		return
 	}
 	c.failed = fmt.Errorf("failed with %v: %w", err, ErrCtxFailCalled)
-}
-
-// Delete marks the CRDT to be deleted.
-func (c *Context) Delete() {
-	c.deleted = true
-	c.crdt = nil
 }
 
 // initDefault initializes the CRDT with a default value if it's not already set.
@@ -84,7 +86,7 @@ func (c *Context) initDefault() error {
 		return nil
 	}
 	// with no state given the entity instance can provide one.
-	c.crdt = c.Instance.Default(c)
+	c.crdt, c.failed = c.Instance.Default(c)
 	if c.failed != nil {
 		return c.failed
 	}

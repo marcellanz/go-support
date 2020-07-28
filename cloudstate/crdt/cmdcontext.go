@@ -26,6 +26,9 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 )
 
+var ErrCtxFailCalled = errors.New("context failed by context")
+var ErrStateChanged = errors.New("CRDT change not allowed")
+
 /**
  * register an on change callback for this command.
  *
@@ -46,15 +49,14 @@ type CommandContext struct {
 	CommandId CommandId
 	change    ChangeFunc
 	cancel    CancelFunc
-
-	failed error
+	failed    error
 	// ended means, we will send a streamed message
 	// where we mark the message as the last one in the stream
 	// and therefore, the streamed command has ended.
 	ended       bool
 	cmd         *protocol.Command
-	sideEffects []*protocol.SideEffect
 	forward     *protocol.Forward
+	sideEffects []*protocol.SideEffect
 }
 
 func (c *CommandContext) runCommand(cmd *protocol.Command) (*any.Any, error) {
@@ -69,13 +71,11 @@ func (c *CommandContext) runCommand(cmd *protocol.Command) (*any.Any, error) {
 	if err != nil {
 		return nil, err
 	}
-	reply, err := c.Instance.HandleCommand(c, cmd.Name, message)
-	if err != nil {
-		c.Fail(err)
-	}
-	return reply, err
+	return c.Instance.HandleCommand(c, cmd.Name, message)
 }
 
+// ChangeFunc sets the function to be called whenever the CRDT is changed.
+// For non-streamed contexts this is a no operation.
 func (c *CommandContext) ChangeFunc(f ChangeFunc) {
 	if !c.Streamed() {
 		return
@@ -83,7 +83,7 @@ func (c *CommandContext) ChangeFunc(f ChangeFunc) {
 	c.change = f
 }
 
-func (c *CommandContext) Cmd() *protocol.Command {
+func (c *CommandContext) Command() *protocol.Command {
 	return c.cmd
 }
 
@@ -109,8 +109,6 @@ func (c *CommandContext) CancelFunc(f CancelFunc) {
 	c.cancel = f
 }
 
-var ErrCtxFailCalled = errors.New("context failed by context")
-
 func (c *CommandContext) EndStream() {
 	if !c.Streamed() {
 		return
@@ -120,7 +118,7 @@ func (c *CommandContext) EndStream() {
 
 func (c *CommandContext) Forward(f *protocol.Forward) {
 	if c.forward != nil {
-		c.Fail(errors.New("this context has already forwarded"))
+		c.fail(errors.New("this context has already forwarded"))
 	}
 	c.forward = f
 }
@@ -133,12 +131,11 @@ func (c *CommandContext) clearSideEffect() {
 	c.sideEffects = make([]*protocol.SideEffect, 0, cap(c.sideEffects)) // TODO: should we decrease that?
 }
 
-var ErrStateChanged = errors.New("CRDT change not allowed")
-
 func (c *CommandContext) changed() (reply *any.Any, err error) {
 	// spec impl: checkActive()
 	reply, err = c.change(c)
 	if c.crdt.HasDelta() {
+		// the user is not allowed to change the CRDT.s
 		err = ErrStateChanged
 	}
 	return

@@ -25,9 +25,9 @@ var ErrTest1 = errors.New("test1 error")
 
 func TestClientFailure_Error(t *testing.T) {
 	t.Run("test protocol error", func(t *testing.T) {
-		failure0 := ProtocolFailure{
-			F:   &Failure{CommandId: 0},
-			Err: fmt.Errorf("its an unusual error: %w", ErrTest1),
+		failure0 := ServerError{
+			Failure: &Failure{CommandId: 0},
+			Err:     fmt.Errorf("its an unusual error: %w", ErrTest1),
 		}
 
 		if is := errors.Is(&failure0, ErrTest1); !is {
@@ -35,7 +35,7 @@ func TestClientFailure_Error(t *testing.T) {
 		}
 
 		wrapped0 := fmt.Errorf("wrapped0: %w", failure0)
-		f := &ProtocolFailure{}
+		f := &ServerError{}
 		if !errors.As(wrapped0, f) {
 			t.Error("!errors.As(wrapped0, f)")
 		}

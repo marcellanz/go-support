@@ -50,25 +50,24 @@ func (entity *CRDTs) Set(_ *crdt.Context, c crdt.CRDT) {
 	}
 }
 
-func (entity *CRDTs) Default(ctx *crdt.Context) crdt.CRDT {
+func (entity *CRDTs) Default(ctx *crdt.Context) (crdt.CRDT, error) {
 	if strings.HasPrefix(ctx.EntityId.String(), "gcounter-") {
 		entity.gCounter = crdt.NewGCounter()
-		return entity.gCounter
+		return entity.gCounter, nil
 	}
 	if strings.HasPrefix(ctx.EntityId.String(), "pncounter-") {
 		entity.pnCounter = crdt.NewPNCounter()
-		return entity.pnCounter
+		return entity.pnCounter, nil
 	}
 	if strings.HasPrefix(ctx.EntityId.String(), "gset-") {
 		entity.gSet = crdt.NewGSet()
-		return entity.gSet
+		return entity.gSet, nil
 	}
 	if strings.HasPrefix(ctx.EntityId.String(), "orset-") {
 		entity.orSet = crdt.NewORSet()
-		return entity.orSet
+		return entity.orSet, nil
 	}
-	ctx.Fail(errors.New("unknown entity type"))
-	return nil
+	return nil, errors.New("unknown entity type")
 }
 
 func (entity *CRDTs) HandleCommand(ctx *crdt.CommandContext, name string, cmd proto.Message) (*any.Any, error) {

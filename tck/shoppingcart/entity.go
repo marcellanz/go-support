@@ -40,7 +40,7 @@ func (sc *ShoppingCart) ItemAdded(added *domain.ItemAdded) error { // TODO: enab
 // ItemRemoved is a event handler function for the ItemRemoved event.
 func (sc *ShoppingCart) ItemRemoved(removed *domain.ItemRemoved) error {
 	if !sc.remove(removed.ProductId) {
-		return errors.New("unable to remove product") // this should never happen
+		return errors.New("unable to remove product")
 	}
 	return nil
 }

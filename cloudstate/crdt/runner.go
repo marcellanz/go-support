@@ -58,28 +58,35 @@ func (r *runner) handleDelta(delta *protocol.CrdtDelta) error {
 // A command handler may also register an onCancel callback to be notified when the stream
 // is cancelled. The cancellation callback handler may update the crdt. This is useful if the crdt
 // is being used to track connections, for example, when using Vote CRDTs to track a users online status.
+
+// handleCancellation
 func (r *runner) handleCancellation(cancelled *protocol.StreamCancelled) error {
 	id := CommandId(cancelled.GetId())
 	ctx := r.context.streamedCtx[id]
+	// the cancelled stream is not allowed to handle changes, so we remove it.
 	delete(r.context.streamedCtx, id)
 	if ctx.cancel == nil {
 		return r.sendCancelledMessage(&protocol.CrdtStreamCancelledResponse{
 			CommandId: id.Value(),
 		})
 	}
+	// notify the user about the cancellation.
 	if err := ctx.cancelled(); err != nil {
 		return err
 	}
 	ctx.deactivate()
+	stateAction := ctx.stateAction()
 	err := r.sendCancelledMessage(&protocol.CrdtStreamCancelledResponse{
 		CommandId:   id.Value(),
-		StateAction: ctx.stateAction(),
+		StateAction: stateAction,
 		SideEffects: ctx.sideEffects,
 	})
 	if err != nil {
 		return err
 	}
-	ctx.clearSideEffect()
+	if stateAction != nil {
+		return r.handleChange()
+	}
 	return nil
 }
 
@@ -89,6 +96,9 @@ func (r *runner) handleCancellation(cancelled *protocol.StreamCancelled) error {
 func (r *runner) handleCommand(cmd *protocol.Command) (streamError error) {
 	if r.context.EntityId != EntityId(cmd.EntityId) {
 		return fmt.Errorf("given cmd.EntityId: %s does not match the initialized entityId: %s", cmd.EntityId, r.context.EntityId)
+	}
+	if _, ok := r.context.streamedCtx[CommandId(cmd.Id)]; ok {
+		return fmt.Errorf("the command has already been handled: %d", cmd.Id)
 	}
 	ctx := r.context.commandContextFor(cmd)
 	reply, err := ctx.runCommand(cmd)
@@ -124,8 +134,12 @@ func (r *runner) handleCommand(cmd *protocol.Command) (streamError error) {
 	if err != nil {
 		return err
 	}
+	ctx.clearSideEffect()
 	// after the command handling, and any stateActions should get handled by existing change handlers
 	// => that is the reason the scala impl copies them over later. TODO: explain in SPEC feedback
+	//
+	// so this makes sense, as we don't support client streaming RPC, so a command is handled
+	// once and once only.
 	if stateAction != nil {
 		if err := r.handleChange(); err != nil {
 			return err

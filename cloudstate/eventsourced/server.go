@@ -37,7 +37,7 @@ type Server struct {
 	entities map[ServiceName]*Entity
 }
 
-// NewServer returns a new eventsourced server.
+// NewServer returns a new event sourced server.
 func NewServer() *Server {
 	return &Server{
 		entities: make(map[ServiceName]*Entity),
@@ -71,7 +71,7 @@ func (s *Server) Register(e *Entity) error {
 // persisted the entity should handle itself, applying them to its own state, as if they had
 // arrived as events when the event stream was being replayed on load.
 //
-// Error handling is done so that any error returned, triggers the stream to be closed.
+// ClientError handling is done so that any error returned, triggers the stream to be closed.
 // If an error is a client failure, a ClientAction_Failure is sent with a command id set
 // if provided by the error. If an error is a protocol failure or any other error, a
 // EventSourcedStreamOut_Failure is sent. A protocol failure might provide a command id to
@@ -80,7 +80,7 @@ func (s *Server) Handle(stream protocol.EventSourced_HandleServer) error {
 	defer func() {
 		if r := recover(); r != nil {
 			// on panic we try to tell the proxy and panic again.
-			_ = sendFailure(fmt.Errorf("Server.Handle panic-ked with: %v", r), stream)
+			_ = sendProtocolFailure(fmt.Errorf("Server.Handle panic-ked with: %v", r), stream)
 			// there are two ways to do this
 			// a) report and close the stream and let others run
 			// b) report and panic and therefore crash the program
@@ -95,13 +95,14 @@ func (s *Server) Handle(stream protocol.EventSourced_HandleServer) error {
 		}
 	}()
 
-	// for any error we get, we send a protocol.Failure and close the stream.
+	// for any error we get other than codes.Canceled,
+	// we send a protocol.Failure and close the stream.
 	if err := s.handle(stream); err != nil {
 		if status.Code(err) == codes.Canceled {
 			return err
 		}
 		log.Print(err)
-		if sendErr := sendFailure(err, stream); sendErr != nil {
+		if sendErr := sendProtocolFailure(err, stream); sendErr != nil {
 			log.Print(sendErr)
 		}
 		return status.Error(codes.Aborted, err.Error())
@@ -109,15 +110,16 @@ func (s *Server) Handle(stream protocol.EventSourced_HandleServer) error {
 	return nil
 }
 
-func (s *Server) handle(server protocol.EventSourced_HandleServer) error {
-	first, err := server.Recv()
-	if err == io.EOF {
+func (s *Server) handle(stream protocol.EventSourced_HandleServer) error {
+	first, err := stream.Recv()
+	switch err {
+	case nil:
+	case io.EOF:
 		return nil
-	}
-	if err != nil {
+	default:
 		return err
 	}
-	runner := &runner{stream: server}
+	runner := &runner{stream: stream}
 	switch m := first.GetMessage().(type) {
 	case *protocol.EventSourcedStreamIn_Init:
 		if err := s.handleInit(m.Init, runner); err != nil {
@@ -146,11 +148,7 @@ func (s *Server) handle(server protocol.EventSourced_HandleServer) error {
 		}
 		switch m := msg.GetMessage().(type) {
 		case *protocol.EventSourcedStreamIn_Command:
-			err := runner.handleCommand(m.Command)
-			if err == nil {
-				continue
-			}
-			if err := sendFailure(err, runner.stream); err != nil {
+			if err := runner.handleCommand(m.Command); err != nil {
 				return err
 			}
 		case *protocol.EventSourcedStreamIn_Event:

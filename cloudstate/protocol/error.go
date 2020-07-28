@@ -24,23 +24,27 @@ The second place that Failure is used is by itself, as a top level message in th
 Does it make sense to use the same message for both purposes? Maybe, maybe not.
 */
 
-type Error struct {
-	E error
-}
-
-func (e Error) Error() string {
-	return e.E.Error()
-}
-
-type ProtocolFailure struct {
-	F   *Failure
+type ClientError struct {
 	Err error
 }
 
-func (f ProtocolFailure) Error() string {
+func (e ClientError) Error() string {
+	return e.Err.Error()
+}
+
+func (e ClientError) Unwrap() error {
+	return e.Err
+}
+
+type ServerError struct {
+	Failure *Failure
+	Err     error
+}
+
+func (f ServerError) Error() string {
 	return f.Err.Error()
 }
 
-func (f ProtocolFailure) Unwrap() error {
+func (f ServerError) Unwrap() error {
 	return f.Err
 }

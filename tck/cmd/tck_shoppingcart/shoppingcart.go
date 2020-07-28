@@ -35,6 +35,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("cloudstate.New failed: %v", err)
 	}
+
 	err = server.RegisterEventSourced(&eventsourced.Entity{
 		ServiceName:   "com.example.shoppingcart.ShoppingCart",
 		PersistenceID: "ShoppingCart",

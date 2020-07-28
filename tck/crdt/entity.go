@@ -40,27 +40,26 @@ func (s *SyntheticCRDTs) Set(_ *crdt.Context, c crdt.CRDT) {
 	}
 }
 
-func (s *SyntheticCRDTs) Default(c *crdt.Context) crdt.CRDT {
+func (s *SyntheticCRDTs) Default(c *crdt.Context) (crdt.CRDT, error) {
 	if strings.HasPrefix(c.EntityId.String(), "gcounter-") {
-		return crdt.NewGCounter()
+		return crdt.NewGCounter(), nil
 	}
 	if strings.HasPrefix(c.EntityId.String(), "pncounter-") {
-		return crdt.NewPNCounter()
+		return crdt.NewPNCounter(), nil
 	}
 	if strings.HasPrefix(c.EntityId.String(), "gset-") {
-		return crdt.NewGSet()
+		return crdt.NewGSet(), nil
 	}
 	if strings.HasPrefix(c.EntityId.String(), "orset-") {
-		return crdt.NewORSet()
+		return crdt.NewORSet(), nil
 	}
 	if strings.HasPrefix(c.EntityId.String(), "vote-") {
-		return crdt.NewVote()
+		return crdt.NewVote(), nil
 	}
-	c.Fail(errors.New("unknown entity type"))
-	return nil
+	return nil, errors.New("unknown entity type")
 }
 
-func (s *SyntheticCRDTs) HandleCommand(_ *crdt.CommandContext, name string, cmd proto.Message) (*any.Any, error) {
+func (s *SyntheticCRDTs) HandleCommand(c *crdt.CommandContext, name string, cmd proto.Message) (*any.Any, error) {
 	defer checkToFail(cmd)
 	fmt.Printf("got: %v, %+v\n", name, cmd)
 	switch name {

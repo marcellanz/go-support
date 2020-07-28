@@ -19,7 +19,7 @@ type Presence struct {
 }
 
 // a command
-func (p *Presence) Connect(c *crdt.CommandContext) *any.Any {
+func (p *Presence) Connect(c *crdt.CommandContext) (*any.Any, error) {
 	if c.CRDT() != nil {
 		if err := c.SetCRDT(crdt.NewVote()); err != nil {
 			panic(err)
@@ -45,16 +45,16 @@ func (p *Presence) Connect(c *crdt.CommandContext) *any.Any {
 	})
 
 	if true {
-		c.Fail(fmt.Errorf("its a failure"))
+		return nil, fmt.Errorf("its a failure")
 	}
 	if false {
 		c.EndStream()
 	}
-	return nil
+	return nil, nil
 }
 
-func (p *Presence) Default(ctx *crdt.Context) crdt.CRDT {
-	return crdt.NewVote()
+func (p *Presence) Default(ctx *crdt.Context) (crdt.CRDT, error) {
+	return crdt.NewVote(), nil
 }
 func (p *Presence) Set(ctx *crdt.Context, c crdt.CRDT) {
 	p.vote = c.(*crdt.Vote)
@@ -69,7 +69,7 @@ func (p *Presence) HandleCommand(c *crdt.CommandContext, name string, cmd proto.
 		switch name {
 		case "Connect":
 			if u.GetName() == "jimmy" {
-				c.Fail(errors.New("its jimmy"))
+				return nil, errors.New("its jimmy")
 			}
 		case "Monitor":
 			u.GetName()

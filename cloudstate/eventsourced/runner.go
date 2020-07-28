@@ -16,7 +16,6 @@
 package eventsourced
 
 import (
-	"errors"
 	"fmt"
 	"net/url"
 	"reflect"
@@ -34,7 +33,7 @@ type runner struct {
 	stateReceived bool
 }
 
-func (r *runner) handleSnapshots() (*any.Any, error) {
+func (r *runner) handleSnapshot() (*any.Any, error) {
 	if !r.context.shouldSnapshot() {
 		return nil, nil
 	}
@@ -68,20 +67,14 @@ func (r *runner) handleEvent(event *protocol.EventSourcedEvent) error {
 		return fmt.Errorf("unable to create a new zero-ed message of type: %v", messageType)
 	}
 	// and marshal what we got as an any.Any onto it
-	err := proto.Unmarshal(event.Payload.Value, message)
-	if err != nil {
+	if err := proto.Unmarshal(event.Payload.Value, message); err != nil {
 		return fmt.Errorf("%s, %w", err, encoding.ErrMarshal)
 	}
 	// we're ready to handle the proto message
-	err = r.context.Instance.HandleEvent(r.context, message)
-	if err != nil {
+	if err := r.context.Instance.HandleEvent(r.context, message); err != nil {
 		return err
 	}
-	if r.context.failed != nil {
-		// TODO: we send a client failure
-		return err
-	}
-	return nil
+	return r.context.failed
 }
 
 // applyEvent applies an event to a local entity.
@@ -110,7 +103,7 @@ func (r *runner) handleInitSnapshot(snapshot *protocol.EventSourcedSnapshot) err
 	return nil
 }
 
-func (r *runner) unmarshalSnapshot(s *protocol.EventSourcedSnapshot) (interface{}, error) {
+func (*runner) unmarshalSnapshot(s *protocol.EventSourcedSnapshot) (interface{}, error) {
 	// see: https://developers.google.com/protocol-buffers/docs/reference/csharp/class/google/protobuf/well-known-types/any#typeurl
 	typeUrl := s.Snapshot.GetTypeUrl()
 	if !strings.Contains(typeUrl, "://") {
@@ -165,75 +158,59 @@ func (r *runner) unmarshalSnapshot(s *protocol.EventSourcedSnapshot) (interface{
 // Events:
 // Beside calling the service method, we have to collect "events" the service might emit.
 // These events afterwards have to be handled by a EventHandler to update the state of the
-// entity. The Cloudstate proxy can re-play these events at any time
+// entity. The Cloudstate proxy can re-play these events at any time.
 func (r *runner) handleCommand(cmd *protocol.Command) error {
 	msgName := strings.TrimPrefix(cmd.Payload.GetTypeUrl(), encoding.ProtoAnyBase+"/")
 	messageType := proto.MessageType(msgName)
 	if messageType.Kind() != reflect.Ptr {
 		return fmt.Errorf("messageType: %s is of non Ptr kind", messageType)
 	}
-	// get a zero-ed message of this type
+	// get a zero-ed message of this type.
 	message, ok := reflect.New(messageType.Elem()).Interface().(proto.Message)
 	if !ok {
 		return fmt.Errorf("messageType is no proto.Message: %v", messageType)
 	}
-	// and marshal onto it what we got as an any.Any onto it
+	// and unmarshal it.
 	err := proto.Unmarshal(cmd.Payload.Value, message)
 	if err != nil {
 		return fmt.Errorf("%s, %w", err, encoding.ErrMarshal)
 	}
-	// The gRPC implementation returns the rpc return method
-	// and an error as a second return value.
+	// The gRPC implementation returns the rpc return method and an error as a second return value.
 	reply, errReturned := r.context.Instance.HandleCommand(r.context, cmd.Name, message)
 	if errReturned != nil {
-		// if a commandFunc returns an error, we deliver this as a
-		// protocol failure, attaching the command id.
-		err := &protocol.Error{}
-		if errors.As(errReturned, &err) {
-			// TCK says: TODO Expects entity.Failure, but gets clientAction.Action.Failure(Failure(commandId, msg)))
-			return &protocol.ProtocolFailure{
-				F:   &protocol.Failure{CommandId: cmd.GetId()},
-				Err: err.E,
-			}
-		}
-		r.context.fail(errReturned)
-	}
-	// if the context failed, the context.failed error
-	// is an error value the user expressed to be sent
-	// right away back to the client here as a "normal"
-	// step in the processing of a command, hence, it's
-	// not exceptional.
-	if r.context.failed != nil {
-		defer func() {
-			r.context.failed = nil
-		}()
 		return r.sendClientActionFailure(&protocol.Failure{
-			CommandId:   cmd.GetId(),
-			Description: r.context.failed.Error(),
+			CommandId:   cmd.Id,
+			Description: errReturned.Error(),
 		})
+	}
+	// the context may have failed. As it is not defined what state
+	// a user function would have after a client failure, we get safe and
+	// let the stream fail.
+	if r.context.failed != nil {
+		return r.context.failed
 	}
 	// the reply
 	callReply, err := encoding.MarshalAny(reply)
 	if err != nil { // this should never happen
-		return &protocol.ProtocolFailure{
-			F:   &protocol.Failure{CommandId: cmd.GetId()},
-			Err: fmt.Errorf("called return value at index 0 is no proto.Message. %w", err),
+		return &protocol.ServerError{
+			Failure: &protocol.Failure{CommandId: cmd.GetId()},
+			Err:     fmt.Errorf("marshalling of reply failed. %w", err),
 		}
 	}
 	// emitted events
-	events, err := MarshalEventsAny(r.context)
+	events, err := r.context.marshalEventsAny()
 	if err != nil {
-		return &protocol.ProtocolFailure{
-			F:   &protocol.Failure{CommandId: cmd.GetId()},
-			Err: err,
+		return &protocol.ServerError{
+			Failure: &protocol.Failure{CommandId: cmd.GetId()},
+			Err:     err,
 		}
 	}
 	// snapshot
-	snapshot, err := r.handleSnapshots()
+	snapshot, err := r.handleSnapshot()
 	if err != nil {
-		return &protocol.ProtocolFailure{
-			F:   &protocol.Failure{CommandId: cmd.GetId()},
-			Err: err,
+		return &protocol.ServerError{
+			Failure: &protocol.Failure{CommandId: cmd.GetId()},
+			Err:     err,
 		}
 	}
 	sourcedReply := &protocol.EventSourcedReply{
@@ -248,16 +225,24 @@ func (r *runner) handleCommand(cmd *protocol.Command) error {
 		Events:   events,
 		Snapshot: snapshot,
 	}
-	return sendEventSourcedReply(sourcedReply, r.stream)
+	return r.sendEventSourcedReply(sourcedReply)
+}
+
+func (r *runner) sendEventSourcedReply(rep *protocol.EventSourcedReply) error {
+	return r.stream.Send(&protocol.EventSourcedStreamOut{
+		Message: &protocol.EventSourcedStreamOut_Reply{
+			Reply: rep,
+		},
+	})
 }
 
 func (r *runner) sendClientActionFailure(f *protocol.Failure) error {
-	return sendEventSourcedReply(&protocol.EventSourcedReply{
+	return r.sendEventSourcedReply(&protocol.EventSourcedReply{
 		CommandId: f.CommandId,
 		ClientAction: &protocol.ClientAction{
 			Action: &protocol.ClientAction_Failure{
 				Failure: f,
 			},
 		},
-	}, r.stream)
+	})
 }

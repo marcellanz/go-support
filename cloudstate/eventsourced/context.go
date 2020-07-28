@@ -15,7 +15,12 @@
 
 package eventsourced
 
-import "context"
+import (
+	"context"
+
+	"github.com/cloudstateio/go-support/cloudstate/encoding"
+	"github.com/golang/protobuf/ptypes/any"
+)
 
 type Context struct {
 	// EntityId
@@ -32,14 +37,7 @@ type Context struct {
 	ctx           context.Context
 }
 
-func (c *Context) Events() []interface{} {
-	return c.events
-}
-
-func (c *Context) ResetEvents() {
-	c.events = make([]interface{}, 0)
-}
-
+// Emit is called by a command handler.
 func (c *Context) Emit(event interface{}) {
 	if c.failed != nil {
 		// we can't fail sooner but won't handle events
@@ -68,4 +66,18 @@ func (c *Context) shouldSnapshot() bool {
 
 func (c *Context) resetSnapshotEvery() {
 	c.eventSequence = 0
+}
+
+// marshalEventsAny marshals and the clears events emitted through the context.
+func (c *Context) marshalEventsAny() ([]*any.Any, error) {
+	events := make([]*any.Any, 0, len(c.events))
+	for _, evt := range c.events {
+		event, err := encoding.MarshalAny(evt)
+		if err != nil {
+			return nil, err
+		}
+		events = append(events, event)
+	}
+	c.events = make([]interface{}, 0)
+	return events, nil
 }

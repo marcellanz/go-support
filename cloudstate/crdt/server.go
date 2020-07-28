@@ -109,6 +109,8 @@ func (s *Server) handle(stream protocol.Crdt_HandleServer) error {
 	}
 	// handle all other messages after a CrdtInit message has been received.
 	for {
+		// Delete the entity. May be sent at any time. The user function should clear its state when it receives this.
+		// A proxy may decide to terminate the stream after sending this.
 		if runner.context.deleted || !runner.context.active {
 			return nil // TODO: this will close the stream but not tell the proxy why.
 		}
