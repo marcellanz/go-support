@@ -15,7 +15,7 @@ ARG COMMON_SCRIPT_SOURCE="https://raw.githubusercontent.com/microsoft/vscode-dev
 ARG COMMON_SCRIPT_SHA="dev-mode"
 
 RUN groupadd -g 800 docker
-RUN usermod -a -G docker $USER_UID
+RUN usermod -a -G docker vscode
 
 # Install needed packages and setup non-root user. Use a separate RUN statement to add your own dependencies.
 RUN apt-get update \
