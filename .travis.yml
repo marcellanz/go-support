@@ -28,6 +28,12 @@ jobs:
       if: branch = master AND type = push
       language: scala
       script: cd docs && sbt deploy
+    - stage: deploy devcontainer image
+      name: deploy devcontainer image to dockerhub
+      if: branch = master AND type = push
+      script:
+        - echo "$DOCKER_PASSWORD" | docker login -u cloudstatebot --password-stdin
+        - pushd . && cd .devcontainer && ./build.sh push && popd
 
 env:
   global:
