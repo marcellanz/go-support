@@ -33,7 +33,7 @@ const serviceName = "com.example.shoppingcart.ShoppingCart"
 func TestEventsourcingShoppingCart(t *testing.T) {
 	s := newServer(t)
 	s.newClientConn()
-	//defer s.teardown()
+	defer s.teardown()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -53,13 +53,13 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 		t.Fatalf("discover.Entities is:%d, should be: 1", l)
 	}
 	s.serviceName = discover.GetEntities()[0].GetServiceName()
-	t.Run("Entity Discovery should find the shopping cart service", func(t *testing.T) {
+	t.Run("entity discovery should find the shopping cart service", func(t *testing.T) {
 		if s.serviceName != serviceName {
 			t.Fatalf("discover.Entities[0].ServiceName is:%v, should be: %s", s.serviceName, serviceName)
 		}
 	})
 
-	t.Run("GetShoppingCart should fail without an init message", func(t *testing.T) {
+	t.Run("calling GetShoppingCart should fail without an init message", func(t *testing.T) {
 		p := newProxy(ctx, s)
 		r := p.sendRecvCmd(command{
 			c: &protocol.Command{EntityId: "e1", Name: "GetShoppingCart"},
@@ -74,7 +74,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 		}
 	})
 
-	t.Run("GetShoppingCart with init", func(t *testing.T) {
+	t.Run("calling GetShoppingCart with an init message should succeed", func(t *testing.T) {
 		p := newProxy(ctx, s)
 		p.sendInit(&protocol.EventSourcedInit{
 			ServiceName: s.serviceName,
@@ -94,7 +94,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 		}
 	})
 
-	t.Run("AddLineItem should return the same line item with GetCart", func(t *testing.T) {
+	t.Run("after added line items, the cart should return the same lines added", func(t *testing.T) {
 		p := newProxy(ctx, s)
 		p.sendInit(&protocol.EventSourcedInit{
 			ServiceName: s.serviceName,
@@ -111,7 +111,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 		switch m := r.Message.(type) {
 		case *protocol.EventSourcedStreamOut_Reply:
 			p.checkCommandId(m)
-			t.Run("the Reply should have events", func(t *testing.T) {
+			t.Run("the reply should have events", func(t *testing.T) {
 				events := m.Reply.GetEvents()
 				if got, want := len(events), 1; got != want {
 					t.Fatalf("len(events) = %d; want %d", got, want)
@@ -131,7 +131,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 					t.Fatalf("itemAdded.Item.Quantity = %d; want; %d", got, want)
 				}
 			})
-			t.Run("the Reply should have a snapshot", func(t *testing.T) {
+			t.Run("the reply should have a snapshot", func(t *testing.T) {
 				snapshot := m.Reply.GetSnapshot()
 				if snapshot == nil {
 					t.Fatalf("snapshot was nil but should not")
@@ -161,10 +161,9 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 		default:
 			t.Fatalf("unexpected message: %+v", m)
 		}
-
 		// get the shopping cart
 		r = p.sendRecvCmd(command{
-			c: &protocol.Command{EntityId: "e2", Name: "GetShoppingCart"},
+			c: &protocol.Command{EntityId: "e3", Name: "GetShoppingCart"},
 			m: &shoppingcart.GetShoppingCart{UserId: "user1"},
 		})
 		switch m := r.Message.(type) {
@@ -195,7 +194,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 		}
 	})
 
-	t.Run("AddLineItem should have consistent state after a context failure", func(t *testing.T) {
+	t.Run("the entity should have consistent state after a context failure", func(t *testing.T) {
 		p := newProxy(ctx, s)
 		p.sendInit(&protocol.EventSourcedInit{
 			ServiceName: s.serviceName,
@@ -247,7 +246,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 		}
 	})
 
-	t.Run("A init message with an initial snapshot should initialise an entity", func(t *testing.T) {
+	t.Run("an init message with an initial snapshot should initialise an entity", func(t *testing.T) {
 		p := newProxy(ctx, s)
 		cart := &domain.Cart{Items: make([]*domain.LineItem, 0)}
 		cart.Items = append(cart.Items, &domain.LineItem{
@@ -309,7 +308,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 		}
 	})
 
-	t.Run("An initialised entity with an event sent should return its applied state", func(t *testing.T) {
+	t.Run("an initialised entity with an event sent should return its applied state", func(t *testing.T) {
 		p := newProxy(ctx, s)
 		// init
 		p.sendInit(&protocol.EventSourcedInit{
@@ -355,9 +354,10 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 
 	})
 
-	t.Run("Adding negative quantity should fail", func(t *testing.T) {
+	t.Run("adding negative quantity should fail, and leave the entity in a conistent state", func(t *testing.T) {
 		p := newProxy(ctx, s)
 		entityId := "e23"
+		userId := "user1"
 		p.sendInit(&protocol.EventSourcedInit{
 			ServiceName: s.serviceName,
 			EntityId:    entityId,
@@ -366,15 +366,15 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 		add := []command{
 			{
 				&protocol.Command{EntityId: entityId, Name: "AddLineItem"},
-				&shoppingcart.AddLineItem{UserId: "user1", ProductId: "e-bike-1", Name: "e-Bike", Quantity: 1},
+				&shoppingcart.AddLineItem{UserId: userId, ProductId: "e-bike-1", Name: "e-Bike", Quantity: 1},
 			},
 			{
 				&protocol.Command{EntityId: entityId, Name: "AddLineItem"},
-				&shoppingcart.AddLineItem{UserId: "user1", ProductId: "e-bike-2", Name: "e-Bike 2", Quantity: 2},
+				&shoppingcart.AddLineItem{UserId: userId, ProductId: "e-bike-2", Name: "e-Bike 2", Quantity: 2},
 			},
 			{
 				&protocol.Command{EntityId: entityId, Name: "AddLineItem"},
-				&shoppingcart.AddLineItem{UserId: "user1", ProductId: "e-bike-2", Name: "e-Bike 2", Quantity: -1},
+				&shoppingcart.AddLineItem{UserId: userId, ProductId: "e-bike-2", Name: "e-Bike 2", Quantity: -1},
 			},
 		}
 		for i, cmd := range add {
@@ -394,6 +394,41 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 			default:
 				t.Fatalf("unexpected message: %+v", m)
 			}
+		}
+		// get the shopping chart
+		r := p.sendRecvCmd(command{
+			&protocol.Command{EntityId: entityId, Name: "GetShoppingCart"},
+			&shoppingcart.GetShoppingCart{UserId: userId},
+		})
+		switch m := r.Message.(type) {
+		case *protocol.EventSourcedStreamOut_Reply:
+			p.checkCommandId(m)
+			cart := &shoppingcart.Cart{}
+			if err := encoding.UnmarshalAny(m.Reply.GetClientAction().GetReply().GetPayload(), cart); err != nil {
+				t.Fatal(err)
+			}
+			if got, want := len(cart.Items), 2; got != want {
+				t.Fatalf("len(cart.Items) is: %d; want: %d", got, want)
+			}
+			for _, i := range cart.Items {
+				if i.ProductId == "e-bike-2" && i.Quantity != 2 {
+					t.Fatal("cart is in an inconsistent state after an emit-fail sequence")
+				}
+			}
+			//li := cart.Items[0]
+			//if got, want := li.Quantity, lineItem.Quantity; got != want {
+			//	t.Fatalf("Quantity = %d; want: %d", got, want)
+			//}
+			//if got, want := li.Name, lineItem.Name; got != want {
+			//	t.Fatalf("Name = %s; want: %s", got, want)
+			//}
+			//if got, want := li.ProductId, lineItem.ProductId; got != want {
+			//	t.Fatalf("ProductId = %s; want: %s", got, want)
+			//}
+		case *protocol.EventSourcedStreamOut_Failure:
+			t.Fatalf("expected reply but got: %+v", m.Failure)
+		default:
+			t.Fatalf("unexpected message: %+v", m)
 		}
 	})
 
@@ -440,7 +475,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 		}
 	})
 
-	t.Run("adding and removing LineItems should result in a consistent state", func(t *testing.T) {
+	t.Run("adding and removing line items should result in a consistent state", func(t *testing.T) {
 		p := newProxy(ctx, s)
 		entityId := "e22"
 		p.sendInit(&protocol.EventSourcedInit{ServiceName: s.serviceName, EntityId: entityId})
@@ -564,7 +599,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 		}
 	})
 
-	t.Run("Send the User Function an error message", func(t *testing.T) {
+	t.Run("send the User Function an error message", func(t *testing.T) {
 		reportError, err := edc.ReportError(ctx, &protocol.UserFunctionError{Message: "an error occured"})
 		if err != nil {
 			t.Fatal(err)

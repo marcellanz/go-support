@@ -44,10 +44,6 @@ func (c *Context) Emit(event interface{}) {
 		// after one failed anymore.
 		return
 	}
-	if err := c.Instance.HandleEvent(c, event); err != nil {
-		c.fail(err)
-		return
-	}
 	c.events = append(c.events, event)
 	c.eventSequence++
 }

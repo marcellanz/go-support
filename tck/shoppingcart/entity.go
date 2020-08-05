@@ -62,15 +62,15 @@ func (sc *ShoppingCart) HandleEvent(_ *eventsourced.Context, event interface{}) 
 
 // AddItem implements the AddItem command handling of the shopping cart service.
 func (sc *ShoppingCart) AddItem(ctx *eventsourced.Context, li *AddLineItem) (*empty.Empty, error) {
-	if li.GetQuantity() <= 0 {
-		return nil, fmt.Errorf("cannot add negative quantity of to item %s", li.GetProductId())
-	}
 	ctx.Emit(&domain.ItemAdded{
 		Item: &domain.LineItem{
 			ProductId: li.ProductId,
 			Name:      li.Name,
 			Quantity:  li.Quantity,
 		}})
+	if li.GetQuantity() <= 0 {
+		return nil, fmt.Errorf("cannot add negative quantity of to item %s", li.GetProductId())
+	}
 	return &empty.Empty{}, nil
 }
 

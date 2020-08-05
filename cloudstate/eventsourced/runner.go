@@ -197,6 +197,15 @@ func (r *runner) handleCommand(cmd *protocol.Command) error {
 			Err:     fmt.Errorf("marshalling of reply failed. %w", err),
 		}
 	}
+	// apply events
+	for _, e := range r.context.events {
+		if err := r.context.Instance.HandleEvent(r.context, e); err != nil {
+			return protocol.ServerError{
+				Failure: &protocol.Failure{CommandId: cmd.GetId()},
+				Err:     err,
+			}
+		}
+	}
 	// emitted events
 	events, err := r.context.marshalEventsAny()
 	if err != nil {
