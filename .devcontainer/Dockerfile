@@ -26,6 +26,8 @@ RUN apt-get update \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
 
+# Use Docker within a Codespace
+# https://docs.microsoft.com/en-us/visualstudio/codespaces/reference/configuring#use-docker-within-a-codespace
 RUN groupadd -g 800 docker
 RUN usermod -a -G docker vscode
 
@@ -75,4 +77,4 @@ RUN go get github.com/golang/protobuf/protoc-gen-go
 
 RUN apt-get update \
  && export DEBIAN_FRONTEND=noninteractive \
- && apt-get -y install --no-install-recommends protobuf-compiler
+ && apt-get -y install --no-install-recommends protobuf-compiler docker.io
