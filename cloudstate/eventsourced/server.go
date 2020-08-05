@@ -149,6 +149,12 @@ func (s *Server) handle(stream protocol.EventSourced_HandleServer) error {
 		switch m := msg.GetMessage().(type) {
 		case *protocol.EventSourcedStreamIn_Command:
 			if err := runner.handleCommand(m.Command); err != nil {
+				if _, ok := err.(*protocol.ServerError); !ok {
+					return protocol.ServerError{
+						Failure: &protocol.Failure{CommandId: m.Command.Id},
+						Err:     err,
+					}
+				}
 				return err
 			}
 		case *protocol.EventSourcedStreamIn_Event:
