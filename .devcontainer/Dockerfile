@@ -1,6 +1,6 @@
 # Update the VARIANT arg in devcontainer.json to pick an Go version
 ARG VARIANT=1
-FROM golang:${VARIANT}
+FROM golang:1.14
 
 # This Dockerfile adds a non-root user with sudo access. Update the “remoteUser” property in
 # devcontainer.json to use it. More info: https://aka.ms/vscode-remote/containers/non-root-user.

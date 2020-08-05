@@ -1,11 +1,6 @@
 {
   "name": "Go",
-  "build": {
-    "dockerfile": "Dockerfile",
-    "args": {
-      "VARIANT": "1.14"
-    }
-  },
+  "image": "cloudstateio/cloudstate-go-devcontainer",
   "runArgs": [
     "--cap-add=SYS_PTRACE",
     "--security-opt",
@@ -20,11 +15,5 @@
   "extensions": [
     "golang.go"
   ],
-  // Use 'forwardPorts' to make a list of ports inside the container available locally.
-  // "forwardPorts": [],
-
-  // Use 'postCreateCommand' to run commands after the container is created.
-  // "postCreateCommand": "go version",
-
   "remoteUser": "vscode"
 }
