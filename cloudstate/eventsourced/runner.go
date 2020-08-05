@@ -192,7 +192,7 @@ func (r *runner) handleCommand(cmd *protocol.Command) error {
 	// the reply
 	callReply, err := encoding.MarshalAny(reply)
 	if err != nil { // this should never happen
-		return &protocol.ServerError{
+		return protocol.ServerError{
 			Failure: &protocol.Failure{CommandId: cmd.GetId()},
 			Err:     fmt.Errorf("marshalling of reply failed. %w", err),
 		}
@@ -200,7 +200,7 @@ func (r *runner) handleCommand(cmd *protocol.Command) error {
 	// emitted events
 	events, err := r.context.marshalEventsAny()
 	if err != nil {
-		return &protocol.ServerError{
+		return protocol.ServerError{
 			Failure: &protocol.Failure{CommandId: cmd.GetId()},
 			Err:     err,
 		}
@@ -208,7 +208,7 @@ func (r *runner) handleCommand(cmd *protocol.Command) error {
 	// snapshot
 	snapshot, err := r.handleSnapshot()
 	if err != nil {
-		return &protocol.ServerError{
+		return protocol.ServerError{
 			Failure: &protocol.Failure{CommandId: cmd.GetId()},
 			Err:     err,
 		}

@@ -25,6 +25,9 @@ func NewShoppingCart(eventsourced.EntityId) eventsourced.EntityHandler {
 
 // ItemAdded is a event handler function for the ItemAdded event.
 func (sc *ShoppingCart) ItemAdded(added *domain.ItemAdded) error { // TODO: enable handling for values
+	if added.Item.GetName() == "FAIL" {
+		return errors.New("boom: forced and unexpected error")
+	}
 	if item, _ := sc.find(added.Item.ProductId); item != nil {
 		item.Quantity += added.Item.Quantity
 	} else {

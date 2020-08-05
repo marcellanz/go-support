@@ -29,11 +29,15 @@ import (
 // we send protocol.ServerError as protocol.Failure for everything else that is not originated by the user function.
 // whenever possible, the command id is set.
 //
-// failure semantics are defined here: https://github.com/cloudstateio/cloudstate/pull/119#discussion_r375619440
+// failure semantics are defined here:
+// - https://github.com/cloudstateio/cloudstate/pull/119#discussion_r375619440
+// - https://github.com/cloudstateio/cloudstate/pull/392
+//
+// Any error coming not from context.fail, closes the stream, independently if it's a protocol error or an entity error.
 func sendProtocolFailure(e error, s protocol.EventSourced_HandleServer) error {
 	var commandId int64 = 0
 	var desc = e.Error()
-	var se *protocol.ServerError
+	var se protocol.ServerError
 	if errors.As(e, &se) {
 		commandId = se.Failure.CommandId
 		desc = se.Failure.Description
