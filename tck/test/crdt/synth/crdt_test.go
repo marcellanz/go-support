@@ -17,35 +17,28 @@ package synth
 
 import (
 	"context"
-	"log"
-	"net"
 	"testing"
 	"time"
 
-	"github.com/cloudstateio/go-support/cloudstate"
-	"github.com/cloudstateio/go-support/cloudstate/crdt"
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
-	crdt2 "github.com/cloudstateio/go-support/tck/crdt"
 	crdt3 "github.com/cloudstateio/go-support/tck/proto/crdt"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/test/bufconn"
 )
 
-const serviceName = "crdt.TckCrdt"
-
 func TestCRDT(t *testing.T) {
-	_, conn, teardown := setup(t)
-	defer teardown()
+	s := newServer(t)
+	s.newClientConn()
+	defer s.teardown()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	t.Run("Entity Discovery should find the SyntheticCRDTs service", func(t *testing.T) {
-		edc := protocol.NewEntityDiscoveryClient(conn)
+		edc := protocol.NewEntityDiscoveryClient(s.conn)
 		discover, err := edc.Discover(ctx, &protocol.ProxyInfo{
 			ProtocolMajorVersion: 1,
 			ProtocolMinorVersion: 0,
-			ProxyName:            "p1",
+			ProxyName:            "a-cs-proxy",
 			ProxyVersion:         "0.0.0",
 			SupportedEntityTypes: []string{protocol.EventSourced, protocol.CRDT},
 		})
@@ -61,11 +54,7 @@ func TestCRDT(t *testing.T) {
 	})
 
 	t.Run("GCounter", func(t *testing.T) {
-		client, err := protocol.NewCrdtClient(conn).Handle(ctx)
-		if err != nil {
-			t.Fatal(err)
-		}
-		p := proxy{t: t, h: client}
+		p := newProxy(ctx, s)
 		t.Run("send a CrdtInit should not fail", func(t *testing.T) {
 			p.sendInit(&protocol.CrdtInit{
 				ServiceName: serviceName,
@@ -73,18 +62,15 @@ func TestCRDT(t *testing.T) {
 			})
 		})
 		t.Run("incrementing a GCounter should emit a client action and create state action", func(t *testing.T) {
-			out, err := p.sendRecvCmd(command{
+			out := p.sendRecvCmd(command{
 				&protocol.Command{EntityId: "gcounter-1", Name: "IncrementGCounter"},
 				&crdt3.GCounterIncrement{Key: "gcounter-1", Value: 7},
 			})
-			if err != nil {
-				t.Fatal(err)
-			}
 			switch m := out.Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
 				// we expect a client action
 				value := crdt3.GCounterValue{}
-				err = encoding.UnmarshalAny(m.Reply.GetClientAction().GetReply().GetPayload(), &value)
+				err := encoding.UnmarshalAny(m.Reply.GetClientAction().GetReply().GetPayload(), &value)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -100,17 +86,14 @@ func TestCRDT(t *testing.T) {
 			}
 		})
 		t.Run("a second increment should emit a client action and an update state action", func(t *testing.T) {
-			out, err := p.sendRecvCmd(command{
+			out := p.sendRecvCmd(command{
 				&protocol.Command{EntityId: "gcounter-1", Name: "IncrementGCounter"},
 				&crdt3.GCounterIncrement{Key: "gcounter-1", Value: 7},
 			})
-			if err != nil {
-				t.Fatal(err)
-			}
 			switch m := out.Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
 				value := crdt3.GCounterValue{}
-				err = encoding.UnmarshalAny(m.Reply.GetClientAction().GetReply().GetPayload(), &value)
+				err := encoding.UnmarshalAny(m.Reply.GetClientAction().GetReply().GetPayload(), &value)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -125,15 +108,12 @@ func TestCRDT(t *testing.T) {
 			}
 		})
 		t.Run("GetGCounter should return the counters value", func(t *testing.T) {
-			out, err := p.sendRecvCmd(
+			out := p.sendRecvCmd(
 				command{
 					&protocol.Command{EntityId: "gcounter-1", Name: "GetGCounter"},
 					&crdt3.Get{Key: "gcounter-1"},
 				},
 			)
-			if err != nil {
-				t.Fatal(err)
-			}
 			switch m := out.Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
 				value := crdt3.GCounterValue{}
@@ -159,15 +139,12 @@ func TestCRDT(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			out, err := p.sendRecvCmd(
+			out := p.sendRecvCmd(
 				command{
 					&protocol.Command{EntityId: "gcounter-1", Name: "GetGCounter"},
 					&crdt3.Get{Key: "gcounter-1"},
 				},
 			)
-			if err != nil {
-				t.Fatal(err)
-			}
 			switch m := out.Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
 				value := crdt3.GCounterValue{}
@@ -190,15 +167,12 @@ func TestCRDT(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			out, err := p.sendRecvCmd(
+			out := p.sendRecvCmd(
 				command{
 					&protocol.Command{EntityId: "gcounter-1", Name: "GetGCounter"},
 					&crdt3.Get{Key: "gcounter-1"},
 				},
 			)
-			if err != nil {
-				t.Fatal(err)
-			}
 			switch m := out.Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
 				value := crdt3.GCounterValue{}
@@ -214,13 +188,10 @@ func TestCRDT(t *testing.T) {
 			}
 		})
 		t.Run("GetGCounter for a different entity id on the same connection should fail", func(t *testing.T) {
-			out, err := p.sendRecvCmd(command{
+			out := p.sendRecvCmd(command{
 				&protocol.Command{EntityId: "gcounter-2", Name: "GetGCounter"},
 				&crdt3.Get{Key: "gcounter-2"},
 			})
-			if err != nil {
-				t.Fatal(err)
-			}
 			switch m := out.Message.(type) {
 			case *protocol.CrdtStreamOut_Failure:
 			default:
@@ -228,51 +199,4 @@ func TestCRDT(t *testing.T) {
 			}
 		})
 	})
-}
-
-func setup(t *testing.T) (server *cloudstate.CloudState, conn *grpc.ClientConn, teardown func()) {
-	t.Helper()
-	server, err := cloudstate.New(protocol.Config{
-		ServiceName:    "io.cloudstate.tck.Crdt", // the service name the proxy gets to know about
-		ServiceVersion: "0.2.0",
-	})
-	if err != nil {
-		log.Fatalf("cloudstate.New failed: %v", err)
-	}
-	err = server.RegisterCRDT(
-		&crdt.Entity{
-			ServiceName: serviceName, // this is the package + service(name) from the gRPC proto file.
-			EntityFunc: func(id crdt.EntityId) crdt.EntityHandler {
-				return crdt2.NewEntity(id)
-			},
-		},
-		protocol.DescriptorConfig{
-			Service: "tck_crdt.proto", // this is needed to find the descriptors with got for the service to be proxied.
-		},
-	)
-	if err != nil {
-		log.Fatalf("cloudstate.New failed: %v", err)
-	}
-	lis := bufconn.Listen(1024 * 1024)
-	go func() {
-		if err := server.RunWithListener(lis); err != nil {
-			log.Fatalf("Server exited with error: %v", err)
-		}
-	}()
-
-	// client connection
-	ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
-	conn, err = grpc.DialContext(ctx, "bufnet",
-		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
-			return lis.Dial()
-		}),
-		grpc.WithInsecure(),
-	)
-	if err != nil {
-		t.Fatalf("Failed to dial bufnet: %v", err)
-	}
-	return server, conn, func() {
-		conn.Close()
-		server.Stop()
-	}
 }

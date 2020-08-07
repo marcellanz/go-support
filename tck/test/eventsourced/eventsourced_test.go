@@ -41,7 +41,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 	discover, err := edc.Discover(ctx, &protocol.ProxyInfo{
 		ProtocolMajorVersion: 0,
 		ProtocolMinorVersion: 0,
-		ProxyName:            "p1",
+		ProxyName:            "a-cs-proxy",
 		ProxyVersion:         "0.0.0",
 		SupportedEntityTypes: []string{protocol.EventSourced, protocol.CRDT},
 	})

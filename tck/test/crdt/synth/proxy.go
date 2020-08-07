@@ -16,12 +16,28 @@
 package synth
 
 import (
+	"context"
 	"testing"
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/golang/protobuf/proto"
 )
+
+type proxy struct {
+	h   protocol.Crdt_HandleClient
+	t   *testing.T
+	seq int64
+}
+
+func newProxy(ctx context.Context, s *server) *proxy {
+	s.t.Helper()
+	h, err := protocol.NewCrdtClient(s.conn).Handle(ctx)
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	return &proxy{t: s.t, h: h, seq: 1}
+}
 
 type command struct {
 	c *protocol.Command
@@ -34,12 +50,6 @@ type state struct {
 
 type delta struct {
 	d *protocol.CrdtDelta
-}
-
-type proxy struct {
-	h               protocol.Crdt_HandleClient
-	t               *testing.T
-	commandSequence int64
 }
 
 func (p *proxy) sendInit(i *protocol.CrdtInit) {
@@ -73,30 +83,31 @@ func (p *proxy) sendRecvDelta(d delta) (*protocol.CrdtStreamOut, error) {
 	return p.h.Recv()
 }
 
-func (p *proxy) sendRecvCmd(cmd command) (*protocol.CrdtStreamOut, error) {
+func (p *proxy) sendRecvCmd(cmd command) *protocol.CrdtStreamOut {
+	p.t.Helper()
 	if cmd.c.Id == 0 {
-		cmd.c.Id = p.commandSequence
-		defer func() { p.commandSequence++ }()
+		cmd.c.Id = p.seq
+		defer func() { p.seq++ }()
 	}
 	any, err := encoding.MarshalAny(cmd.m)
 	if err != nil {
-		return nil, err
+		p.t.Fatal(err)
 	}
 	cmd.c.Payload = any
 	err = p.h.Send(commandMsg(cmd.c))
 	if err != nil {
-		return nil, err
+		p.t.Fatal(err)
 	}
 	recv, err := p.h.Recv()
 	if err != nil {
-		return nil, err
+		p.t.Fatal(err)
 	}
 	switch recv.Message.(type) {
 	case *protocol.CrdtStreamOut_Failure:
 	default:
-		checkCommandId(p.commandSequence, recv, p.t)
+		p.checkCommandId(recv)
 	}
-	return recv, err
+	return recv
 }
 
 func commandMsg(c *protocol.Command) *protocol.CrdtStreamIn {
@@ -123,30 +134,31 @@ func deltaMsg(d *protocol.CrdtDelta) *protocol.CrdtStreamIn {
 	}
 }
 
-func checkCommandId(cmdId int64, msg interface{}, t *testing.T) {
+func (p *proxy) checkCommandId(msg interface{}) {
+	p.t.Helper()
 	switch m := msg.(type) {
 	case *protocol.CrdtStreamOut:
 		switch out := m.Message.(type) {
 		case *protocol.CrdtStreamOut_Reply:
-			if got, want := out.Reply.CommandId, cmdId; got != want {
-				t.Fatalf("command = %v; wanted: %d, for message:%+v", got, want, out)
+			if got, want := out.Reply.CommandId, p.seq; got != want {
+				p.t.Fatalf("command = %v; wanted: %d, for message:%+v", got, want, out)
 			}
 		case *protocol.CrdtStreamOut_Failure:
-			if got, want := out.Failure.CommandId, cmdId; got != want {
-				t.Fatalf("command = %v; wanted: %d, for message:%+v", got, want, out)
+			if got, want := out.Failure.CommandId, p.seq; got != want {
+				p.t.Fatalf("command = %v; wanted: %d, for message:%+v", got, want, out)
 			}
 		case *protocol.CrdtStreamOut_StreamedMessage:
-			if got, want := out.StreamedMessage.CommandId, cmdId; got != want {
-				t.Fatalf("command = %v; wanted: %d, for message:%+v", got, want, out)
+			if got, want := out.StreamedMessage.CommandId, p.seq; got != want {
+				p.t.Fatalf("command = %v; wanted: %d, for message:%+v", got, want, out)
 			}
 		case *protocol.CrdtStreamOut_StreamCancelledResponse:
-			if got, want := out.StreamCancelledResponse.CommandId, cmdId; got != want {
-				t.Fatalf("command = %v; wanted: %d, for message:%+v", got, want, out)
+			if got, want := out.StreamCancelledResponse.CommandId, p.seq; got != want {
+				p.t.Fatalf("command = %v; wanted: %d, for message:%+v", got, want, out)
 			}
 		default:
-			t.Fatalf("unexpected message: %+v", m)
+			p.t.Fatalf("unexpected message: %+v", m)
 		}
 	default:
-		t.Fatalf("unexpected message: %+v", m)
+		p.t.Fatalf("unexpected message: %+v", m)
 	}
 }
