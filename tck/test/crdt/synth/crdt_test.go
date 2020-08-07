@@ -107,7 +107,7 @@ func TestCRDT(t *testing.T) {
 				t.Fatalf("got unexpected message: %+v", m)
 			}
 		})
-		t.Run("GetGCounter should return the counters value", func(t *testing.T) {
+		t.Run("calling GetGCounter should return the counters value", func(t *testing.T) {
 			out := p.sendRecvCmd(
 				command{
 					&protocol.Command{EntityId: "gcounter-1", Name: "GetGCounter"},
