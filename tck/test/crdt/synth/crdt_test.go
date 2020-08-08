@@ -56,38 +56,48 @@ func TestCRDT(t *testing.T) {
 	t.Run("PNCounter", func(t *testing.T) {
 		entityId := "pncounter-1"
 		p := newProxy(ctx, s)
+		defer p.teardown()
 		p.sendInit(&protocol.CrdtInit{
 			ServiceName: serviceName,
 			EntityId:    entityId,
 		})
-
 		t.Run("incrementing a PNCounter should emit a client action and create state action", func(t *testing.T) {
 			switch m := p.sendCmdRecvReply(command{
 				&protocol.Command{EntityId: entityId, Name: "IncrementPNCounter"},
 				&crdt3.PNCounterIncrement{Key: entityId, Value: 7},
 			}).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
-			default:
-				t.Fatalf("got unexpected message: %+v", m)
-			}
-			switch m := p.sendCmdRecvReply(command{
-				&protocol.Command{EntityId: entityId, Name: "GetPNCounter"},
-				&crdt3.Get{Key: entityId},
-			}).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
-				switch a := m.Reply.GetClientAction().Action.(type) {
-				case *protocol.ClientAction_Reply:
-					var value crdt3.PNCounterValue
-					if err := encoding.UnmarshalAny(a.Reply.Payload, &value); err != nil {
-						t.Fatal(err)
-					}
-					if got, want := value.GetValue(), int64(7); got != want {
-						t.Fatalf("got = %v; wanted: %d, for value:%+v", got, want, value)
-					}
+				var value crdt3.PNCounterValue
+				if err := encoding.UnmarshalAny(m.Reply.GetClientAction().GetReply().GetPayload(), &value); err != nil {
+					t.Fatal(err)
+				}
+				if got, want := value.GetValue(), int64(7); got != want {
+					t.Fatalf("got = %v; wanted: %d, for value:%+v", got, want, value)
+				}
+				if got, want := m.Reply.GetStateAction().GetCreate().GetPncounter().GetValue(), int64(7); got != want {
+					t.Fatalf("got = %v; wanted: %d", got, want)
 				}
 			default:
 				t.Fatalf("got unexpected message: %+v", m)
 			}
+			//switch m := p.sendCmdRecvReply(command{
+			//	&protocol.Command{EntityId: entityId, Name: "GetPNCounter"},
+			//	&crdt3.Get{Key: entityId},
+			//}).Message.(type) {
+			//case *protocol.CrdtStreamOut_Reply:
+			//	switch a := m.Reply.GetClientAction().Action.(type) {
+			//	case *protocol.ClientAction_Reply:
+			//		var value crdt3.PNCounterValue
+			//		if err := encoding.UnmarshalAny(a.Reply.Payload, &value); err != nil {
+			//			t.Fatal(err)
+			//		}
+			//		if got, want := value.GetValue(), int64(7); got != want {
+			//			t.Fatalf("got = %v; wanted: %d, for value:%+v", got, want, value)
+			//		}
+			//	}
+			//default:
+			//	t.Fatalf("got unexpected message: %+v", m)
+			//}
 		})
 		t.Run("a second increment should emit a client action and an update state action", func(t *testing.T) {
 			switch m := p.sendCmdRecvReply(command{
@@ -129,11 +139,59 @@ func TestCRDT(t *testing.T) {
 				t.Fatalf("got unexpected message: %+v", m)
 			}
 		})
+		t.Run("the counter should apply new state and return its value", func(t *testing.T) {
+			err := p.sendState(state{
+				&protocol.CrdtState{State: &protocol.CrdtState_Pncounter{
+					Pncounter: &protocol.PNCounterState{Value: int64(49)},
+				}},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			switch m := p.sendCmdRecvReply(command{
+				&protocol.Command{EntityId: entityId, Name: "GetPNCounter"},
+				&crdt3.Get{Key: entityId},
+			}).Message.(type) {
+			case *protocol.CrdtStreamOut_Reply:
+				var value crdt3.PNCounterValue
+				if err := encoding.UnmarshalAny(m.Reply.GetClientAction().GetReply().GetPayload(), &value); err != nil {
+					t.Fatal(err)
+				}
+				if got, want := value.GetValue(), int64(49); got != want {
+					t.Fatalf("got = %v; wanted: %d, for value:%+v", got, want, value)
+				}
+			default:
+				t.Fatalf("got unexpected message: %+v", m)
+			}
+		})
+		t.Run("the counter should apply a delta and return its value", func(t *testing.T) {
+			p.sendDelta(delta{
+				&protocol.CrdtDelta{Delta: &protocol.CrdtDelta_Pncounter{
+					Pncounter: &protocol.PNCounterDelta{Change: int64(-52)}},
+				},
+			})
+			switch m := p.sendCmdRecvReply(command{
+				&protocol.Command{EntityId: entityId, Name: "GetPNCounter"},
+				&crdt3.Get{Key: entityId},
+			}).Message.(type) {
+			case *protocol.CrdtStreamOut_Reply:
+				var value crdt3.PNCounterValue
+				if err := encoding.UnmarshalAny(m.Reply.GetClientAction().GetReply().GetPayload(), &value); err != nil {
+					t.Fatal(err)
+				}
+				if got, want := value.GetValue(), int64(-3); got != want {
+					t.Fatalf("got = %v; wanted: %d, for value:%+v", got, want, value)
+				}
+			default:
+				t.Fatalf("got unexpected message: %+v", m)
+			}
+		})
 	})
 
 	t.Run("GCounter", func(t *testing.T) {
 		p := newProxy(ctx, s)
-		entityId := "gcounter-1"
+		defer p.teardown()
+		entityId := "gcounter-0"
 		t.Run("send a CrdtInit should not fail", func(t *testing.T) {
 			p.sendInit(&protocol.CrdtInit{
 				ServiceName: serviceName,
@@ -205,21 +263,18 @@ func TestCRDT(t *testing.T) {
 		})
 		t.Run("the counter should apply new state and return its value", func(t *testing.T) {
 			err := p.sendState(state{
-				s: &protocol.CrdtState{
-					State: &protocol.CrdtState_Gcounter{Gcounter: &protocol.GCounterState{
+				&protocol.CrdtState{State: &protocol.CrdtState_Gcounter{
+					Gcounter: &protocol.GCounterState{
 						Value: uint64(21)},
-					},
-				},
+				}},
 			})
 			if err != nil {
 				t.Fatal(err)
 			}
-			out := p.sendCmdRecvReply(
-				command{
-					&protocol.Command{EntityId: entityId, Name: "GetGCounter"},
-					&crdt3.Get{Key: entityId},
-				},
-			)
+			out := p.sendCmdRecvReply(command{
+				&protocol.Command{EntityId: entityId, Name: "GetGCounter"},
+				&crdt3.Get{Key: entityId},
+			})
 			switch m := out.Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
 				value := crdt3.GCounterValue{}
@@ -234,18 +289,13 @@ func TestCRDT(t *testing.T) {
 			}
 		})
 		t.Run("the counter should apply a delta and return its value", func(t *testing.T) {
-			err := p.sendDelta(delta{
+			p.sendDelta(delta{
 				d: &protocol.CrdtDelta{Delta: &protocol.CrdtDelta_Gcounter{Gcounter: &protocol.GCounterDelta{Increment: uint64(7)}}},
 			})
-			if err != nil {
-				t.Fatal(err)
-			}
-			out := p.sendCmdRecvReply(
-				command{
-					&protocol.Command{EntityId: entityId, Name: "GetGCounter"},
-					&crdt3.Get{Key: entityId},
-				},
-			)
+			out := p.sendCmdRecvReply(command{
+				&protocol.Command{EntityId: entityId, Name: "GetGCounter"},
+				&crdt3.Get{Key: entityId},
+			})
 			switch m := out.Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
 				value := crdt3.GCounterValue{}
@@ -259,8 +309,77 @@ func TestCRDT(t *testing.T) {
 				t.Fatalf("got unexpected message: %+v", m)
 			}
 		})
+		t.Run("deleting an entity should delete the entity", func(t *testing.T) {
+			p.sendDelete(delete{d: &protocol.CrdtDelete{}})
+		})
+		t.Run("after an entity was deleted, we could initialise an another entity", func(t *testing.T) {
+			// this is not explicit specified by the spec, but it says, that the user function should
+			// clear its state and the proxy could close the stream anytime, but also does not say
+			// the user function can close the stream. So our implementation would be prepared for a
+			// new entity re-using the same stream (why not).
+			p.sendInit(&protocol.CrdtInit{
+				ServiceName: serviceName,
+				EntityId:    "gcounter-xyz",
+			})
+			// nothing should be returned here
+			resp, err := p.Recv()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if resp != nil {
+				t.Fatal("no response expected")
+			}
+		})
+
+		//recv, err := p.recv()
+		//if err != nil {
+		//	t.Fatal(err)
+		//}
+		//switch msg := recv.Message.(type) {
+		//case *protocol.CrdtStreamOut_Failure:
+		//	t.Fatal(msg.Failure.Description)
+		//default:
+		//	t.Fatalf("got unexpected message: %+v", msg)
+		//}
+
+		//recvC := make(chan resp, 1)
+		//go func() {
+		//	recv, err := p.h.Recv()
+		//	recvC <- resp{recv, err}
+		//}()
+		//select {
+		//case <-time.After(1 * time.Second):
+		//	t.Log("no reponse")
+		//case m := <-recvC:
+		//	if m.err != nil {
+		//		t.Fatal(m.err)
+		//	}
+		//	switch msg := m.msg.Message.(type) {
+		//	case *protocol.CrdtStreamOut_Failure:
+		//		t.Fatal(msg.Failure.Description)
+		//	default:
+		//		t.Fatalf("got unexpected message: %+v", m)
+		//	}
+		//}
+	})
+
+	t.Run("GCounter with unknown entity id used", func(t *testing.T) {
+		p := newProxy(ctx, s)
+		defer p.teardown()
+		entityId := "gcounter-1"
+		p.sendInit(&protocol.CrdtInit{
+			ServiceName: serviceName,
+			EntityId:    entityId,
+		})
+		switch m := p.sendCmdRecvReply(command{
+			&protocol.Command{EntityId: entityId, Name: "IncrementGCounter"},
+			&crdt3.GCounterIncrement{Key: entityId, Value: 8},
+		}).Message.(type) {
+		case *protocol.CrdtStreamOut_Failure:
+			t.Fatalf("got unexpected message: %+v", m)
+		}
 		t.Run("calling GetGCounter for a non existing entity id should fail", func(t *testing.T) {
-			entityId := "gcounter-x"
+			entityId := "gcounter-1-xxx"
 			out := p.sendCmdRecvReply(command{
 				&protocol.Command{EntityId: entityId, Name: "GetGCounter"},
 				&crdt3.Get{Key: entityId},
@@ -273,9 +392,85 @@ func TestCRDT(t *testing.T) {
 		})
 	})
 
-	t.Run("GCounter invalid local state", func(t *testing.T) {
-		entityId := "gcounter-2"
+	t.Run("GCounter with incompatible CRDT delta sequence", func(t *testing.T) {
 		p := newProxy(ctx, s)
+		defer p.teardown()
+		entityId := "gcounter-2"
+		p.sendInit(&protocol.CrdtInit{
+			ServiceName: serviceName,
+			EntityId:    entityId,
+		})
+		//switch m := p.sendCmdRecvReply(command{
+		//	&protocol.Command{EntityId: entityId, Name: "IncrementGCounter"},
+		//	&crdt3.GCounterIncrement{Key: entityId, Value: 8},
+		//}).Message.(type) {
+		//case *protocol.CrdtStreamOut_Failure:
+		//	t.Fatalf("got unexpected message: %+v", m)
+		//}
+		t.Run("setting a delta without ever sending state should fail", func(t *testing.T) {
+			p.sendDelta(delta{
+				d: &protocol.CrdtDelta{Delta: &protocol.CrdtDelta_Gcounter{Gcounter: &protocol.GCounterDelta{
+					Increment: 7,
+				}}},
+			})
+			// nothing should be returned here
+			resp, err := p.Recv()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if resp == nil {
+				t.Fatal("response expected")
+			}
+			switch m := resp.Message.(type) {
+			case *protocol.CrdtStreamOut_Failure:
+				// the expected failure
+			default:
+				t.Fatalf("got unexpected message: %+v", m)
+			}
+		})
+	})
+
+	t.Run("GCounter with incompatible CRDT delta used", func(t *testing.T) {
+		p := newProxy(ctx, s)
+		defer p.teardown()
+		entityId := "gcounter-2"
+		p.sendInit(&protocol.CrdtInit{
+			ServiceName: serviceName,
+			EntityId:    entityId,
+		})
+		switch m := p.sendCmdRecvReply(command{
+			&protocol.Command{EntityId: entityId, Name: "IncrementGCounter"},
+			&crdt3.GCounterIncrement{Key: entityId, Value: 8},
+		}).Message.(type) {
+		case *protocol.CrdtStreamOut_Failure:
+			t.Fatalf("got unexpected message: %+v", m)
+		}
+		t.Run("setting a delta for a different CRDT type should fail", func(t *testing.T) {
+			p.sendDelta(delta{
+				&protocol.CrdtDelta{Delta: &protocol.CrdtDelta_Pncounter{Pncounter: &protocol.PNCounterDelta{
+					Change: 7,
+				}}},
+			})
+			// nothing should be returned here
+			resp, err := p.Recv()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if resp == nil {
+				t.Fatal("response expected")
+			}
+			switch m := resp.Message.(type) {
+			case *protocol.CrdtStreamOut_Failure:
+			default:
+				t.Fatalf("got unexpected message: %+v", m)
+			}
+		})
+	})
+
+	t.Run("GCounter with inconsistent local state", func(t *testing.T) {
+		entityId := "gcounter-3"
+		p := newProxy(ctx, s)
+		defer p.teardown()
 		p.sendInit(&protocol.CrdtInit{
 			ServiceName: serviceName,
 			EntityId:    entityId,

@@ -23,9 +23,8 @@ import (
 )
 
 type runner struct {
-	stream        protocol.Crdt_HandleServer
-	context       *Context
-	stateReceived bool
+	stream  protocol.Crdt_HandleServer
+	context *Context
 }
 
 // A CrdtState message is sent to indicate the user function should replace its current value with this value. If the user function
@@ -41,7 +40,6 @@ func (r *runner) handleState(state *protocol.CrdtState) error {
 		return err
 	}
 	r.context.Instance.Set(r.context, r.context.crdt)
-	r.stateReceived = true
 	return nil
 }
 
@@ -122,7 +120,7 @@ func (r *runner) handleCommand(cmd *protocol.Command) (streamError error) {
 		return err
 	}
 	if ctx.failed != nil {
-		r.sendCrdtReply(&protocol.CrdtReply{
+		return r.sendCrdtReply(&protocol.CrdtReply{
 			CommandId:    ctx.CommandId.Value(),
 			ClientAction: clientAction, // this is a ClientAction_Failure
 		})
