@@ -16,7 +16,6 @@
 package crdt
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -72,7 +71,14 @@ func (s *Server) Handle(stream protocol.Crdt_HandleServer) error {
 			panic(r)
 		}
 	}()
-	if err := s.handle(stream); err != nil {
+	for {
+		err := s.handle(stream)
+		if err == nil {
+			continue
+		}
+		if err == io.EOF {
+			return nil
+		}
 		if status.Code(err) == codes.Canceled {
 			return err
 		}
@@ -82,21 +88,16 @@ func (s *Server) Handle(stream protocol.Crdt_HandleServer) error {
 		}
 		return status.Error(codes.Aborted, err.Error())
 	}
-	return nil
 }
 
+// handle handles a streams messages to be received.
+// io.EOF errors will close the stream gracefully, other errors will be
+// sent to the proxy and a nil error value restarts the stream to be reused.
 func (s *Server) handle(stream protocol.Crdt_HandleServer) error {
 	first, err := stream.Recv()
-	if err == io.EOF { // the stream has ended
-		return nil
-	}
-	if err == context.Canceled {
-		return nil
-	}
 	if err != nil {
 		return err
 	}
-
 	runner := &runner{stream: stream}
 	switch m := first.GetMessage().(type) {
 	case *protocol.CrdtStreamIn_Init:
@@ -112,16 +113,13 @@ func (s *Server) handle(stream protocol.Crdt_HandleServer) error {
 		// Delete the entity. May be sent at any time. The user function should clear its state when it receives this.
 		// A proxy may decide to terminate the stream after sending this.
 		if runner.context.deleted || !runner.context.active {
-			return nil // TODO: this will close the stream but not tell the proxy why.
+			return nil
 		}
 		if runner.context.failed != nil {
 			// failed means deactivated. we may never get this far.
 			return nil
 		}
 		msg, err := runner.stream.Recv()
-		if err == io.EOF {
-			return nil
-		}
 		if err != nil {
 			return err
 		}
@@ -134,9 +132,6 @@ func (s *Server) handle(stream protocol.Crdt_HandleServer) error {
 				return err
 			}
 		case *protocol.CrdtStreamIn_Changed:
-			if !runner.stateReceived {
-				return errors.New("received a CrdtDelta message without having a CrdtState ever received")
-			}
 			if err := runner.handleDelta(m.Changed); err != nil {
 				return err
 			}
