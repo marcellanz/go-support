@@ -18,6 +18,7 @@ package synth
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
@@ -25,9 +26,11 @@ import (
 )
 
 type proxy struct {
-	h   protocol.Crdt_HandleClient
-	t   *testing.T
-	seq int64
+	h       protocol.Crdt_HandleClient
+	t       *testing.T
+	seq     int64
+	recvC   chan resp
+	cancelC chan bool
 }
 
 func newProxy(ctx context.Context, s *server) *proxy {
@@ -36,7 +39,32 @@ func newProxy(ctx context.Context, s *server) *proxy {
 	if err != nil {
 		s.t.Fatal(err)
 	}
-	return &proxy{t: s.t, h: h, seq: 1}
+	p := &proxy{
+		t:       s.t,
+		h:       h,
+		seq:     1,
+		recvC:   make(chan resp),
+		cancelC: make(chan bool),
+	}
+	go func() {
+		for {
+			recv, err := p.h.Recv()
+			select {
+			case p.recvC <- resp{recv, err}:
+			case <-p.cancelC:
+				return
+			}
+		}
+	}()
+	return p
+}
+
+func (p *proxy) Send(in *protocol.CrdtStreamIn) error {
+	return p.h.Send(in)
+}
+
+func (p *proxy) teardown() {
+	close(p.cancelC)
 }
 
 type command struct {
@@ -52,10 +80,29 @@ type delta struct {
 	d *protocol.CrdtDelta
 }
 
+type delete struct {
+	d *protocol.CrdtDelete
+}
+
+type resp struct {
+	out *protocol.CrdtStreamOut
+	err error
+}
+
+func (p *proxy) Recv() (*protocol.CrdtStreamOut, error) {
+	select {
+	case m := <-p.recvC:
+		return m.out, m.err
+	case <-time.After(1 * time.Second):
+		p.t.Log("no response")
+		return nil, nil
+	}
+}
+
 func (p *proxy) sendInit(i *protocol.CrdtInit) {
-	err := p.h.Send(&protocol.CrdtStreamIn{Message: &protocol.CrdtStreamIn_Init{
-		Init: i,
-	}})
+	err := p.h.Send(&protocol.CrdtStreamIn{
+		Message: &protocol.CrdtStreamIn_Init{Init: i},
+	})
 	if err != nil {
 		p.t.Fatal(err)
 	}
@@ -69,18 +116,29 @@ func (p *proxy) sendRecvState(st state) (*protocol.CrdtStreamOut, error) {
 	if err := p.h.Send(stateMsg(st.s)); err != nil {
 		return nil, err
 	}
-	return p.h.Recv()
+	return p.Recv()
 }
 
-func (p *proxy) sendDelta(d delta) error {
-	return p.h.Send(deltaMsg(d.d))
+func (p *proxy) sendDelta(d delta) {
+	p.t.Helper()
+	if err := p.h.Send(deltaMsg(d.d)); err != nil {
+		p.t.Fatal(err)
+	}
+}
+
+func (p *proxy) sendDelete(d delete) {
+	p.t.Helper()
+	if err := p.h.Send(deleteMsg(d.d)); err != nil {
+		p.t.Fatal(err)
+	}
+	return
 }
 
 func (p *proxy) sendRecvDelta(d delta) (*protocol.CrdtStreamOut, error) {
 	if err := p.h.Send(deltaMsg(d.d)); err != nil {
 		return nil, err
 	}
-	return p.h.Recv()
+	return p.Recv()
 }
 
 func (p *proxy) sendCmdRecvReply(cmd command) *protocol.CrdtStreamOut {
@@ -98,16 +156,19 @@ func (p *proxy) sendCmdRecvReply(cmd command) *protocol.CrdtStreamOut {
 	if err != nil {
 		p.t.Fatal(err)
 	}
-	recv, err := p.h.Recv()
+	msg, err := p.Recv()
 	if err != nil {
 		p.t.Fatal(err)
 	}
-	switch recv.Message.(type) {
+	if msg == nil {
+		p.t.Fatal("nothing received")
+	}
+	switch msg.Message.(type) {
 	case *protocol.CrdtStreamOut_Failure:
 	default:
-		p.checkCommandId(recv)
+		p.checkCommandId(msg)
 	}
-	return recv
+	return msg
 }
 
 func (p *proxy) sendCmdRecvErr(cmd command) (*protocol.CrdtStreamOut, error) {
@@ -125,9 +186,12 @@ func (p *proxy) sendCmdRecvErr(cmd command) (*protocol.CrdtStreamOut, error) {
 	if err != nil {
 		return nil, err
 	}
-	recv, err := p.h.Recv()
+	recv, err := p.Recv()
 	if err != nil {
 		return nil, err
+	}
+	if recv == nil {
+		p.t.Fatal("nothing received")
 	}
 	switch recv.Message.(type) {
 	case *protocol.CrdtStreamOut_Failure:
@@ -157,6 +221,14 @@ func deltaMsg(d *protocol.CrdtDelta) *protocol.CrdtStreamIn {
 	return &protocol.CrdtStreamIn{
 		Message: &protocol.CrdtStreamIn_Changed{
 			Changed: d,
+		},
+	}
+}
+
+func deleteMsg(d *protocol.CrdtDelete) *protocol.CrdtStreamIn {
+	return &protocol.CrdtStreamIn{
+		Message: &protocol.CrdtStreamIn_Deleted{
+			Deleted: d,
 		},
 	}
 }
