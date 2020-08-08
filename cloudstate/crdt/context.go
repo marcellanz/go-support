@@ -75,7 +75,7 @@ func (c *Context) fail(err error) {
 	if c.failed != nil {
 		return
 	}
-	c.failed = fmt.Errorf("failed with %v: %w", err, ErrCtxFailCalled)
+	c.failed = err
 }
 
 // initDefault initializes the CRDT with a default value if it's not already set.

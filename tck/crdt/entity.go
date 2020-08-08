@@ -60,15 +60,16 @@ func (s *SyntheticCRDTs) Default(c *crdt.Context) (crdt.CRDT, error) {
 }
 
 func (s *SyntheticCRDTs) HandleCommand(c *crdt.CommandContext, name string, cmd proto.Message) (*any.Any, error) {
-	defer checkToFail(cmd)
-	fmt.Printf("got: %v, %+v\n", name, cmd)
+	//defer checkToFail(cmd)
 	switch name {
 	case "IncrementGCounter":
 		switch c := cmd.(type) {
 		case *tc.GCounterIncrement:
 			s.gCounter.Increment(c.GetValue())
 			pb := &tc.GCounterValue{Value: s.gCounter.Value()}
-			fmt.Printf("ret: %+v\n", pb)
+			if c.Value >= 1000 {
+				return nil, errors.New("intentional failure")
+			}
 			return encoding.MarshalAny(pb)
 		}
 	case "GetGCounter":

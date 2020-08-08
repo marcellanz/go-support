@@ -26,7 +26,7 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 )
 
-var ErrCtxFailCalled = errors.New("context failed by context")
+var ErrCtxFailCalled = errors.New("context failed")
 var ErrStateChanged = errors.New("CRDT change not allowed")
 
 /**
@@ -49,7 +49,6 @@ type CommandContext struct {
 	CommandId CommandId
 	change    ChangeFunc
 	cancel    CancelFunc
-	failed    error
 	// ended means, we will send a streamed message
 	// where we mark the message as the last one in the stream
 	// and therefore, the streamed command has ended.

@@ -83,7 +83,7 @@ func (p *proxy) sendRecvDelta(d delta) (*protocol.CrdtStreamOut, error) {
 	return p.h.Recv()
 }
 
-func (p *proxy) sendRecvCmd(cmd command) *protocol.CrdtStreamOut {
+func (p *proxy) sendCmdRecvReply(cmd command) *protocol.CrdtStreamOut {
 	p.t.Helper()
 	if cmd.c.Id == 0 {
 		cmd.c.Id = p.seq
@@ -108,6 +108,33 @@ func (p *proxy) sendRecvCmd(cmd command) *protocol.CrdtStreamOut {
 		p.checkCommandId(recv)
 	}
 	return recv
+}
+
+func (p *proxy) sendCmdRecvErr(cmd command) (*protocol.CrdtStreamOut, error) {
+	p.t.Helper()
+	if cmd.c.Id == 0 {
+		cmd.c.Id = p.seq
+		defer func() { p.seq++ }()
+	}
+	any, err := encoding.MarshalAny(cmd.m)
+	if err != nil {
+		return nil, err
+	}
+	cmd.c.Payload = any
+	err = p.h.Send(commandMsg(cmd.c))
+	if err != nil {
+		return nil, err
+	}
+	recv, err := p.h.Recv()
+	if err != nil {
+		return nil, err
+	}
+	switch recv.Message.(type) {
+	case *protocol.CrdtStreamOut_Failure:
+	default:
+		p.checkCommandId(recv)
+	}
+	return recv, nil
 }
 
 func commandMsg(c *protocol.Command) *protocol.CrdtStreamIn {
