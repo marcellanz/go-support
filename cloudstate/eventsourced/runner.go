@@ -170,14 +170,20 @@ func (r *runner) handleCommand(cmd *protocol.Command) error {
 	if !ok {
 		return fmt.Errorf("messageType is no proto.Message: %v", messageType)
 	}
-	// and unmarshal it.
+	// unmarshal the payload to the zero-ed message.
 	err := proto.Unmarshal(cmd.Payload.Value, message)
 	if err != nil {
 		return fmt.Errorf("%s, %w", err, encoding.ErrMarshal)
 	}
 	// The gRPC implementation returns the rpc return method and an error as a second return value.
 	reply, errReturned := r.context.Instance.HandleCommand(r.context, cmd.Name, message)
+	// We the take error returned as a client failure except if it's a protocol.ServerError.
 	if errReturned != nil {
+		// if the error is a ServerError, we return this error and the stream will end.
+		if _, ok := err.(protocol.ServerError); ok {
+			return err
+		}
+		r.context.failed = nil
 		return r.sendClientActionFailure(&protocol.Failure{
 			CommandId:   cmd.Id,
 			Description: errReturned.Error(),
@@ -211,7 +217,7 @@ func (r *runner) handleCommand(cmd *protocol.Command) error {
 	if err != nil {
 		return protocol.ServerError{
 			Failure: &protocol.Failure{CommandId: cmd.GetId()},
-			Err:     err,
+			Err:     fmt.Errorf("marshalling of events failed. %w", err),
 		}
 	}
 	// snapshot
@@ -219,10 +225,10 @@ func (r *runner) handleCommand(cmd *protocol.Command) error {
 	if err != nil {
 		return protocol.ServerError{
 			Failure: &protocol.Failure{CommandId: cmd.GetId()},
-			Err:     err,
+			Err:     fmt.Errorf("marshalling of the snapshot failed. %w", err),
 		}
 	}
-	sourcedReply := &protocol.EventSourcedReply{
+	return r.sendEventSourcedReply(&protocol.EventSourcedReply{
 		CommandId: cmd.GetId(),
 		ClientAction: &protocol.ClientAction{
 			Action: &protocol.ClientAction_Reply{
@@ -233,8 +239,7 @@ func (r *runner) handleCommand(cmd *protocol.Command) error {
 		},
 		Events:   events,
 		Snapshot: snapshot,
-	}
-	return r.sendEventSourcedReply(sourcedReply)
+	})
 }
 
 func (r *runner) sendEventSourcedReply(rep *protocol.EventSourcedReply) error {

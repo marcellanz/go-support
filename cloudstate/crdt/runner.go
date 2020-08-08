@@ -102,9 +102,13 @@ func (r *runner) handleCommand(cmd *protocol.Command) (streamError error) {
 	}
 	ctx := r.context.commandContextFor(cmd)
 	reply, err := ctx.runCommand(cmd)
-	// on any error, the context gets deactivated
+	// TODO: error handling has to be clarified.
+	// 	It seems, CRDT streams stopped for any error, even client failures.
+	//	see: https://github.com/cloudstateio/cloudstate/pull/392
 	if err != nil {
+		// on any error, the context gets deactivated. TODO: hmm this seems wrong, yes?
 		ctx.deactivate() // this will close the stream
+		ctx.fail(err)
 	}
 	// if the user function has failed, a client action failure will be sent
 	if ctx.failed != nil {
@@ -118,7 +122,7 @@ func (r *runner) handleCommand(cmd *protocol.Command) (streamError error) {
 		return err
 	}
 	if ctx.failed != nil {
-		return r.sendStreamedMessage(&protocol.CrdtStreamedMessage{
+		r.sendCrdtReply(&protocol.CrdtReply{
 			CommandId:    ctx.CommandId.Value(),
 			ClientAction: clientAction, // this is a ClientAction_Failure
 		})
@@ -171,11 +175,10 @@ func (r *runner) handleChange() error {
 		}
 		if ctx.failed != nil {
 			delete(ctx.streamedCtx, ctx.CommandId)
-			msg := &protocol.CrdtStreamedMessage{
+			if err := r.sendStreamedMessage(&protocol.CrdtStreamedMessage{
 				CommandId:    ctx.CommandId.Value(),
 				ClientAction: clientAction,
-			}
-			if err := r.sendStreamedMessage(msg); err != nil {
+			}); err != nil {
 				return err
 			}
 			continue
