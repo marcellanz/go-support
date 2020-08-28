@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	jsonTypeURLPrefix = "json.cloudstate.io"
+	JSONTypeURLPrefix = "json.cloudstate.io"
 )
 
 func JSON(value interface{}) (*any.Any, error) {
@@ -40,7 +40,7 @@ func MarshalJSON(value interface{}) (*any.Any, error) {
 	}
 	buffer := proto.NewBuffer(make([]byte, 0))
 	buffer.SetDeterministic(true)
-	typeUrl := fmt.Sprintf("%s/%s.%s", jsonTypeURLPrefix, typeOf.PkgPath(), typeOf.Name())
+	typeUrl := fmt.Sprintf("%s/%s.%s", JSONTypeURLPrefix, typeOf.PkgPath(), typeOf.Name())
 	_ = buffer.EncodeVarint(fieldKey | proto.WireBytes)
 	bytes, err := json.Marshal(value)
 	if err != nil {
@@ -56,7 +56,7 @@ func MarshalJSON(value interface{}) (*any.Any, error) {
 // UnmarshalPrimitive decodes a CloudState Any proto message
 // into its JSON value.
 func UnmarshalJSON(any *any.Any, target interface{}) error {
-	if !strings.HasPrefix(any.GetTypeUrl(), jsonTypeURLPrefix) {
+	if !strings.HasPrefix(any.GetTypeUrl(), JSONTypeURLPrefix) {
 		return ErrNotMarshalled
 	}
 	buffer := proto.NewBuffer(any.GetValue())

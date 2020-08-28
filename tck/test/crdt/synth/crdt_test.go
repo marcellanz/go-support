@@ -17,6 +17,7 @@ package synth
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -38,7 +39,7 @@ func TestCRDT(t *testing.T) {
 		discover, err := edc.Discover(ctx, &protocol.ProxyInfo{
 			ProtocolMajorVersion: 1,
 			ProtocolMinorVersion: 0,
-			ProxyName:            "a-cs-proxy",
+			ProxyName:            "a-proxy",
 			ProxyVersion:         "0.0.0",
 			SupportedEntityTypes: []string{protocol.EventSourced, protocol.CRDT},
 		})
@@ -53,6 +54,136 @@ func TestCRDT(t *testing.T) {
 		}
 	})
 
+	t.Run("GSet", func(t *testing.T) {
+		entityId := "gset-1"
+		p := newProxy(ctx, s)
+		defer p.teardown()
+		p.sendInit(&protocol.CrdtInit{
+			ServiceName: serviceName,
+			EntityId:    entityId,
+		})
+
+		type pair struct {
+			Left  string
+			Right uint64
+		}
+		t.Run("calling AddGSet should emit client and state action", func(t *testing.T) {
+			one := &crdt3.AnySupportType{Value: &crdt3.AnySupportType_AnyValue{encoding.Struct(pair{"one", 1})}}
+			switch m := p.sendCmdRecvReply(command{
+				&protocol.Command{EntityId: entityId, Name: "AddGSet"},
+				&crdt3.GSetAdd{Key: entityId, Value: one},
+			}).Message.(type) {
+			case *protocol.CrdtStreamOut_Reply:
+				// client action reply
+				var reply crdt3.GSetValueAnySupport
+				if err := encoding.UnmarshalAny(m.Reply.GetClientAction().GetReply().GetPayload(), &reply); err != nil {
+					t.Fatal(err)
+				}
+				if got, want := len(reply.GetValues()), 1; got != want {
+					t.Fatalf("got = %v; wanted: %v", got, want)
+				}
+				var p pair
+				if err := encoding.DecodeStruct(reply.GetValues()[0].GetAnyValue(), &p); err != nil {
+					t.Fatal(err)
+				}
+				if got, want := p.Left, "one"; got != want {
+					t.Fatalf("got = %v; wanted: %v, for value:%+v", got, want, reply)
+				}
+				if got, want := p.Right, uint64(1); got != want {
+					t.Fatalf("got = %v; wanted: %v, for value:%+v", got, want, reply)
+				}
+				// state action
+				i := m.Reply.GetStateAction().GetCreate().GetGset().GetItems()
+				if got, want := len(i), 1; got != want {
+					t.Fatalf("got = %v; wanted: %v", got, want)
+				}
+				var state pair
+				item := i[0]
+				if err := encoding.DecodeStruct(item, &state); err != nil {
+					t.Fatal(err)
+				}
+				if got, want := strings.HasPrefix(item.TypeUrl, encoding.JSONTypeURLPrefix), true; got != want {
+					t.Fatalf("got = %v; wanted: %v", got, want)
+				}
+				if got, want := state.Left, "one"; got != want {
+					t.Fatalf("got = %v; wanted: %v, for value:%+v", got, want, reply)
+				}
+				if got, want := state.Right, uint64(1); got != want {
+					t.Fatalf("got = %v; wanted: %v, for value:%+v", got, want, reply)
+				}
+			default:
+				t.Fatalf("got unexpected message: %+v", m)
+			}
+		})
+		t.Run("adding more values should result in a larger set", func(t *testing.T) {
+			two := &crdt3.AnySupportType{Value: &crdt3.AnySupportType_AnyValue{encoding.Struct(pair{"two", 3})}}
+			three := &crdt3.AnySupportType{Value: &crdt3.AnySupportType_AnyValue{encoding.Struct(pair{"three", 3})}}
+			p.sendCmdRecvReply(command{
+				&protocol.Command{EntityId: entityId, Name: "AddGSet"},
+				&crdt3.GSetAdd{Key: entityId, Value: two},
+			})
+			p.sendCmdRecvReply(command{
+				&protocol.Command{EntityId: entityId, Name: "AddGSet"},
+				&crdt3.GSetAdd{Key: entityId, Value: three},
+			})
+
+			switch m := p.sendCmdRecvReply(command{
+				&protocol.Command{EntityId: entityId, Name: "GetGSetSize"},
+				&crdt3.Get{Key: entityId},
+			}).Message.(type) {
+			case *protocol.CrdtStreamOut_Reply:
+				var value crdt3.GSetSize
+				if err := encoding.UnmarshalAny(m.Reply.GetClientAction().GetReply().GetPayload(), &value); err != nil {
+					t.Fatal(err)
+				}
+				if got, want := value.Value, int64(3); got != want {
+					t.Fatalf("got = %v; wanted: %v", got, want)
+				}
+			default:
+				t.Fatalf("got unexpected message: %+v", m)
+			}
+		})
+	})
+
+	t.Run("GSet AnySupportTypes", func(t *testing.T) {
+		entityId := "gset-2"
+		p := newProxy(ctx, s)
+		defer p.teardown()
+		p.sendInit(&protocol.CrdtInit{
+			ServiceName: serviceName,
+			EntityId:    entityId,
+		})
+
+		bytes := []byte{'a', 'b', 3, 4}
+		values := []*crdt3.AnySupportType{
+			{Value: &crdt3.AnySupportType_BoolValue{true}},
+			{Value: &crdt3.AnySupportType_BytesValue{bytes}},
+			{Value: &crdt3.AnySupportType_FloatValue{float32(1)}},
+			{Value: &crdt3.AnySupportType_Int32Value{int32(2)}},
+			{Value: &crdt3.AnySupportType_Int64Value{int64(3)}},
+			{Value: &crdt3.AnySupportType_DoubleValue{float64(4.4)}},
+			{Value: &crdt3.AnySupportType_StringValue{"five"}},
+		}
+
+		reply := p.sendCmdRecvReply(command{
+			&protocol.Command{EntityId: entityId, Name: "AddGSet"},
+			&crdt3.GSetAdd{Key: entityId, Value: values[0]},
+		})
+
+		reply = reply
+
+		//for _, v := range values {
+		//	p.sendCmdRecvReply(command{
+		//		&protocol.Command{EntityId: entityId, Name: "AddGSet"},
+		//		&crdt3.GSetAdd{Key: entityId, Value: v},
+		//	})
+		//}
+		//p.sendCmdRecvReply(command{
+		//	&protocol.Command{EntityId: entityId, Name: "AddGSet"},
+		//	&crdt3.GSetAdd{Key: entityId, Value: t2},
+		//})
+	})
+
 	t.Run("PNCounter", func(t *testing.T) {
 		entityId := "pncounter-1"
 		p := newProxy(ctx, s)
@@ -61,7 +192,7 @@ func TestCRDT(t *testing.T) {
 			ServiceName: serviceName,
 			EntityId:    entityId,
 		})
-		t.Run("incrementing a PNCounter should emit a client action and create state action", func(t *testing.T) {
+		t.Run("incrementing a PNCounter should emit client action and create-state action", func(t *testing.T) {
 			switch m := p.sendCmdRecvReply(command{
 				&protocol.Command{EntityId: entityId, Name: "IncrementPNCounter"},
 				&crdt3.PNCounterIncrement{Key: entityId, Value: 7},
@@ -80,24 +211,6 @@ func TestCRDT(t *testing.T) {
 			default:
 				t.Fatalf("got unexpected message: %+v", m)
 			}
-			//switch m := p.sendCmdRecvReply(command{
-			//	&protocol.Command{EntityId: entityId, Name: "GetPNCounter"},
-			//	&crdt3.Get{Key: entityId},
-			//}).Message.(type) {
-			//case *protocol.CrdtStreamOut_Reply:
-			//	switch a := m.Reply.GetClientAction().Action.(type) {
-			//	case *protocol.ClientAction_Reply:
-			//		var value crdt3.PNCounterValue
-			//		if err := encoding.UnmarshalAny(a.Reply.Payload, &value); err != nil {
-			//			t.Fatal(err)
-			//		}
-			//		if got, want := value.GetValue(), int64(7); got != want {
-			//			t.Fatalf("got = %v; wanted: %d, for value:%+v", got, want, value)
-			//		}
-			//	}
-			//default:
-			//	t.Fatalf("got unexpected message: %+v", m)
-			//}
 		})
 		t.Run("a second increment should emit a client action and an update state action", func(t *testing.T) {
 			switch m := p.sendCmdRecvReply(command{
@@ -400,20 +513,13 @@ func TestCRDT(t *testing.T) {
 			ServiceName: serviceName,
 			EntityId:    entityId,
 		})
-		//switch m := p.sendCmdRecvReply(command{
-		//	&protocol.Command{EntityId: entityId, Name: "IncrementGCounter"},
-		//	&crdt3.GCounterIncrement{Key: entityId, Value: 8},
-		//}).Message.(type) {
-		//case *protocol.CrdtStreamOut_Failure:
-		//	t.Fatalf("got unexpected message: %+v", m)
-		//}
 		t.Run("setting a delta without ever sending state should fail", func(t *testing.T) {
+			t.Skip("we can't test this one for now")
 			p.sendDelta(delta{
-				d: &protocol.CrdtDelta{Delta: &protocol.CrdtDelta_Gcounter{Gcounter: &protocol.GCounterDelta{
+				&protocol.CrdtDelta{Delta: &protocol.CrdtDelta_Gcounter{Gcounter: &protocol.GCounterDelta{
 					Increment: 7,
 				}}},
 			})
-			// nothing should be returned here
 			resp, err := p.Recv()
 			if err != nil {
 				t.Fatal(err)

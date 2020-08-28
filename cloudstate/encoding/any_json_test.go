@@ -72,12 +72,12 @@ var testsJSON = []struct {
 	typeURL    string
 	shouldFail bool
 }{
-	{jsonTypeURLPrefix + "/github.com/cloudstateio/go-support/cloudstate/encoding.a",
-		&a{B: "29", C: 29}, &a{}, jsonTypeURLPrefix + "/github.com/cloudstateio/go-support/cloudstate/encoding.a", false},
-	{jsonTypeURLPrefix + "/github.com/cloudstateio/go-support/cloudstate/encoding.a",
-		a{B: "29", C: 29}, a{}, jsonTypeURLPrefix + "/github.com/cloudstateio/go-support/cloudstate/encoding.a", false},
-	{jsonTypeURLPrefix + "/github.com/cloudstateio/go-support/cloudstate/encoding.aDefault" + "_defaultValue",
-		aDefault{}, aDefault{}, jsonTypeURLPrefix + "/github.com/cloudstateio/go-support/cloudstate/encoding.aDefault", false},
+	{JSONTypeURLPrefix + "/github.com/cloudstateio/go-support/cloudstate/encoding.a",
+		&a{B: "29", C: 29}, &a{}, JSONTypeURLPrefix + "/github.com/cloudstateio/go-support/cloudstate/encoding.a", false},
+	{JSONTypeURLPrefix + "/github.com/cloudstateio/go-support/cloudstate/encoding.a",
+		a{B: "29", C: 29}, a{}, JSONTypeURLPrefix + "/github.com/cloudstateio/go-support/cloudstate/encoding.a", false},
+	{JSONTypeURLPrefix + "/github.com/cloudstateio/go-support/cloudstate/encoding.aDefault" + "_defaultValue",
+		aDefault{}, aDefault{}, JSONTypeURLPrefix + "/github.com/cloudstateio/go-support/cloudstate/encoding.aDefault", false},
 }
 
 func BenchmarkMarshallerJSON(b *testing.B) {
