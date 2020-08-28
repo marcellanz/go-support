@@ -92,16 +92,24 @@ func (s *SyntheticCRDTs) HandleCommand(c *crdt.CommandContext, name string, cmd 
 		switch c := cmd.(type) {
 		case *tc.GSetAdd:
 			anySupportAdd(s.gSet, c.Value)
-			return encoding.MarshalAny(&tc.GSetValue{Values: s.gSet.Value()})
+
+			v := tc.GSetValueAnySupport{Values: make([]*tc.AnySupportType, 0, len(s.gSet.Value()))}
+			for _, a := range s.gSet.Value() {
+				if strings.HasPrefix(a.TypeUrl, encoding.JSONTypeURLPrefix) {
+					v.Values = append(v.Values, &tc.AnySupportType{
+						Value: &tc.AnySupportType_AnyValue{AnyValue: a},
+					})
+					continue
+				}
+				v.Values = append(v.Values, asAnySupportType(a))
+			}
+			return encoding.MarshalAny(&v)
 		}
 	case "GetGSet":
-		return encoding.MarshalAny(&tc.GSetValue{Values: s.gSet.Value()})
-	case "GetGSetAnySupport":
+		//return encoding.MarshalAny(&tc.GSetValue{Values: s.gSet.Value()})
 		v := tc.GSetValueAnySupport{Values: make([]*tc.AnySupportType, 0, len(s.gSet.Value()))}
 		for _, a := range s.gSet.Value() {
-			v.Values = append(v.Values, &tc.AnySupportType{
-				Value: asAnySupportType(a).Value},
-			)
+			v.Values = append(v.Values, asAnySupportType(a))
 		}
 		return encoding.MarshalAny(&v)
 	case "GetGSetSize":
