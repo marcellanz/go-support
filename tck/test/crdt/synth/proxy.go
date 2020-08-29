@@ -99,7 +99,7 @@ func (p *proxy) Recv() (*protocol.CrdtStreamOut, error) {
 	}
 }
 
-func (p *proxy) sendInit(i *protocol.CrdtInit) {
+func (p *proxy) init(i *protocol.CrdtInit) {
 	err := p.h.Send(&protocol.CrdtStreamIn{
 		Message: &protocol.CrdtStreamIn_Init{Init: i},
 	})
@@ -108,8 +108,29 @@ func (p *proxy) sendInit(i *protocol.CrdtInit) {
 	}
 }
 
-func (p *proxy) sendState(st state) error {
-	return p.h.Send(stateMsg(st.s))
+func (p *proxy) state(m proto.Message) {
+	switch s := m.(type) {
+	case *protocol.PNCounterState:
+		p.sendState(state{
+			&protocol.CrdtState{State: &protocol.CrdtState_Pncounter{
+				Pncounter: s,
+			}},
+		})
+	case *protocol.GCounterState:
+		p.sendState(state{
+			&protocol.CrdtState{State: &protocol.CrdtState_Gcounter{
+				Gcounter: s,
+			}},
+		})
+	default:
+		p.t.Fatal("state type not found")
+	}
+}
+
+func (p *proxy) sendState(st state) {
+	if err := p.h.Send(stateMsg(st.s)); err != nil {
+		p.t.Fatal(err)
+	}
 }
 
 func (p *proxy) sendRecvState(st state) (*protocol.CrdtStreamOut, error) {
@@ -117,6 +138,26 @@ func (p *proxy) sendRecvState(st state) (*protocol.CrdtStreamOut, error) {
 		return nil, err
 	}
 	return p.Recv()
+}
+
+func (p *proxy) delta(m proto.Message) {
+	switch d := m.(type) {
+	case *protocol.PNCounterDelta:
+		p.sendDelta(delta{
+			&protocol.CrdtDelta{Delta: &protocol.CrdtDelta_Pncounter{
+				Pncounter: d,
+			}}},
+		)
+	case *protocol.GCounterDelta:
+		p.sendDelta(delta{
+			d: &protocol.CrdtDelta{
+				Delta: &protocol.CrdtDelta_Gcounter{
+					Gcounter: d,
+				}}},
+		)
+	default:
+		p.t.Fatal("state type not found")
+	}
 }
 
 func (p *proxy) sendDelta(d delta) {
@@ -131,7 +172,6 @@ func (p *proxy) sendDelete(d delete) {
 	if err := p.h.Send(deleteMsg(d.d)); err != nil {
 		p.t.Fatal(err)
 	}
-	return
 }
 
 func (p *proxy) sendRecvDelta(d delta) (*protocol.CrdtStreamOut, error) {
@@ -139,6 +179,13 @@ func (p *proxy) sendRecvDelta(d delta) (*protocol.CrdtStreamOut, error) {
 		return nil, err
 	}
 	return p.Recv()
+}
+
+func (p *proxy) command(entityId string, name string, m proto.Message) *protocol.CrdtStreamOut {
+	return p.sendCmdRecvReply(command{
+		&protocol.Command{EntityId: entityId, Name: name},
+		m,
+	})
 }
 
 func (p *proxy) sendCmdRecvReply(cmd command) *protocol.CrdtStreamOut {

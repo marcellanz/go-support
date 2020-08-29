@@ -60,39 +60,55 @@ func (s *SyntheticCRDTs) Default(c *crdt.Context) (crdt.CRDT, error) {
 }
 
 func (s *SyntheticCRDTs) HandleCommand(c *crdt.CommandContext, name string, cmd proto.Message) (*any.Any, error) {
-	//defer checkToFail(cmd)
 	switch name {
 	case "IncrementGCounter":
 		switch c := cmd.(type) {
 		case *tc.GCounterIncrement:
 			s.gCounter.Increment(c.GetValue())
 			pb := &tc.GCounterValue{Value: s.gCounter.Value()}
-			if c.Value >= 1000 {
-				return nil, errors.New("intentional failure")
+			if c.FailWith != "" {
+				return nil, errors.New(c.FailWith)
 			}
 			return encoding.MarshalAny(pb)
 		}
 	case "GetGCounter":
-		return encoding.MarshalAny(&tc.GCounterValue{Value: s.gCounter.Value()})
+		switch c := cmd.(type) {
+		case *tc.Get:
+			if c.FailWith != "" {
+				return nil, errors.New(c.FailWith)
+			}
+			return encoding.MarshalAny(&tc.GCounterValue{Value: s.gCounter.Value()})
+		}
 	case "IncrementPNCounter":
 		switch c := cmd.(type) {
 		case *tc.PNCounterIncrement:
 			s.pnCounter.Increment(c.Value)
+			if c.FailWith != "" {
+				return nil, errors.New(c.FailWith)
+			}
 			return encoding.MarshalAny(&tc.PNCounterValue{Value: s.pnCounter.Value()})
 		}
 	case "DecrementPNCounter":
 		switch c := cmd.(type) {
 		case *tc.PNCounterDecrement:
 			s.pnCounter.Decrement(c.Value)
+			if c.FailWith != "" {
+				return nil, errors.New(c.FailWith)
+			}
 			return encoding.MarshalAny(&tc.PNCounterValue{Value: s.pnCounter.Value()})
 		}
 	case "GetPNCounter":
-		return encoding.MarshalAny(&tc.PNCounterValue{Value: s.pnCounter.Value()})
+		switch c := cmd.(type) {
+		case *tc.Get:
+			if c.FailWith != "" {
+				return nil, errors.New(c.FailWith)
+			}
+			return encoding.MarshalAny(&tc.PNCounterValue{Value: s.pnCounter.Value()})
+		}
 	case "AddGSet":
 		switch c := cmd.(type) {
 		case *tc.GSetAdd:
 			anySupportAdd(s.gSet, c.Value)
-
 			v := tc.GSetValueAnySupport{Values: make([]*tc.AnySupportType, 0, len(s.gSet.Value()))}
 			for _, a := range s.gSet.Value() {
 				if strings.HasPrefix(a.TypeUrl, encoding.JSONTypeURLPrefix) {
@@ -103,31 +119,65 @@ func (s *SyntheticCRDTs) HandleCommand(c *crdt.CommandContext, name string, cmd 
 				}
 				v.Values = append(v.Values, asAnySupportType(a))
 			}
+			if c.FailWith != "" {
+				return nil, errors.New(c.FailWith)
+			}
 			return encoding.MarshalAny(&v)
 		}
 	case "GetGSet":
-		//return encoding.MarshalAny(&tc.GSetValue{Values: s.gSet.Value()})
-		v := tc.GSetValueAnySupport{Values: make([]*tc.AnySupportType, 0, len(s.gSet.Value()))}
-		for _, a := range s.gSet.Value() {
-			v.Values = append(v.Values, asAnySupportType(a))
+		switch c := cmd.(type) {
+		case *tc.GSetAdd:
+			v := tc.GSetValueAnySupport{Values: make([]*tc.AnySupportType, 0, len(s.gSet.Value()))}
+			for _, a := range s.gSet.Value() {
+				v.Values = append(v.Values, asAnySupportType(a))
+			}
+			if c.FailWith != "" {
+				return nil, errors.New(c.FailWith)
+			}
+			return encoding.MarshalAny(&v)
 		}
-		return encoding.MarshalAny(&v)
 	case "GetGSetSize":
-		return encoding.MarshalAny(&tc.GSetSize{Value: int64(s.gSet.Size())})
-
+		switch c := cmd.(type) {
+		case *tc.Get:
+			if c.FailWith != "" {
+				return nil, errors.New(c.FailWith)
+			}
+			return encoding.MarshalAny(&tc.GSetSize{Value: int64(s.gSet.Size())})
+		}
 	case "AddORSet":
 		switch c := cmd.(type) {
 		case *tc.ORSetAdd:
 			anySupportAdd(s.orSet, c.Value)
+			if c.FailWith != "" {
+				return nil, errors.New(c.FailWith)
+			}
 			return encoding.MarshalAny(&tc.ORSetValue{Values: s.orSet.Value()})
 		}
 	case "RemoveORSet":
-		anySupportRemove(s.orSet, cmd.(*tc.ORSetRemove).Value)
-		return encoding.MarshalAny(&tc.ORSetValue{Values: s.orSet.Value()})
+		switch c := cmd.(type) {
+		case *tc.ORSetRemove:
+			if c.FailWith != "" {
+				return nil, errors.New(c.FailWith)
+			}
+			anySupportRemove(s.orSet, cmd.(*tc.ORSetRemove).Value)
+			return encoding.MarshalAny(&tc.ORSetValue{Values: s.orSet.Value()})
+		}
 	case "GetORSet":
-		return encoding.MarshalAny(&tc.ORSetValue{Values: s.orSet.Value()})
+		switch c := cmd.(type) {
+		case *tc.Get:
+			if c.FailWith != "" {
+				return nil, errors.New(c.FailWith)
+			}
+			return encoding.MarshalAny(&tc.ORSetValue{Values: s.orSet.Value()})
+		}
 	case "GetORSetSize":
-		return encoding.MarshalAny(&tc.ORSetSize{Value: int64(s.orSet.Size())})
+		switch c := cmd.(type) {
+		case *tc.Get:
+			if c.FailWith != "" {
+				return nil, errors.New(c.FailWith)
+			}
+			return encoding.MarshalAny(&tc.ORSetSize{Value: int64(s.orSet.Size())})
+		}
 	}
 	return nil, errors.New("unhandled command")
 }
@@ -213,11 +263,5 @@ func anySupportAdd(a anySupportAdder, t *tc.AnySupportType) {
 		a.Add(encoding.Int32(v.Int32Value))
 	case *tc.AnySupportType_Int64Value:
 		a.Add(encoding.Int64(v.Int64Value))
-	}
-}
-
-func checkToFail(c interface{}) {
-	if i, ok := c.(interface{ GetFail() bool }); ok && i.GetFail() {
-		panic("forced crash")
 	}
 }

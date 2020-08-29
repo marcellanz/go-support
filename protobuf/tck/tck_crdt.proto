@@ -83,7 +83,7 @@ message AnySupportType {
 
 message GCounterIncrement {
     string key = 1 [(.cloudstate.entity_key) = true];
-    bool fail = 2;
+    string failWith = 2;
     uint64 value = 3;
 }
 
@@ -93,13 +93,13 @@ message GCounterValue {
 
 message PNCounterIncrement {
     string key = 1 [(.cloudstate.entity_key) = true];
-    bool fail = 2;
+    string failWith = 2;
     int64 value = 3;
 }
 
 message PNCounterDecrement {
     string key = 1 [(.cloudstate.entity_key) = true];
-    bool fail = 2;
+    string failWith = 2;
     int64 value = 3;
 }
 
@@ -109,7 +109,7 @@ message PNCounterValue {
 
 message GSetAdd {
     string key = 1 [(.cloudstate.entity_key) = true];
-    bool fail = 2;
+    string failWith = 2;
     AnySupportType value = 3;
 }
 
@@ -127,13 +127,13 @@ message GSetSize {
 
 message ORSetAdd {
     string key = 1 [(.cloudstate.entity_key) = true];
-    bool fail = 2;
+    string failWith = 2;
     AnySupportType value = 3;
 }
 
 message ORSetRemove {
     string key = 1 [(.cloudstate.entity_key) = true];
-    bool fail = 2;
+    string failWith = 2;
     AnySupportType value = 3;
 }
 
@@ -147,7 +147,7 @@ message ORSetSize {
 
 message FlagEnable {
     string key = 1 [(.cloudstate.entity_key) = true];
-    bool fail = 2;
+    string failWith = 2;
 }
 
 message FlagValue {
@@ -156,7 +156,7 @@ message FlagValue {
 
 message LWWRegisterSet {
     string key = 1 [(.cloudstate.entity_key) = true];
-    bool fail = 2;
+    string failWith = 2;
     google.protobuf.Any value = 3;
 }
 
@@ -176,7 +176,7 @@ enum CrdtClock {
 
 message LWWRegisterSetWithClock {
     string key = 1 [(.cloudstate.entity_key) = true];
-    bool fail = 2;
+    string failWith = 2;
     google.protobuf.Any value = 3;
     CrdtClock clock = 4;
     int64 custom_clock_value = 5;
@@ -188,14 +188,14 @@ message LWWRegisterValue {
 
 message ORMapSet {
     string key = 1 [(.cloudstate.entity_key) = true];
-    bool fail = 2;
+    string failWith = 2;
     google.protobuf.Any entry_key = 3;
     google.protobuf.Any value = 4;
 }
 
 message ORMapKey {
     string key = 1 [(.cloudstate.entity_key) = true];
-    bool fail = 2;
+    string failWith = 2;
     google.protobuf.Any value = 3;
 }
 
@@ -218,7 +218,7 @@ message ORMapKeys {
 
 message Vote {
     string key = 1 [(.cloudstate.entity_key) = true];
-    bool fail = 2;
+    string failWith = 2;
     bool value = 3;
 }
 
