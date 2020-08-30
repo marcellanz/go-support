@@ -24,13 +24,28 @@ import "cloudstate/entity_key.proto";
 
 package crdt;
 
-option java_package = "io.cloudstate.tck";
+option java_package = "io.cloudstate.tck.model";
 option go_package = "github.com/cloudstateio/go-support/tck/proto/crdt;crdt";
 
+message GCounterRequest {
+    string id = 1 [(.cloudstate.entity_key) = true];
+    repeated GCounterRequestAction actions = 2;
+}
+
+message GCounterRequestAction {
+    oneof action {
+        GCounterIncrement increment = 1;
+        Get get = 2;
+        Delete delete = 3;
+    }
+}
+
+message GCounterResponse {
+    GCounterValue value = 1;
+}
+
 service TckCrdt {
-    rpc IncrementGCounter (GCounterIncrement) returns (GCounterValue);
-    rpc GetGCounter (Get) returns (GCounterValue);
-    rpc DeleteGCounter (Delete) returns (google.protobuf.Empty);
+    rpc ProcessGCounter (GCounterRequest) returns (GCounterResponse);
 
     rpc IncrementPNCounter (PNCounterIncrement) returns (PNCounterValue);
     rpc DecrementPNCounter (PNCounterDecrement) returns (PNCounterValue);

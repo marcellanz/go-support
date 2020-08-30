@@ -43,7 +43,7 @@ func (t *tester) toProto(x *any.Any, p proto.Message) {
 
 func (t *tester) unexpected(i ...interface{}) {
 	t.t.Helper()
-	t.t.Fatalf("got unexpected message: %+v", i)
+	t.t.Fatalf("got unexpected message: %+v", i...)
 }
 
 func (t *tester) expectedInt(got int, want int) {

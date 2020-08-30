@@ -25,6 +25,7 @@ import (
 	tc "github.com/cloudstateio/go-support/tck/proto/crdt"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/any"
+	"github.com/golang/protobuf/ptypes/empty"
 )
 
 type SyntheticCRDTs struct {
@@ -74,26 +75,34 @@ func (s *SyntheticCRDTs) Default(c *crdt.Context) (crdt.CRDT, error) {
 	return nil, errors.New("unknown entity type")
 }
 
-func (s *SyntheticCRDTs) HandleCommand(c *crdt.CommandContext, name string, cmd proto.Message) (*any.Any, error) {
+func (s *SyntheticCRDTs) HandleCommand(cc *crdt.CommandContext, name string, cmd proto.Message) (*any.Any, error) {
+	switch c := cmd.(type) {
+	case *tc.GCounterRequest:
+		for _, as := range c.GetActions() {
+			switch a := as.Action.(type) {
+			case *tc.GCounterRequestAction_Increment:
+				s.gCounter.Increment(a.Increment.GetValue())
+				pb := &tc.GCounterValue{Value: s.gCounter.Value()}
+				if a.Increment.FailWith != "" {
+					return nil, errors.New(a.Increment.FailWith)
+				}
+				return encoding.MarshalAny(pb)
+			case *tc.GCounterRequestAction_Get:
+				if a.Get.FailWith != "" {
+					return nil, errors.New(a.Get.FailWith)
+				}
+				return encoding.MarshalAny(&tc.GCounterValue{Value: s.gCounter.Value()})
+			case *tc.GCounterRequestAction_Delete:
+				if a.Delete.FailWith != "" {
+					return nil, errors.New(a.Delete.FailWith)
+				}
+				cc.Delete()
+				return encoding.MarshalAny(empty.Empty{})
+			}
+		}
+	}
+
 	switch name {
-	case "IncrementGCounter":
-		switch c := cmd.(type) {
-		case *tc.GCounterIncrement:
-			s.gCounter.Increment(c.GetValue())
-			pb := &tc.GCounterValue{Value: s.gCounter.Value()}
-			if c.FailWith != "" {
-				return nil, errors.New(c.FailWith)
-			}
-			return encoding.MarshalAny(pb)
-		}
-	case "GetGCounter":
-		switch c := cmd.(type) {
-		case *tc.Get:
-			if c.FailWith != "" {
-				return nil, errors.New(c.FailWith)
-			}
-			return encoding.MarshalAny(&tc.GCounterValue{Value: s.gCounter.Value()})
-		}
 	case "IncrementPNCounter":
 		switch c := cmd.(type) {
 		case *tc.PNCounterIncrement:
