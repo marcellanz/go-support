@@ -28,6 +28,12 @@ type tester struct {
 	t *testing.T
 }
 
+func (t *tester) toStruct(x *any.Any, i interface{}) {
+	if err := encoding.DecodeStruct(x, i); err != nil {
+		t.t.Fatal(err)
+	}
+}
+
 func (t *tester) toProto(x *any.Any, p proto.Message) {
 	t.t.Helper()
 	if err := encoding.UnmarshalAny(x, p); err != nil {

@@ -30,22 +30,27 @@ option go_package = "github.com/cloudstateio/go-support/tck/proto/crdt;crdt";
 service TckCrdt {
     rpc IncrementGCounter (GCounterIncrement) returns (GCounterValue);
     rpc GetGCounter (Get) returns (GCounterValue);
+    rpc DeleteGCounter (Delete) returns (google.protobuf.Empty);
 
     rpc IncrementPNCounter (PNCounterIncrement) returns (PNCounterValue);
     rpc DecrementPNCounter (PNCounterDecrement) returns (PNCounterValue);
     rpc GetPNCounter (Get) returns (PNCounterValue);
+    rpc DeletePNCounter (Delete) returns (google.protobuf.Empty);
 
     rpc AddGSet (GSetAdd) returns (GSetValue);
     rpc GetGSet (Get) returns (GSetValue);
     rpc GetGSetSize (Get) returns (GSetSize);
+    rpc DeleteGSet (Delete) returns (GSetSize);
 
     rpc AddORSet (ORSetAdd) returns (ORSetValue);
     rpc RemoveORSet (ORSetRemove) returns (ORSetValue);
     rpc GetORSet (Get) returns (ORSetValue);
     rpc GetORSetSize (Get) returns (ORSetSize);
+    rpc DeleteORSet (Delete) returns (google.protobuf.Empty);
 
     rpc EnableFlag (FlagEnable) returns (FlagValue);
     rpc GetFlag (Get) returns (FlagValue);
+    rpc DeleteFlag (Delete) returns (google.protobuf.Empty);
 
     rpc SetLWWRegister (LWWRegisterSet) returns (LWWRegisterValue);
     rpc SetLWWRegisterWithClock (LWWRegisterSetWithClock) returns (LWWRegisterValue);
@@ -64,6 +69,11 @@ service TckCrdt {
 }
 
 message Get {
+    string key = 1 [(.cloudstate.entity_key) = true];
+    string failWith = 2;
+}
+
+message Delete {
     string key = 1 [(.cloudstate.entity_key) = true];
     string failWith = 2;
 }
