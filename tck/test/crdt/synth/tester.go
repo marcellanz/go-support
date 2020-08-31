@@ -43,7 +43,7 @@ func (t *tester) toProto(x *any.Any, p proto.Message) {
 
 func (t *tester) unexpected(i ...interface{}) {
 	t.t.Helper()
-	t.t.Fatalf("got unexpected message: %+v", i...)
+	t.t.Fatalf("got unexpected: %+v", i...)
 }
 
 func (t *tester) expectedInt(got int, want int) {
@@ -74,8 +74,18 @@ func (t *tester) expectedString(got string, want string) {
 	}
 }
 
+func (t *tester) expectedNoError(got error) {
+	t.t.Helper()
+	if got != nil {
+		t.t.Fatalf("got = %v; wanted: nil", got)
+	}
+}
+
 func (t *tester) expectedNil(got interface{}) {
 	t.t.Helper()
+	if got == nil {
+		return
+	}
 	if !reflect.ValueOf(got).IsNil() {
 		t.t.Fatalf("got = %v; wanted: nil", got)
 	}
@@ -83,8 +93,11 @@ func (t *tester) expectedNil(got interface{}) {
 
 func (t *tester) expectedNotNil(got interface{}) {
 	t.t.Helper()
+	if got == nil {
+		t.t.Fatalf("got = %v; wanted: not nil", got)
+	}
 	if reflect.ValueOf(got).IsNil() {
-		t.t.Fatalf("got = %v; wanted: nil", got)
+		t.t.Fatalf("got = %v; wanted: not nil", got)
 	}
 }
 

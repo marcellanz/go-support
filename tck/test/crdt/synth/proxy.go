@@ -25,6 +25,8 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
+const recvTimeout = 1
+
 type proxy struct {
 	h       protocol.Crdt_HandleClient
 	t       *testing.T
@@ -93,7 +95,7 @@ func (p *proxy) Recv() (*protocol.CrdtStreamOut, error) {
 	select {
 	case m := <-p.recvC:
 		return m.out, m.err
-	case <-time.After(1 * time.Second):
+	case <-time.After(recvTimeout * time.Second):
 		p.t.Log("no response")
 		return nil, nil
 	}

@@ -93,42 +93,44 @@ func (s *SyntheticCRDTs) HandleCommand(cc *crdt.CommandContext, name string, cmd
 				}
 				return encoding.MarshalAny(&tc.GCounterValue{Value: s.gCounter.Value()})
 			case *tc.GCounterRequestAction_Delete:
+				cc.Delete()
 				if a.Delete.FailWith != "" {
 					return nil, errors.New(a.Delete.FailWith)
 				}
+				return encoding.MarshalAny(&empty.Empty{})
+			}
+		}
+	case *tc.PNCounterRequest:
+		for _, as := range c.GetActions() {
+			switch a := as.Action.(type) {
+			case *tc.PNCounterRequestAction_Increment:
+				s.pnCounter.Increment(a.Increment.Value)
+				if a.Increment.FailWith != "" {
+					return nil, errors.New(a.Increment.FailWith)
+				}
+				return encoding.MarshalAny(&tc.PNCounterValue{Value: s.pnCounter.Value()})
+			case *tc.PNCounterRequestAction_Decrement:
+				s.pnCounter.Decrement(a.Decrement.Value)
+				if a.Decrement.FailWith != "" {
+					return nil, errors.New(a.Decrement.FailWith)
+				}
+				return encoding.MarshalAny(&tc.PNCounterValue{Value: s.pnCounter.Value()})
+			case *tc.PNCounterRequestAction_Get:
+				if a.Get.FailWith != "" {
+					return nil, errors.New(a.Get.FailWith)
+				}
+				return encoding.MarshalAny(&tc.PNCounterValue{Value: s.pnCounter.Value()})
+			case *tc.PNCounterRequestAction_Delete:
 				cc.Delete()
-				return encoding.MarshalAny(empty.Empty{})
+				if a.Delete.FailWith != "" {
+					return nil, errors.New(a.Delete.FailWith)
+				}
+				return encoding.MarshalAny(&empty.Empty{})
 			}
 		}
 	}
 
 	switch name {
-	case "IncrementPNCounter":
-		switch c := cmd.(type) {
-		case *tc.PNCounterIncrement:
-			s.pnCounter.Increment(c.Value)
-			if c.FailWith != "" {
-				return nil, errors.New(c.FailWith)
-			}
-			return encoding.MarshalAny(&tc.PNCounterValue{Value: s.pnCounter.Value()})
-		}
-	case "DecrementPNCounter":
-		switch c := cmd.(type) {
-		case *tc.PNCounterDecrement:
-			s.pnCounter.Decrement(c.Value)
-			if c.FailWith != "" {
-				return nil, errors.New(c.FailWith)
-			}
-			return encoding.MarshalAny(&tc.PNCounterValue{Value: s.pnCounter.Value()})
-		}
-	case "GetPNCounter":
-		switch c := cmd.(type) {
-		case *tc.Get:
-			if c.FailWith != "" {
-				return nil, errors.New(c.FailWith)
-			}
-			return encoding.MarshalAny(&tc.PNCounterValue{Value: s.pnCounter.Value()})
-		}
 	case "AddGSet":
 		switch c := cmd.(type) {
 		case *tc.GSetAdd:

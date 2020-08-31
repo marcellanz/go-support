@@ -7,37 +7,27 @@ import (
 
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/cloudstateio/go-support/tck/proto/crdt"
-	"github.com/golang/protobuf/proto"
 )
-
-func gcounterRequest(a ...proto.Message) *crdt.GCounterRequest {
-	r := &crdt.GCounterRequest{
-		Actions: make([]*crdt.GCounterRequestAction, 0),
-	}
-	for _, i := range a {
-		switch t := i.(type) {
-		case *crdt.GCounterIncrement:
-			r.Id = t.Key
-			r.Actions = append(r.Actions, &crdt.GCounterRequestAction{Action: &crdt.GCounterRequestAction_Increment{Increment: t}})
-		case *crdt.Get:
-			r.Id = t.Key
-			r.Actions = append(r.Actions, &crdt.GCounterRequestAction{Action: &crdt.GCounterRequestAction_Get{Get: t}})
-		case *crdt.Delete:
-			r.Id = t.Key
-			r.Actions = append(r.Actions, &crdt.GCounterRequestAction{Action: &crdt.GCounterRequestAction_Delete{Delete: t}})
-		default:
-			panic("hmmm")
-		}
-	}
-	return r
-}
 
 func TestCRDTGCounter(t *testing.T) {
 	s := newServer(t)
-	s.newClientConn()
 	defer s.teardown()
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
+
+	t.Run("CrdtInit", func(t *testing.T) {
+		p := newProxy(ctx, s)
+		s.t = t
+		defer p.teardown()
+		t.Run("sending CrdtInit fo an unknown service should fail", func(t *testing.T) {
+			tr := tester{t}
+			p.init(&protocol.CrdtInit{ServiceName: "unknown", EntityId: "unknown"})
+			resp, err := p.Recv()
+			tr.expectedNil(err)
+			tr.expectedNotNil(resp)
+			tr.expectedBool(len(resp.GetFailure().GetDescription()) > 0, true)
+		})
+	})
 
 	command := "ProcessGCounter"
 	t.Run("GCounter", func(t *testing.T) {
@@ -45,8 +35,12 @@ func TestCRDTGCounter(t *testing.T) {
 		p := newProxy(ctx, s)
 		defer p.teardown()
 
-		t.Run("send a CrdtInit should not fail", func(t *testing.T) {
+		t.Run("sending CrdtInit should not fail", func(t *testing.T) {
+			tr := tester{t}
 			p.init(&protocol.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+			resp, err := p.Recv()
+			tr.expectedNil(err)
+			tr.expectedNil(resp)
 		})
 		t.Run("incrementing a GCounter should emit a client action and create state action", func(t *testing.T) {
 			tr := tester{t}
@@ -76,7 +70,7 @@ func TestCRDTGCounter(t *testing.T) {
 				tr.unexpected(m)
 			}
 		})
-		t.Run("calling GetGCounter should return the counters value", func(t *testing.T) {
+		t.Run("get should return the counters value", func(t *testing.T) {
 			tr := tester{t}
 			switch m := p.command(entityId, command, gcounterRequest(&crdt.Get{Key: entityId})).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
@@ -115,9 +109,18 @@ func TestCRDTGCounter(t *testing.T) {
 				tr.unexpected(m)
 			}
 		})
-		t.Run("deleting an entity should delete the entity", func(t *testing.T) {
-			p.command(entityId, command, gcounterRequest(&crdt.Delete{Key: entityId}))
-			// p.sendDelete(delete{d: &protocol.CrdtDelete{}})
+		t.Run("deleting an entity should emit a delete state action", func(t *testing.T) {
+			tr := tester{t}
+			switch m := p.command(
+				entityId, command, gcounterRequest(&crdt.Delete{Key: entityId}),
+			).Message.(type) {
+			case *protocol.CrdtStreamOut_Reply:
+				tr.expectedNotNil(m.Reply.GetClientAction().GetReply())
+				tr.expectedNotNil(m.Reply.GetStateAction().GetDelete())
+			default:
+				tr.unexpected(m)
+			}
+			p.sendDelete(delete{&protocol.CrdtDelete{}})
 		})
 		t.Run("after an entity was deleted, we could initialise an another entity", func(t *testing.T) {
 			// this is not explicit specified by the spec, but it says, that the user function should
@@ -144,12 +147,9 @@ func TestCRDTGCounter(t *testing.T) {
 		tr := tester{t}
 		p := newProxy(ctx, s)
 		defer p.teardown()
-		p.init(&protocol.CrdtInit{
-			ServiceName: serviceName,
-			EntityId:    entityId,
-		})
+		p.init(&protocol.CrdtInit{ServiceName: serviceName, EntityId: entityId})
 		switch m := p.command(
-			entityId, "IncrementGCounter", &crdt.GCounterIncrement{Key: entityId, Value: 8},
+			entityId, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityId, Value: 8}),
 		).Message.(type) {
 		case *protocol.CrdtStreamOut_Failure:
 			tr.unexpected(m)
@@ -158,7 +158,7 @@ func TestCRDTGCounter(t *testing.T) {
 			tr := tester{t}
 			entityId := "gcounter-1-xxx"
 			switch m := p.command(
-				entityId, "GetGCounter", &crdt.Get{Key: entityId},
+				entityId, command, gcounterRequest(&crdt.Get{Key: entityId}),
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Failure:
 			default:
@@ -171,10 +171,7 @@ func TestCRDTGCounter(t *testing.T) {
 		entityId := "gcounter-2"
 		p := newProxy(ctx, s)
 		defer p.teardown()
-		p.init(&protocol.CrdtInit{
-			ServiceName: serviceName,
-			EntityId:    entityId,
-		})
+		p.init(&protocol.CrdtInit{ServiceName: serviceName, EntityId: entityId})
 		t.Run("setting a delta without ever sending state should fail", func(t *testing.T) {
 			t.Skip("we can't test this one for now")
 			p.delta(&protocol.GCounterDelta{Increment: 7})
@@ -235,9 +232,7 @@ func TestCRDTGCounter(t *testing.T) {
 		p.init(&protocol.CrdtInit{ServiceName: serviceName, EntityId: entityId})
 		p.command(entityId, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityId, Value: 7}))
 		switch m := p.command(
-			entityId, command, gcounterRequest(&crdt.GCounterIncrement{
-				Key: entityId, Value: 7, FailWith: "error",
-			}),
+			entityId, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityId, Value: 7, FailWith: "error"}),
 		).Message.(type) {
 		case *protocol.CrdtStreamOut_Reply:
 			switch a := m.Reply.GetClientAction().Action.(type) {
@@ -249,17 +244,6 @@ func TestCRDTGCounter(t *testing.T) {
 		default:
 			tr.unexpected(m)
 		}
-
-		// switch m := p.command(
-		// 	entityId, "GetGCounter", &crdt.Get{Key: entityId},
-		// ).Message.(type) {
-		// case *protocol.CrdtStreamOut_Reply:
-		// 	value := crdt.GCounterValue{}
-		// 	tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &value)
-		// 	tr.expectedUInt64(value.GetValue(), uint64(14))
-		// default:
-		// 	tr.unexpected(m)
-		// }
 
 		// TODO: revise this tests as we should have a stream still up after a client failure
 		// _, err :=
