@@ -27,6 +27,32 @@ package crdt;
 option java_package = "io.cloudstate.tck.model";
 option go_package = "github.com/cloudstateio/go-support/tck/proto/crdt;crdt";
 
+service TckCrdt {
+    rpc ProcessGCounter (GCounterRequest) returns (GCounterResponse);
+    rpc ProcessPNCounter (PNCounterRequest) returns (PNCounterResponse);
+    rpc ProcessGSet (GSetRequest) returns (GSetResponse);
+    rpc ProcessORSet (ORSetRequest) returns (ORSetResponse);
+
+    rpc EnableFlag (FlagEnable) returns (FlagValue);
+    rpc GetFlag (Get) returns (FlagValue);
+    rpc DeleteFlag (Delete) returns (google.protobuf.Empty);
+
+    rpc SetLWWRegister (LWWRegisterSet) returns (LWWRegisterValue);
+    rpc SetLWWRegisterWithClock (LWWRegisterSetWithClock) returns (LWWRegisterValue);
+    rpc GetLWWRegisterValue (Get) returns (LWWRegisterValue);
+
+    rpc SetORMap (ORMapSet) returns (ORMapEntries);
+    rpc DeleteORMap (ORMapKey) returns (ORMapEntries);
+    rpc ClearORMap (ORMapKey) returns (ORMapEntries);
+    rpc GetORMapSize (Get) returns (ORMapSize);
+    rpc GetORMapEntries (Get) returns (ORMapEntries);
+    rpc GetORMapKeys (Get) returns (ORMapKeys);
+
+    rpc VoteVote (Vote) returns (SelfVote);
+    rpc GetVoteSelfVote (Get) returns (SelfVote);
+    rpc GetVoters (Get) returns (Voters);
+}
+
 message GCounterRequest {
     string id = 1 [(.cloudstate.entity_key) = true];
     repeated GCounterRequestAction actions = 2;
@@ -79,35 +105,22 @@ message GSetResponse {
     GSetValue value = 1;
 }
 
-service TckCrdt {
-    rpc ProcessGCounter (GCounterRequest) returns (GCounterResponse);
-    rpc ProcessPNCounter (PNCounterRequest) returns (PNCounterResponse);
-    rpc ProcessGSet (PNCounterRequest) returns (GSetResponse);
+message ORSetRequest {
+    string id = 1 [(.cloudstate.entity_key) = true];
+    repeated ORSetRequestAction actions = 2;
+}
 
-    rpc AddORSet (ORSetAdd) returns (ORSetValue);
-    rpc RemoveORSet (ORSetRemove) returns (ORSetValue);
-    rpc GetORSet (Get) returns (ORSetValue);
-    rpc GetORSetSize (Get) returns (ORSetSize);
-    rpc DeleteORSet (Delete) returns (google.protobuf.Empty);
+message ORSetRequestAction {
+    oneof action {
+        Get get = 1;
+        Delete delete = 2;
+        ORSetAdd add = 3;
+        ORSetRemove remove = 4;
+    }
+}
 
-    rpc EnableFlag (FlagEnable) returns (FlagValue);
-    rpc GetFlag (Get) returns (FlagValue);
-    rpc DeleteFlag (Delete) returns (google.protobuf.Empty);
-
-    rpc SetLWWRegister (LWWRegisterSet) returns (LWWRegisterValue);
-    rpc SetLWWRegisterWithClock (LWWRegisterSetWithClock) returns (LWWRegisterValue);
-    rpc GetLWWRegisterValue (Get) returns (LWWRegisterValue);
-
-    rpc SetORMap (ORMapSet) returns (ORMapEntries);
-    rpc DeleteORMap (ORMapKey) returns (ORMapEntries);
-    rpc ClearORMap (ORMapKey) returns (ORMapEntries);
-    rpc GetORMapSize (Get) returns (ORMapSize);
-    rpc GetORMapEntries (Get) returns (ORMapEntries);
-    rpc GetORMapKeys (Get) returns (ORMapKeys);
-
-    rpc VoteVote (Vote) returns (SelfVote);
-    rpc GetVoteSelfVote (Get) returns (SelfVote);
-    rpc GetVoters (Get) returns (Voters);
+message ORSetResponse {
+    ORSetValue value = 1;
 }
 
 message Get {

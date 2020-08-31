@@ -34,7 +34,6 @@ func TestCRDTGCounter(t *testing.T) {
 		entityId := "gcounter-0"
 		p := newProxy(ctx, s)
 		defer p.teardown()
-
 		t.Run("sending CrdtInit should not fail", func(t *testing.T) {
 			tr := tester{t}
 			p.init(&protocol.CrdtInit{ServiceName: serviceName, EntityId: entityId})

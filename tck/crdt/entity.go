@@ -128,81 +128,69 @@ func (s *SyntheticCRDTs) HandleCommand(cc *crdt.CommandContext, name string, cmd
 				return encoding.MarshalAny(&empty.Empty{})
 			}
 		}
-	}
-
-	switch name {
-	case "AddGSet":
-		switch c := cmd.(type) {
-		case *tc.GSetAdd:
-			anySupportAdd(s.gSet, c.Value)
-			v := tc.GSetValueAnySupport{Values: make([]*tc.AnySupportType, 0, len(s.gSet.Value()))}
-			for _, a := range s.gSet.Value() {
-				if strings.HasPrefix(a.TypeUrl, encoding.JSONTypeURLPrefix) {
-					v.Values = append(v.Values, &tc.AnySupportType{
-						Value: &tc.AnySupportType_AnyValue{AnyValue: a},
-					})
-					continue
+	case *tc.GSetRequest:
+		for _, as := range c.GetActions() {
+			switch a := as.Action.(type) {
+			case *tc.GSetRequestAction_Get:
+				v := tc.GSetValueAnySupport{Values: make([]*tc.AnySupportType, 0, len(s.gSet.Value()))}
+				for _, a := range s.gSet.Value() {
+					v.Values = append(v.Values, asAnySupportType(a))
 				}
-				v.Values = append(v.Values, asAnySupportType(a))
+				if a.Get.FailWith != "" {
+					return nil, errors.New(a.Get.FailWith)
+				}
+				return encoding.MarshalAny(&v)
+			case *tc.GSetRequestAction_Delete:
+				cc.Delete()
+				if a.Delete.FailWith != "" {
+					return nil, errors.New(a.Delete.FailWith)
+				}
+				return encoding.MarshalAny(&empty.Empty{})
+			case *tc.GSetRequestAction_Add:
+				anySupportAdd(s.gSet, a.Add.Value)
+				v := tc.GSetValueAnySupport{Values: make([]*tc.AnySupportType, 0, len(s.gSet.Value()))}
+				for _, a := range s.gSet.Value() {
+					if strings.HasPrefix(a.TypeUrl, encoding.JSONTypeURLPrefix) {
+						v.Values = append(v.Values, &tc.AnySupportType{
+							Value: &tc.AnySupportType_AnyValue{AnyValue: a},
+						})
+						continue
+					}
+					v.Values = append(v.Values, asAnySupportType(a))
+				}
+				if a.Add.FailWith != "" {
+					return nil, errors.New(a.Add.FailWith)
+				}
+				return encoding.MarshalAny(&v)
 			}
-			if c.FailWith != "" {
-				return nil, errors.New(c.FailWith)
-			}
-			return encoding.MarshalAny(&v)
 		}
-	case "GetGSet":
-		switch c := cmd.(type) {
-		case *tc.GSetAdd:
-			v := tc.GSetValueAnySupport{Values: make([]*tc.AnySupportType, 0, len(s.gSet.Value()))}
-			for _, a := range s.gSet.Value() {
-				v.Values = append(v.Values, asAnySupportType(a))
+	case *tc.ORSetRequest:
+		for _, as := range c.GetActions() {
+			switch a := as.Action.(type) {
+			case *tc.ORSetRequestAction_Get:
+				if a.Get.FailWith != "" {
+					return nil, errors.New(a.Get.FailWith)
+				}
+				return encoding.MarshalAny(&tc.ORSetValue{Values: s.orSet.Value()})
+			case *tc.ORSetRequestAction_Delete:
+				cc.Delete()
+				if a.Delete.FailWith != "" {
+					return nil, errors.New(a.Delete.FailWith)
+				}
+				return encoding.MarshalAny(&empty.Empty{})
+			case *tc.ORSetRequestAction_Add:
+				anySupportAdd(s.orSet, a.Add.Value)
+				if a.Add.FailWith != "" {
+					return nil, errors.New(a.Add.FailWith)
+				}
+				return encoding.MarshalAny(&tc.ORSetValue{Values: s.orSet.Value()})
+			case *tc.ORSetRequestAction_Remove:
+				anySupportRemove(s.orSet, cmd.(*tc.ORSetRemove).Value)
+				if a.Remove.FailWith != "" {
+					return nil, errors.New(a.Remove.FailWith)
+				}
+				return encoding.MarshalAny(&tc.ORSetValue{Values: s.orSet.Value()})
 			}
-			if c.FailWith != "" {
-				return nil, errors.New(c.FailWith)
-			}
-			return encoding.MarshalAny(&v)
-		}
-	case "GetGSetSize":
-		switch c := cmd.(type) {
-		case *tc.Get:
-			if c.FailWith != "" {
-				return nil, errors.New(c.FailWith)
-			}
-			return encoding.MarshalAny(&tc.GSetSize{Value: int64(s.gSet.Size())})
-		}
-	case "AddORSet":
-		switch c := cmd.(type) {
-		case *tc.ORSetAdd:
-			anySupportAdd(s.orSet, c.Value)
-			if c.FailWith != "" {
-				return nil, errors.New(c.FailWith)
-			}
-			return encoding.MarshalAny(&tc.ORSetValue{Values: s.orSet.Value()})
-		}
-	case "RemoveORSet":
-		switch c := cmd.(type) {
-		case *tc.ORSetRemove:
-			if c.FailWith != "" {
-				return nil, errors.New(c.FailWith)
-			}
-			anySupportRemove(s.orSet, cmd.(*tc.ORSetRemove).Value)
-			return encoding.MarshalAny(&tc.ORSetValue{Values: s.orSet.Value()})
-		}
-	case "GetORSet":
-		switch c := cmd.(type) {
-		case *tc.Get:
-			if c.FailWith != "" {
-				return nil, errors.New(c.FailWith)
-			}
-			return encoding.MarshalAny(&tc.ORSetValue{Values: s.orSet.Value()})
-		}
-	case "GetORSetSize":
-		switch c := cmd.(type) {
-		case *tc.Get:
-			if c.FailWith != "" {
-				return nil, errors.New(c.FailWith)
-			}
-			return encoding.MarshalAny(&tc.ORSetSize{Value: int64(s.orSet.Size())})
 		}
 	}
 	return nil, errors.New("unhandled command")

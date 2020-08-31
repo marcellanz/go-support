@@ -11,15 +11,15 @@ func gcounterRequest(a ...proto.Message) *crdt.GCounterRequest {
 	}
 	for _, i := range a {
 		switch t := i.(type) {
-		case *crdt.GCounterIncrement:
-			r.Id = t.Key
-			r.Actions = append(r.Actions, &crdt.GCounterRequestAction{Action: &crdt.GCounterRequestAction_Increment{Increment: t}})
 		case *crdt.Get:
 			r.Id = t.Key
 			r.Actions = append(r.Actions, &crdt.GCounterRequestAction{Action: &crdt.GCounterRequestAction_Get{Get: t}})
 		case *crdt.Delete:
 			r.Id = t.Key
 			r.Actions = append(r.Actions, &crdt.GCounterRequestAction{Action: &crdt.GCounterRequestAction_Delete{Delete: t}})
+		case *crdt.GCounterIncrement:
+			r.Id = t.Key
+			r.Actions = append(r.Actions, &crdt.GCounterRequestAction{Action: &crdt.GCounterRequestAction_Increment{Increment: t}})
 		default:
 			panic("no type matched")
 		}

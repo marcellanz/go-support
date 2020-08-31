@@ -21,6 +21,7 @@ func TestCRDTGSet(t *testing.T) {
 
 	t.Run("GSet", func(t *testing.T) {
 		entityId := "gset-1"
+		command := "ProcessGSet"
 		p := newProxy(ctx, s)
 		defer p.teardown()
 		p.init(&protocol.CrdtInit{ServiceName: serviceName, EntityId: entityId})
@@ -32,8 +33,7 @@ func TestCRDTGSet(t *testing.T) {
 		t.Run("calling AddGSet should emit client action and create state action", func(t *testing.T) {
 			tr := tester{t}
 			switch m := p.command(
-				entityId, "AddGSet", &crdt.GSetAdd{Key: entityId, Value: &crdt.AnySupportType{Value: &crdt.AnySupportType_AnyValue{AnyValue: encoding.Struct(pair{"one", 1})}},
-				},
+				entityId, command, gsetRequest(&crdt.GSetAdd{Key: entityId, Value: &crdt.AnySupportType{Value: &crdt.AnySupportType_AnyValue{AnyValue: encoding.Struct(pair{"one", 1})}}}),
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
 				tr.expectedNil(m.Reply.GetStateAction().GetUpdate())
@@ -61,8 +61,7 @@ func TestCRDTGSet(t *testing.T) {
 		t.Run("further calls of AddGSet should emit client action and delta state action", func(t *testing.T) {
 			tr := tester{t}
 			switch m := p.command(
-				entityId, "AddGSet", &crdt.GSetAdd{Key: entityId, Value: &crdt.AnySupportType{Value: &crdt.AnySupportType_AnyValue{AnyValue: encoding.Struct(pair{"two", 2})}},
-				},
+				entityId, command, gsetRequest(&crdt.GSetAdd{Key: entityId, Value: &crdt.AnySupportType{Value: &crdt.AnySupportType_AnyValue{AnyValue: encoding.Struct(pair{"two", 2})}}}),
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
 				tr.expectedNil(m.Reply.GetStateAction().GetCreate())
@@ -131,6 +130,7 @@ func TestCRDTGSet(t *testing.T) {
 
 	t.Run("GSet AnySupportTypes", func(t *testing.T) {
 		entityId := "gset-2"
+		command := "ProcessGSet"
 		p := newProxy(ctx, s)
 		defer p.teardown()
 		p.init(&protocol.CrdtInit{
@@ -147,6 +147,6 @@ func TestCRDTGSet(t *testing.T) {
 			{Value: &crdt.AnySupportType_StringValue{StringValue: "five"}},
 			{Value: &crdt.AnySupportType_BytesValue{BytesValue: []byte{'a', 'b', 3, 4, 5, 6}}},
 		}
-		p.command(entityId, "AddGSet", &crdt.GSetAdd{Key: entityId, Value: values[0]})
+		p.command(entityId, command, gsetRequest(&crdt.GSetAdd{Key: entityId, Value: values[0]}))
 	})
 }
