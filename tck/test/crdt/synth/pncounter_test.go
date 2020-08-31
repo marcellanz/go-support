@@ -29,9 +29,9 @@ func TestCRDTPNCounter(t *testing.T) {
 				entityId, command, pncounterRequest(&crdt.PNCounterIncrement{Key: entityId, Value: 7}),
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
-				var value crdt.PNCounterValue
-				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &value)
-				tr.expectedInt64(value.GetValue(), 7)
+				var r crdt.PNCounterResponse
+				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
+				tr.expectedInt64(r.GetValue().GetValue(), 7)
 				tr.expectedInt64(m.Reply.GetStateAction().GetCreate().GetPncounter().GetValue(), 7)
 			default:
 				tr.unexpected(m)
@@ -43,9 +43,9 @@ func TestCRDTPNCounter(t *testing.T) {
 				entityId, command, pncounterRequest(&crdt.PNCounterIncrement{Key: entityId, Value: 7}),
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
-				var value crdt.PNCounterValue
-				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &value)
-				tr.expectedInt64(value.GetValue(), 14)
+				var r crdt.PNCounterResponse
+				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
+				tr.expectedInt64(r.GetValue().GetValue(), 14)
 				tr.expectedInt64(m.Reply.GetStateAction().GetUpdate().GetPncounter().GetChange(), 7)
 			default:
 				tr.unexpected(m)
@@ -57,9 +57,9 @@ func TestCRDTPNCounter(t *testing.T) {
 				entityId, command, pncounterRequest(&crdt.PNCounterDecrement{Key: entityId, Value: 28}),
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
-				var value crdt.PNCounterValue
-				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &value)
-				tr.expectedInt64(value.GetValue(), -14)
+				var r crdt.PNCounterResponse
+				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
+				tr.expectedInt64(r.GetValue().GetValue(), -14)
 				tr.expectedInt64(m.Reply.GetStateAction().GetUpdate().GetPncounter().GetChange(), -28)
 			default:
 				tr.unexpected(m)
@@ -72,9 +72,9 @@ func TestCRDTPNCounter(t *testing.T) {
 				entityId, command, pncounterRequest(&crdt.Get{Key: entityId}),
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
-				var value crdt.PNCounterValue
-				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &value)
-				tr.expectedInt64(value.GetValue(), 49)
+				var r crdt.PNCounterResponse
+				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
+				tr.expectedInt64(r.GetValue().GetValue(), 49)
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
 			default:
 				tr.unexpected(m)
@@ -87,9 +87,9 @@ func TestCRDTPNCounter(t *testing.T) {
 				entityId, command, pncounterRequest(&crdt.Get{Key: entityId}),
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
-				var value crdt.PNCounterValue
-				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &value)
-				tr.expectedInt64(value.GetValue(), -7)
+				var r crdt.PNCounterResponse
+				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
+				tr.expectedInt64(r.GetValue().GetValue(), -7)
 			default:
 				tr.unexpected(m)
 			}

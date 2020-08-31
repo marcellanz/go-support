@@ -62,19 +62,27 @@ message PNCounterResponse {
     PNCounterValue value = 1;
 }
 
+message GSetRequest {
+    string id = 1 [(.cloudstate.entity_key) = true];
+    repeated GSetRequestAction actions = 2;
+}
+
+message GSetRequestAction {
+    oneof action {
+        Get get = 1;
+        Delete delete = 2;
+        GSetAdd add = 3;
+    }
+}
+
+message GSetResponse {
+    GSetValue value = 1;
+}
+
 service TckCrdt {
     rpc ProcessGCounter (GCounterRequest) returns (GCounterResponse);
-    rpc ProcessPNCounter (PNCounterRequest) returns (PNCounterValue);
-
-    //    rpc IncrementPNCounter (PNCounterIncrement) returns (PNCounterValue);
-    //    rpc DecrementPNCounter (PNCounterDecrement) returns (PNCounterValue);
-    //    rpc GetPNCounter (Get) returns (PNCounterValue);
-    //    rpc DeletePNCounter (Delete) returns (google.protobuf.Empty);
-
-    rpc AddGSet (GSetAdd) returns (GSetValue);
-    rpc GetGSet (Get) returns (GSetValue);
-    rpc GetGSetSize (Get) returns (GSetSize);
-    rpc DeleteGSet (Delete) returns (GSetSize);
+    rpc ProcessPNCounter (PNCounterRequest) returns (PNCounterResponse);
+    rpc ProcessGSet (PNCounterRequest) returns (GSetResponse);
 
     rpc AddORSet (ORSetAdd) returns (ORSetValue);
     rpc RemoveORSet (ORSetRemove) returns (ORSetValue);

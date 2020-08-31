@@ -108,18 +108,18 @@ func (s *SyntheticCRDTs) HandleCommand(cc *crdt.CommandContext, name string, cmd
 				if a.Increment.FailWith != "" {
 					return nil, errors.New(a.Increment.FailWith)
 				}
-				return encoding.MarshalAny(&tc.PNCounterValue{Value: s.pnCounter.Value()})
+				return encoding.MarshalAny(&tc.PNCounterResponse{Value: &tc.PNCounterValue{Value: s.pnCounter.Value()}})
 			case *tc.PNCounterRequestAction_Decrement:
 				s.pnCounter.Decrement(a.Decrement.Value)
 				if a.Decrement.FailWith != "" {
 					return nil, errors.New(a.Decrement.FailWith)
 				}
-				return encoding.MarshalAny(&tc.PNCounterValue{Value: s.pnCounter.Value()})
+				return encoding.MarshalAny(&tc.PNCounterResponse{Value: &tc.PNCounterValue{Value: s.pnCounter.Value()}})
 			case *tc.PNCounterRequestAction_Get:
 				if a.Get.FailWith != "" {
 					return nil, errors.New(a.Get.FailWith)
 				}
-				return encoding.MarshalAny(&tc.PNCounterValue{Value: s.pnCounter.Value()})
+				return encoding.MarshalAny(&tc.PNCounterResponse{Value: &tc.PNCounterValue{Value: s.pnCounter.Value()}})
 			case *tc.PNCounterRequestAction_Delete:
 				cc.Delete()
 				if a.Delete.FailWith != "" {
