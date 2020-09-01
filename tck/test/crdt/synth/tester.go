@@ -123,6 +123,13 @@ func (t *tester) expectedFalse(got bool) {
 	}
 }
 
+func (t *tester) expectedSame(x *any.Any, i interface{}) {
+	t.t.Helper()
+	if !oneEquals([]*any.Any{x}, i) {
+		t.t.Fatalf("none of %+v found in %+v", i, x)
+	}
+}
+
 func (t *tester) expectedOneIn(x []*any.Any, i interface{}) {
 	t.t.Helper()
 	if !oneEquals(x, i) {

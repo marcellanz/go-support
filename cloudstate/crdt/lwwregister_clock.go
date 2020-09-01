@@ -53,7 +53,7 @@ const (
 	CustomAutoIncrement
 )
 
-func fromCrdtClock(clock protocol.CrdtClock) Clock {
+func FromCrdtClock(clock protocol.CrdtClock) Clock {
 	switch clock {
 	case protocol.CrdtClock_DEFAULT:
 		return Default

@@ -33,10 +33,7 @@ service TckCrdt {
     rpc ProcessGSet (GSetRequest) returns (GSetResponse);
     rpc ProcessORSet (ORSetRequest) returns (ORSetResponse);
     rpc ProcessFlag (FlagRequest) returns (FlagResponse);
-
-    rpc SetLWWRegister (LWWRegisterSet) returns (LWWRegisterValue);
-    rpc SetLWWRegisterWithClock (LWWRegisterSetWithClock) returns (LWWRegisterValue);
-    rpc GetLWWRegisterValue (Get) returns (LWWRegisterValue);
+    rpc ProcessLWWRegister (LWWRegisterRequest) returns (LWWRegisterResponse);
 
     rpc SetORMap (ORMapSet) returns (ORMapEntries);
     rpc DeleteORMap (ORMapKey) returns (ORMapEntries);
@@ -135,6 +132,24 @@ message FlagRequestAction {
 
 message FlagResponse {
     FlagValue value = 1;
+}
+
+message LWWRegisterRequest {
+    string id = 1 [(.cloudstate.entity_key) = true];
+    repeated LWWRegisterRequestAction actions = 2;
+}
+
+message LWWRegisterRequestAction {
+    oneof action {
+        Get get = 1;
+        Delete delete = 2;
+        LWWRegisterSet set = 3;
+        LWWRegisterSetWithClock setWithClock = 4;
+    }
+}
+
+message LWWRegisterResponse {
+    LWWRegisterValue value = 1;
 }
 
 message Get {
@@ -236,7 +251,7 @@ message FlagValue {
 message LWWRegisterSet {
     string key = 1 [(.cloudstate.entity_key) = true];
     string failWith = 2;
-    google.protobuf.Any value = 3;
+    AnySupportType value = 3;
 }
 
 // copy from crdt.proto
@@ -256,7 +271,7 @@ enum CrdtClock {
 message LWWRegisterSetWithClock {
     string key = 1 [(.cloudstate.entity_key) = true];
     string failWith = 2;
-    google.protobuf.Any value = 3;
+    AnySupportType value = 3;
     CrdtClock clock = 4;
     int64 custom_clock_value = 5;
 }

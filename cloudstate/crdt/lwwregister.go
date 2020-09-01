@@ -132,7 +132,7 @@ func (r *LWWRegister) applyState(delta *protocol.CrdtState) error {
 		return fmt.Errorf("unable to apply delta %+v to LWWRegister", delta)
 	}
 	r.value = d.GetValue()
-	r.clock = fromCrdtClock(d.GetClock())
+	r.clock = FromCrdtClock(d.GetClock())
 	r.customClockValue = d.GetCustomClockValue()
 	return nil
 }

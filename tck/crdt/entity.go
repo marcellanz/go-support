@@ -29,13 +29,14 @@ import (
 )
 
 type SyntheticCRDTs struct {
-	id        crdt.EntityId
-	gCounter  *crdt.GCounter
-	pnCounter *crdt.PNCounter
-	gSet      *crdt.GSet
-	orSet     *crdt.ORSet
-	flag      *crdt.Flag
-	vote      *crdt.Vote
+	id          crdt.EntityId
+	gCounter    *crdt.GCounter
+	pnCounter   *crdt.PNCounter
+	gSet        *crdt.GSet
+	orSet       *crdt.ORSet
+	flag        *crdt.Flag
+	lwwRegister *crdt.LWWRegister
+	vote        *crdt.Vote
 }
 
 func NewEntity(id crdt.EntityId) *SyntheticCRDTs {
@@ -54,6 +55,8 @@ func (s *SyntheticCRDTs) Set(_ *crdt.Context, c crdt.CRDT) {
 		s.orSet = v
 	case *crdt.Flag:
 		s.flag = v
+	case *crdt.LWWRegister:
+		s.lwwRegister = v
 	case *crdt.Vote:
 		s.vote = v
 	}
@@ -77,6 +80,9 @@ func (s *SyntheticCRDTs) Default(c *crdt.Context) (crdt.CRDT, error) {
 	}
 	if strings.HasPrefix(c.EntityId.String(), "vote-") {
 		return crdt.NewVote(), nil
+	}
+	if strings.HasPrefix(c.EntityId.String(), "lwwregister-") {
+		return crdt.NewLWWRegister(nil), nil
 	}
 	return nil, errors.New("unknown entity type")
 }
@@ -219,6 +225,38 @@ func (s *SyntheticCRDTs) HandleCommand(cc *crdt.CommandContext, name string, cmd
 				return encoding.MarshalAny(&tc.FlagValue{Value: s.flag.Value()})
 			}
 		}
+	case *tc.LWWRegisterRequest:
+		for _, as := range c.GetActions() {
+			switch a := as.Action.(type) {
+			case *tc.LWWRegisterRequestAction_Get:
+				if a.Get.FailWith != "" {
+					return nil, errors.New(a.Get.FailWith)
+				}
+				return encoding.MarshalAny(&tc.FlagValue{Value: s.flag.Value()})
+			case *tc.LWWRegisterRequestAction_Delete:
+				if a.Delete.FailWith != "" {
+					return nil, errors.New(a.Delete.FailWith)
+				}
+				return encoding.MarshalAny(&empty.Empty{})
+			case *tc.LWWRegisterRequestAction_Set:
+				if a.Set.FailWith != "" {
+					return nil, errors.New(a.Set.FailWith)
+				}
+				anySupportAdd(&anySupportAdderSetter{s.lwwRegister}, a.Set.GetValue())
+				return encoding.MarshalAny(&tc.LWWRegisterValue{Value: s.lwwRegister.Value()})
+			case *tc.LWWRegisterRequestAction_SetWithClock:
+				if a.SetWithClock.FailWith != "" {
+					return nil, errors.New(a.SetWithClock.FailWith)
+				}
+				anySupportSetClock(
+					s.lwwRegister,
+					a.SetWithClock.GetValue(),
+					crdt.Clock(uint64(a.SetWithClock.GetClock().Number())),
+					a.SetWithClock.CustomClockValue,
+				)
+				return encoding.MarshalAny(&tc.LWWRegisterValue{Value: s.lwwRegister.Value()})
+			}
+		}
 	}
 	return nil, errors.New("unhandled command")
 }
@@ -259,6 +297,18 @@ func asAnySupportType(x *any.Any) *tc.AnySupportType {
 
 type anySupportAdder interface {
 	Add(x *any.Any)
+}
+
+type anySupportSetter interface {
+	Set(x *any.Any)
+}
+
+type anySupportAdderSetter struct {
+	anySupportSetter
+}
+
+func (s *anySupportAdderSetter) Add(x *any.Any) {
+	s.Set(x)
 }
 
 type anySupportRemover interface {
@@ -304,5 +354,26 @@ func anySupportAdd(a anySupportAdder, t *tc.AnySupportType) {
 		a.Add(encoding.Int32(v.Int32Value))
 	case *tc.AnySupportType_Int64Value:
 		a.Add(encoding.Int64(v.Int64Value))
+	}
+}
+
+func anySupportSetClock(r *crdt.LWWRegister, t *tc.AnySupportType, clock crdt.Clock, customValue int64) {
+	switch v := t.Value.(type) {
+	case *tc.AnySupportType_AnyValue:
+		r.SetWithClock(v.AnyValue, clock, customValue)
+	case *tc.AnySupportType_StringValue:
+		r.SetWithClock(encoding.String(v.StringValue), clock, customValue)
+	case *tc.AnySupportType_BytesValue:
+		r.SetWithClock(encoding.Bytes(v.BytesValue), clock, customValue)
+	case *tc.AnySupportType_BoolValue:
+		r.SetWithClock(encoding.Bool(v.BoolValue), clock, customValue)
+	case *tc.AnySupportType_DoubleValue:
+		r.SetWithClock(encoding.Float64(v.DoubleValue), clock, customValue)
+	case *tc.AnySupportType_FloatValue:
+		r.SetWithClock(encoding.Float32(v.FloatValue), clock, customValue)
+	case *tc.AnySupportType_Int32Value:
+		r.SetWithClock(encoding.Int32(v.Int32Value), clock, customValue)
+	case *tc.AnySupportType_Int64Value:
+		r.SetWithClock(encoding.Int64(v.Int64Value), clock, customValue)
 	}
 }
