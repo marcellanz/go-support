@@ -34,6 +34,7 @@ type SyntheticCRDTs struct {
 	pnCounter *crdt.PNCounter
 	gSet      *crdt.GSet
 	orSet     *crdt.ORSet
+	flag      *crdt.Flag
 	vote      *crdt.Vote
 }
 
@@ -51,6 +52,8 @@ func (s *SyntheticCRDTs) Set(_ *crdt.Context, c crdt.CRDT) {
 		s.gSet = v
 	case *crdt.ORSet:
 		s.orSet = v
+	case *crdt.Flag:
+		s.flag = v
 	case *crdt.Vote:
 		s.vote = v
 	}
@@ -68,6 +71,9 @@ func (s *SyntheticCRDTs) Default(c *crdt.Context) (crdt.CRDT, error) {
 	}
 	if strings.HasPrefix(c.EntityId.String(), "orset-") {
 		return crdt.NewORSet(), nil
+	}
+	if strings.HasPrefix(c.EntityId.String(), "flag-") {
+		return crdt.NewFlag(), nil
 	}
 	if strings.HasPrefix(c.EntityId.String(), "vote-") {
 		return crdt.NewVote(), nil
@@ -185,11 +191,32 @@ func (s *SyntheticCRDTs) HandleCommand(cc *crdt.CommandContext, name string, cmd
 				}
 				return encoding.MarshalAny(&tc.ORSetValue{Values: s.orSet.Value()})
 			case *tc.ORSetRequestAction_Remove:
-				anySupportRemove(s.orSet, cmd.(*tc.ORSetRemove).Value)
+				anySupportRemove(s.orSet, a.Remove.Value)
 				if a.Remove.FailWith != "" {
 					return nil, errors.New(a.Remove.FailWith)
 				}
 				return encoding.MarshalAny(&tc.ORSetValue{Values: s.orSet.Value()})
+			}
+		}
+	case *tc.FlagRequest:
+		for _, as := range c.GetActions() {
+			switch a := as.Action.(type) {
+			case *tc.FlagRequestAction_Get:
+				if a.Get.FailWith != "" {
+					return nil, errors.New(a.Get.FailWith)
+				}
+				return encoding.MarshalAny(&tc.FlagValue{Value: s.flag.Value()})
+			case *tc.FlagRequestAction_Delete:
+				if a.Delete.FailWith != "" {
+					return nil, errors.New(a.Delete.FailWith)
+				}
+				return encoding.MarshalAny(&empty.Empty{})
+			case *tc.FlagRequestAction_Enable:
+				if a.Enable.FailWith != "" {
+					return nil, errors.New(a.Enable.FailWith)
+				}
+				s.flag.Enable()
+				return encoding.MarshalAny(&tc.FlagValue{Value: s.flag.Value()})
 			}
 		}
 	}

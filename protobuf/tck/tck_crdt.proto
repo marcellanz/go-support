@@ -32,10 +32,7 @@ service TckCrdt {
     rpc ProcessPNCounter (PNCounterRequest) returns (PNCounterResponse);
     rpc ProcessGSet (GSetRequest) returns (GSetResponse);
     rpc ProcessORSet (ORSetRequest) returns (ORSetResponse);
-
-    rpc EnableFlag (FlagEnable) returns (FlagValue);
-    rpc GetFlag (Get) returns (FlagValue);
-    rpc DeleteFlag (Delete) returns (google.protobuf.Empty);
+    rpc ProcessFlag (FlagRequest) returns (FlagResponse);
 
     rpc SetLWWRegister (LWWRegisterSet) returns (LWWRegisterValue);
     rpc SetLWWRegisterWithClock (LWWRegisterSetWithClock) returns (LWWRegisterValue);
@@ -121,6 +118,23 @@ message ORSetRequestAction {
 
 message ORSetResponse {
     ORSetValue value = 1;
+}
+
+message FlagRequest {
+    string id = 1 [(.cloudstate.entity_key) = true];
+    repeated FlagRequestAction actions = 2;
+}
+
+message FlagRequestAction {
+    oneof action {
+        Get get = 1;
+        Delete delete = 2;
+        FlagEnable enable = 3;
+    }
+}
+
+message FlagResponse {
+    FlagValue value = 1;
 }
 
 message Get {

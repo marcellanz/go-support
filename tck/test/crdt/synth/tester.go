@@ -29,6 +29,7 @@ type tester struct {
 }
 
 func (t *tester) toStruct(x *any.Any, i interface{}) {
+	t.t.Helper()
 	if err := encoding.DecodeStruct(x, i); err != nil {
 		t.t.Fatal(err)
 	}
@@ -106,4 +107,34 @@ func (t *tester) expectedBool(got bool, want bool) {
 	if got != want {
 		t.t.Fatalf("got = %v; wanted: %v", got, want)
 	}
+}
+
+func (t *tester) expectedTrue(got bool) {
+	t.t.Helper()
+	if got != true {
+		t.t.Fatalf("got = %v; wanted: %v", got, true)
+	}
+}
+
+func (t *tester) expectedFalse(got bool) {
+	t.t.Helper()
+	if got != false {
+		t.t.Fatalf("got = %v; wanted: %v", got, false)
+	}
+}
+
+func (t *tester) expectedOneIn(x []*any.Any, i interface{}) {
+	t.t.Helper()
+	if !oneEquals(x, i) {
+		t.t.Fatalf("none of %+v found in %+v", i, x)
+	}
+}
+
+func oneEquals(x []*any.Any, i interface{}) bool {
+	for _, a := range x {
+		if reflect.DeepEqual(a, i) {
+			return true
+		}
+	}
+	return false
 }
