@@ -16,7 +16,6 @@
 package crdt
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
@@ -51,8 +50,8 @@ func NewORMap() *ORMap {
 	return &ORMap{
 		value: make(map[uint64]*orMapValue),
 		delta: orMapDelta{
-			added:   make(map[uint64]*any.Any, 0),
-			removed: make(map[uint64]*any.Any, 0),
+			added:   make(map[uint64]*any.Any, 8),
+			removed: make(map[uint64]*any.Any, 8),
 			cleared: false,
 		},
 		anyHasher: &anyHasher{},
@@ -187,7 +186,7 @@ func (m *ORMap) Delta() *protocol.CrdtDelta {
 func (m *ORMap) applyDelta(delta *protocol.CrdtDelta) error {
 	d := delta.GetOrmap()
 	if d == nil {
-		return errors.New(fmt.Sprintf("unable to apply delta %v to the ORMap", delta))
+		return fmt.Errorf("unable to apply delta %v to the ORMap", delta)
 	}
 	if d.GetCleared() {
 		m.value = make(map[uint64]*orMapValue)

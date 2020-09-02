@@ -16,7 +16,6 @@
 package crdt
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
@@ -83,7 +82,7 @@ func (c *GCounter) resetDelta() {
 func (c *GCounter) applyState(state *protocol.CrdtState) error {
 	s := state.GetGcounter()
 	if s == nil {
-		return errors.New(fmt.Sprintf("unable to apply state %v to GCounter", state))
+		return fmt.Errorf("unable to apply state %v to GCounter", state)
 	}
 	c.value = state.GetGcounter().GetValue()
 	return nil
@@ -92,7 +91,7 @@ func (c *GCounter) applyState(state *protocol.CrdtState) error {
 func (c *GCounter) applyDelta(delta *protocol.CrdtDelta) error {
 	d := delta.GetGcounter()
 	if d == nil {
-		return errors.New(fmt.Sprintf("unable to apply delta %v to GCounter", delta))
+		return fmt.Errorf("unable to apply delta %v to GCounter", delta)
 	}
 	c.value += d.GetIncrement()
 	return nil

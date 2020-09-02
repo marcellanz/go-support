@@ -138,7 +138,9 @@ func TestGset(t *testing.T) {
 		s := NewGSet()
 		s.Add(encoding.String("one"))
 		s.resetDelta()
-		s.applyDelta(delta(append(make([]*any.Any, 0), encoding.String("two"))))
+		if err := s.applyDelta(delta(append(make([]*any.Any, 0), encoding.String("two")))); err != nil {
+			t.Fatal(err)
+		}
 		if s.Size() != 2 {
 			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 2)
 		}
@@ -177,7 +179,9 @@ func TestGset(t *testing.T) {
 		foundOne := false
 		for _, v := range delta.GetGset().GetAdded() {
 			e := Example{}
-			encoding.UnmarshalJSON(v, &e)
+			if err := encoding.UnmarshalJSON(v, &e); err != nil {
+				t.Fatal(err)
+			}
 			if e.Field1 == "two" {
 				foundOne = true
 			}

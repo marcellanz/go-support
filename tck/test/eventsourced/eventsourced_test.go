@@ -231,7 +231,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 			t.Fatalf("unexpected message: %+v", m)
 		}
 		// get the shopping cart
-		r, err = p.sendRecvCmdErr(command{
+		_, err = p.sendRecvCmdErr(command{
 			c: &protocol.Command{
 				EntityId: "e2",
 				Name:     "GetShoppingCart",

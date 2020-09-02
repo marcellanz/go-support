@@ -151,7 +151,7 @@ func (s *ORSet) Delta() *protocol.CrdtDelta {
 }
 
 func (s *ORSet) HasDelta() bool {
-	return s.cleared == true || len(s.added) > 0 || len(s.removed) > 0
+	return s.cleared || len(s.added) > 0 || len(s.removed) > 0
 }
 
 func (s *ORSet) resetDelta() {
@@ -170,9 +170,7 @@ func (s *ORSet) applyDelta(delta *protocol.CrdtDelta) error {
 	}
 	for _, r := range d.GetRemoved() {
 		h := s.hashAny(r)
-		if _, has := s.value[h]; has {
-			delete(s.value, h)
-		}
+		delete(s.value, h)
 	}
 	for _, a := range d.GetAdded() {
 		h := s.hashAny(a)

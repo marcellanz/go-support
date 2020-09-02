@@ -26,7 +26,7 @@ import (
 func TestORSet(t *testing.T) {
 	t.Run("should reflect a state update", func(t *testing.T) {
 		s := NewORSet()
-		s.applyState(
+		err := s.applyState(
 			&protocol.CrdtState{
 				State: &protocol.CrdtState_Orset{
 					Orset: &protocol.ORSetState{
@@ -35,6 +35,9 @@ func TestORSet(t *testing.T) {
 				},
 			},
 		)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if s.Size() != 2 {
 			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 2)
 		}
@@ -120,7 +123,7 @@ func TestORSet(t *testing.T) {
 		if !delta.GetOrset().GetCleared() {
 			t.Fail()
 		}
-		delta = s.Delta()
+		s.Delta()
 		if s.HasDelta() {
 			t.Fatalf("set has delta")
 		}

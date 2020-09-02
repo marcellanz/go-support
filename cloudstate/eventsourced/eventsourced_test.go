@@ -23,7 +23,6 @@ import (
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 )
@@ -208,25 +207,25 @@ func newHandler(t *testing.T) *Server {
 	return handler
 }
 
-func initHandler(handler *Server, t *testing.T) {
-	server := TestEventSourcedHandleServer{}
-	err := handler.handleInit(&protocol.EventSourcedInit{
-		ServiceName: "TestEventSourcedServer-Service",
-		EntityId:    "entity-0",
-	}, &runner{stream: server})
-	if err != nil {
-		t.Errorf("%v", err)
-		t.Fail()
-	}
-}
+// func initHandler(handler *Server, t *testing.T) {
+// 	server := TestEventSourcedHandleServer{}
+// 	err := handler.handleInit(&protocol.EventSourcedInit{
+// 		ServiceName: "TestEventSourcedServer-Service",
+// 		EntityId:    "entity-0",
+// 	}, &runner{stream: server})
+// 	if err != nil {
+// 		t.Errorf("%v", err)
+// 		t.Fail()
+// 	}
+// }
 
-func marshal(msg proto.Message, t *testing.T) ([]byte, error) {
-	cmd, err := proto.Marshal(msg)
-	if err != nil {
-		t.Errorf("%v", err)
-	}
-	return cmd, err
-}
+// func marshal(msg proto.Message, t *testing.T) ([]byte, error) {
+// 	cmd, err := proto.Marshal(msg)
+// 	if err != nil {
+// 		t.Errorf("%v", err)
+// 	}
+// 	return cmd, err
+// }
 
 func TestMain(m *testing.M) {
 	proto.RegisterType((*IncrementByEvent)(nil), "IncrementByEvent")
@@ -262,49 +261,49 @@ func TestSnapshot(t *testing.T) {
 	}
 }
 
-func Ignore_TestEventSourcedServerHandlesCommandAndEvents(t *testing.T) {
-	resetTestEntity()
-	handler := newHandler(t)
-	initHandler(handler, t)
-	incrementedTo := int64(7)
-	incrCmdValue, err := marshal(&IncrementByCommand{Amount: incrementedTo}, t)
-	incrCommand := protocol.Command{
-		EntityId: "entity-0",
-		Id:       1,
-		Name:     "IncrementByCommand",
-		Payload: &any.Any{
-			TypeUrl: "type.googleapis.com/IncrementByCommand",
-			Value:   incrCmdValue,
-		},
-	}
-	server := TestEventSourcedHandleServer{}
-	r := &runner{stream: server}
-	err = r.handleCommand(&incrCommand)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	if testEntity.Value != incrementedTo {
-		t.Fatalf("testEntity.Value: (%v) != incrementedTo: (%v)", testEntity.Value, incrementedTo)
-	}
-
-	decrCmdValue, err := proto.Marshal(&DecrementByCommand{Amount: incrementedTo})
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	decrCommand := protocol.Command{
-		EntityId: "entity-0",
-		Id:       1,
-		Name:     "DecrementByCommand",
-		Payload: &any.Any{
-			TypeUrl: "type.googleapis.com/DecrementByCommand",
-			Value:   decrCmdValue,
-		},
-	}
-	err = r.handleCommand(&decrCommand)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	if testEntity.Value != 0 {
-		t.Fatalf("testEntity.Value != 0")
-	}
-}
+// func Ignore_TestEventSourcedServerHandlesCommandAndEvents(t *testing.T) {
+// 	resetTestEntity()
+// 	handler := newHandler(t)
+// 	initHandler(handler, t)
+// 	incrementedTo := int64(7)
+// 	incrCmdValue, err := marshal(&IncrementByCommand{Amount: incrementedTo}, t)
+// 	incrCommand := protocol.Command{
+// 		EntityId: "entity-0",
+// 		Id:       1,
+// 		Name:     "IncrementByCommand",
+// 		Payload: &any.Any{
+// 			TypeUrl: "type.googleapis.com/IncrementByCommand",
+// 			Value:   incrCmdValue,
+// 		},
+// 	}
+// 	server := TestEventSourcedHandleServer{}
+// 	r := &runner{stream: server}
+// 	err = r.handleCommand(&incrCommand)
+// 	if err != nil {
+// 		t.Fatalf("%v", err)
+// 	}
+// 	if testEntity.Value != incrementedTo {
+// 		t.Fatalf("testEntity.Value: (%v) != incrementedTo: (%v)", testEntity.Value, incrementedTo)
+// 	}
+//
+// 	decrCmdValue, err := proto.Marshal(&DecrementByCommand{Amount: incrementedTo})
+// 	if err != nil {
+// 		t.Fatalf("%v", err)
+// 	}
+// 	decrCommand := protocol.Command{
+// 		EntityId: "entity-0",
+// 		Id:       1,
+// 		Name:     "DecrementByCommand",
+// 		Payload: &any.Any{
+// 			TypeUrl: "type.googleapis.com/DecrementByCommand",
+// 			Value:   decrCmdValue,
+// 		},
+// 	}
+// 	err = r.handleCommand(&decrCommand)
+// 	if err != nil {
+// 		t.Fatalf("%v", err)
+// 	}
+// 	if testEntity.Value != 0 {
+// 		t.Fatalf("testEntity.Value != 0")
+// 	}
+// }

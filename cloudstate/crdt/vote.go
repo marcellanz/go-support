@@ -16,7 +16,6 @@
 package crdt
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
@@ -122,7 +121,7 @@ func (v *Vote) State() *protocol.CrdtState {
 func (v *Vote) applyDelta(delta *protocol.CrdtDelta) error {
 	d := delta.GetVote()
 	if d == nil {
-		return errors.New(fmt.Sprintf("unable to apply delta %+v to the Vote", delta))
+		return fmt.Errorf("unable to apply delta %+v to the Vote", delta)
 	}
 	v.voters = uint32(d.TotalVoters)
 	v.votesFor = uint32(d.VotesFor)
@@ -132,7 +131,7 @@ func (v *Vote) applyDelta(delta *protocol.CrdtDelta) error {
 func (v *Vote) applyState(state *protocol.CrdtState) error {
 	s := state.GetVote()
 	if s == nil {
-		return errors.New(fmt.Sprintf("unable to apply state %+v to the Vote", state))
+		return fmt.Errorf("unable to apply state %+v to the Vote", state)
 	}
 	v.selfVote = s.SelfVote
 	v.votesFor = s.VotesFor

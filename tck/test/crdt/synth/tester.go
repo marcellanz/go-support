@@ -111,15 +111,15 @@ func (t *tester) expectedBool(got bool, want bool) {
 
 func (t *tester) expectedTrue(got bool) {
 	t.t.Helper()
-	if got != true {
-		t.t.Fatalf("got = %v; wanted: %v", got, true)
+	if !got {
+		t.t.Fatalf("got = %v; wanted: true", got)
 	}
 }
 
 func (t *tester) expectedFalse(got bool) {
 	t.t.Helper()
-	if got != false {
-		t.t.Fatalf("got = %v; wanted: %v", got, false)
+	if got {
+		t.t.Fatalf("got = %v; wanted: false", got)
 	}
 }
 
