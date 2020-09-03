@@ -124,6 +124,12 @@ func (p *proxy) state(m proto.Message) {
 				Gcounter: s,
 			}},
 		})
+	case *protocol.FlagState:
+		p.sendState(state{
+			&protocol.CrdtState{State: &protocol.CrdtState_Flag{
+				Flag: s,
+			}},
+		})
 	default:
 		p.t.Fatal("state type not found")
 	}
@@ -155,6 +161,13 @@ func (p *proxy) delta(m proto.Message) {
 			d: &protocol.CrdtDelta{
 				Delta: &protocol.CrdtDelta_Gcounter{
 					Gcounter: d,
+				}}},
+		)
+	case *protocol.FlagDelta:
+		p.sendDelta(delta{
+			d: &protocol.CrdtDelta{
+				Delta: &protocol.CrdtDelta_Flag{
+					Flag: d,
 				}}},
 		)
 	default:

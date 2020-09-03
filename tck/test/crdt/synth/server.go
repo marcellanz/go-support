@@ -63,6 +63,7 @@ func newServer(t *testing.T) *server {
 			log.Fatalf("Server exited with error: %v", err)
 		}
 	}()
+	s.newClientConn()
 	return &s
 }
 
