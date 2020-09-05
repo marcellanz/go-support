@@ -28,6 +28,11 @@ type ClientError struct {
 	Err error
 }
 
+func (e ClientError) Is(err error) bool {
+	_, ok := err.(ClientError)
+	return ok
+}
+
 func (e ClientError) Error() string {
 	return e.Err.Error()
 }
@@ -41,10 +46,15 @@ type ServerError struct {
 	Err     error
 }
 
-func (f ServerError) Error() string {
-	return f.Err.Error()
+func (e ServerError) Is(err error) bool {
+	_, ok := err.(ServerError)
+	return ok
 }
 
-func (f ServerError) Unwrap() error {
-	return f.Err
+func (e ServerError) Error() string {
+	return e.Err.Error()
+}
+
+func (e ServerError) Unwrap() error {
+	return e.Err
 }

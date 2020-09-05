@@ -57,7 +57,7 @@ func (r *runner) handleDelta(delta *protocol.CrdtDelta) error {
 // is cancelled. The cancellation callback handler may update the crdt. This is useful if the crdt
 // is being used to track connections, for example, when using Vote CRDTs to track a users online status.
 
-// handleCancellation
+// handleCancellation TODO
 func (r *runner) handleCancellation(cancelled *protocol.StreamCancelled) error {
 	id := CommandId(cancelled.GetId())
 	ctx := r.context.streamedCtx[id]
@@ -72,7 +72,6 @@ func (r *runner) handleCancellation(cancelled *protocol.StreamCancelled) error {
 	if err := ctx.cancelled(); err != nil {
 		return err
 	}
-	ctx.deactivate()
 	stateAction := ctx.stateAction()
 	err := r.sendCancelledMessage(&protocol.CrdtStreamCancelledResponse{
 		CommandId:   id.Value(),
@@ -89,23 +88,29 @@ func (r *runner) handleCancellation(cancelled *protocol.StreamCancelled) error {
 }
 
 // handleCommand handles the received command.
-// Cloudstate CRDTs support handling server streamed calls, that is, when the gRPC service call for a CRDT marks the return type as streamed. When a user function receives a streamed message, it is allowed to update the CRDT, on two occasions - when the call is first received, and when the client cancels the stream. If it wishes to make updates at other times, it can do so by emitting effects with the streamed messages that it sends down the stream.
-// A user function can send a message down a stream in response to anything, however the Cloudstate supplied support libraries only allow sending messages in response to the CRDT changing. In this way, use cases that require monitoring the state of a CRDT can be implemented.
+// Cloudstate CRDTs support handling server streamed calls, that is, when the
+// gRPC service call for a CRDT marks the return type as streamed. When a user
+// function receives a streamed message, it is allowed to update the CRDT, on
+// two occasions - when the call is first received, and when the client cancels
+// the stream. If it wishes to make updates at other times, it can do so by
+// emitting effects with the streamed messages that it sends down the stream.
+// A user function can send a message down a stream in response to anything,
+// however the Cloudstate supplied support libraries only allow sending messages
+// in response to the CRDT changing. In this way, use cases that require monitoring
+// the state of a CRDT can be implemented.
 func (r *runner) handleCommand(cmd *protocol.Command) (streamError error) {
 	if r.context.EntityId != EntityId(cmd.EntityId) {
-		return fmt.Errorf("given cmd.EntityId: %s does not match the initialized entityId: %s", cmd.EntityId, r.context.EntityId)
-	}
-	if _, ok := r.context.streamedCtx[CommandId(cmd.Id)]; ok {
-		return fmt.Errorf("the command has already been handled: %d", cmd.Id)
+		return fmt.Errorf("the command entity id: %s does not match the initialized entity id: %s", cmd.EntityId, r.context.EntityId)
 	}
 	ctx := r.context.commandContextFor(cmd)
 	reply, err := ctx.runCommand(cmd)
+	if err != nil && !errors.Is(err, protocol.ClientError{}) {
+		return err
+	}
 	// TODO: error handling has to be clarified.
 	// 	It seems, CRDT streams stopped for any error, even client failures.
 	//	see: https://github.com/cloudstateio/cloudstate/pull/392
 	if err != nil {
-		// on any error, the context gets deactivated. TODO: hmm this seems wrong, yes?
-		ctx.deactivate() // this will close the stream
 		ctx.fail(err)
 	}
 	// if the user function has failed, a client action failure will be sent
@@ -140,7 +145,7 @@ func (r *runner) handleCommand(cmd *protocol.Command) (streamError error) {
 	// after the command handling, and any stateActions should get handled by existing change handlers
 	// => that is the reason the scala impl copies them over later. TODO: explain in SPEC feedback
 	//
-	// so this makes sense, as we don't support client streaming RPC, so a command is handled
+	// so this makes sense, as we don't support client streaming RPC a command is handled
 	// once and once only.
 	if stateAction != nil {
 		if err := r.handleChange(); err != nil {
@@ -160,7 +165,10 @@ func (r *runner) handleChange() error {
 		}
 		reply, err := ctx.changed()
 		if err != nil {
-			ctx.deactivate() // TODO: why/how? failed, active, deleted; hows that to work?
+			// ctx.deactivate()
+			// TODO: why/how? failed, active, deleted; hows that to work?
+			//  TIL: As contexts get instantiated on every message received and are short-lived for that handle invocation,
+			//  the flag protects one from emitting anything after certain points reached in the stream.
 		}
 		if errors.Is(err, ErrCtxFailCalled) {
 			reply = nil

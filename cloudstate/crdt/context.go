@@ -37,7 +37,6 @@ type Context struct {
 	streamedCtx map[CommandId]*CommandContext
 	// created defines if the CRDT was created by the user function.
 	created bool
-	active  bool
 	deleted bool
 	// failed holds an internal error occurred during message processing where no error path was possible.
 	// user function Emit calls are an example.
@@ -66,12 +65,10 @@ func (c *Context) CRDT() CRDT {
 // Delete marks the CRDT to be deleted initiated by the user function.
 func (c *Context) Delete() {
 	c.deleted = true
-	c.crdt = nil
 }
 
 // fail fails the command with the given message.
 func (c *Context) fail(err error) {
-	// TODO: has to be active, has to be not yet failed => "fail(…) already previously invoked!"
 	if c.failed != nil {
 		return
 	}
@@ -85,20 +82,16 @@ func (c *Context) initDefault() error {
 		c.Instance.Set(c, c.crdt)
 		return nil
 	}
-	// with no state given the entity instance can provide one.
-	c.crdt, c.failed = c.Instance.Default(c)
-	if c.failed != nil {
-		return c.failed
+	// with no state given, the entity instance can provide one.
+	var err error
+	if c.crdt, err = c.Instance.Default(c); err != nil {
+		return err
 	}
 	if c.crdt == nil {
-		return errors.New("no default CRDT set by the entities Default function")
+		return errors.New("no default CRDT set by the entities default method")
 	}
 	// the entity gets the CRDT to be set.
 	c.Instance.Set(c, c.crdt)
 	c.created = true
 	return nil
-}
-
-func (c *Context) deactivate() {
-	c.active = false
 }

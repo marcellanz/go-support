@@ -91,70 +91,75 @@ func (s *Server) Handle(stream protocol.Crdt_HandleServer) error {
 }
 
 // handle handles a streams messages to be received.
-// io.EOF errors will close the stream gracefully, other errors will be
-// sent to the proxy and a nil error value restarts the stream to be reused.
+// io.EOF returned will close the stream gracefully, other errors will be sent
+// to the proxy as a failure and a nil error value restarts the stream to be
+// reused.
 func (s *Server) handle(stream protocol.Crdt_HandleServer) error {
 	first, err := stream.Recv()
 	if err != nil {
 		return err
 	}
-	runner := &runner{stream: stream}
+	r := &runner{stream: stream}
 	switch m := first.GetMessage().(type) {
 	case *protocol.CrdtStreamIn_Init:
 		// first, always a CrdtInit message must be received.
-		if err = s.handleInit(m.Init, runner); err != nil {
+		if err = s.handleInit(m.Init, r); err != nil {
 			return fmt.Errorf("handling of CrdtInit failed with: %w", err)
 		}
 	default:
-		return fmt.Errorf("a message was received without having an CrdtInit message first: %v", m)
+		return fmt.Errorf("a message was received without having a CrdtInit message first: %v", m)
 	}
 	// handle all other messages after a CrdtInit message has been received.
 	for {
-		// Delete the entity. May be sent at any time. The user function should clear its state when it receives this.
-		// A proxy may decide to terminate the stream after sending this.
-		if runner.context.deleted || !runner.context.active {
+		if r.context.deleted {
+			// With a context flagged deleted, a CrdtDelete
+			// was received or delete state action was sent.
+			// Here we return no error and left the stream open.
 			return nil
 		}
-		if runner.context.failed != nil {
+		if r.context.failed != nil {
 			// failed means deactivated. we may never get this far.
 			return nil
 		}
-		msg, err := runner.stream.Recv()
+		msg, err := r.stream.Recv()
 		if err != nil {
 			return err
 		}
 		switch m := msg.GetMessage().(type) {
 		case *protocol.CrdtStreamIn_State:
-			if err := runner.handleState(m.State); err != nil {
+			if err := r.handleState(m.State); err != nil {
 				return err
 			}
-			if err := runner.handleChange(); err != nil {
+			if err := r.handleChange(); err != nil {
 				return err
 			}
 		case *protocol.CrdtStreamIn_Changed:
-			if err := runner.handleDelta(m.Changed); err != nil {
+			if err := r.handleDelta(m.Changed); err != nil {
 				return err
 			}
-			if err := runner.handleChange(); err != nil {
+			if err := r.handleChange(); err != nil {
 				return err
 			}
 		case *protocol.CrdtStreamIn_Deleted:
 			// Delete the entity. May be sent at any time. The user function should clear its value when it receives this.
 			// A proxy may decide to terminate the stream after sending this.
-			runner.context.Delete()
+			r.context.Delete()
 		case *protocol.CrdtStreamIn_Command:
 			// A command, may be sent at any time.
 			// The CRDT is allowed to be changed.
-			if err := runner.handleCommand(m.Command); err != nil {
+			if err := r.handleCommand(m.Command); err != nil {
 				return err
 			}
 		case *protocol.CrdtStreamIn_StreamCancelled:
 			// The CRDT is allowed to be changed.
-			if err := runner.handleCancellation(m.StreamCancelled); err != nil {
+			if err := r.handleCancellation(m.StreamCancelled); err != nil {
 				return err
 			}
 		case *protocol.CrdtStreamIn_Init:
-			return errors.New("duplicate init message for the same entity")
+			if EntityId(m.Init.EntityId) == r.context.EntityId {
+				return errors.New("duplicate init message for the same entity")
+			}
+			return errors.New("duplicate init message for a new entity:" + m.Init.EntityId)
 		case nil:
 			return errors.New("empty message received")
 		default:
@@ -182,7 +187,6 @@ func (s *Server) handleInit(init *protocol.CrdtInit, r *runner) error {
 		EntityId:    id,
 		Entity:      entity,
 		Instance:    entity.EntityFunc(id),
-		active:      true,
 		created:     false,
 		ctx:         r.stream.Context(), // this context is stable as long as the runner runs
 		streamedCtx: make(map[CommandId]*CommandContext),

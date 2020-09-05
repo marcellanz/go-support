@@ -130,6 +130,12 @@ func (p *proxy) state(m proto.Message) {
 				Flag: s,
 			}},
 		})
+	case *protocol.VoteState:
+		p.sendState(state{
+			&protocol.CrdtState{State: &protocol.CrdtState_Vote{
+				Vote: s,
+			}},
+		})
 	default:
 		p.t.Fatal("state type not found")
 	}
@@ -168,6 +174,13 @@ func (p *proxy) delta(m proto.Message) {
 			d: &protocol.CrdtDelta{
 				Delta: &protocol.CrdtDelta_Flag{
 					Flag: d,
+				}}},
+		)
+	case *protocol.VoteDelta:
+		p.sendDelta(delta{
+			d: &protocol.CrdtDelta{
+				Delta: &protocol.CrdtDelta_Vote{
+					Vote: d,
 				}}},
 		)
 	default:

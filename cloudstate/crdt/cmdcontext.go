@@ -60,14 +60,13 @@ type CommandContext struct {
 
 func (c *CommandContext) runCommand(cmd *protocol.Command) (*any.Any, error) {
 	// unmarshal the commands message
-	msgName := strings.TrimPrefix(cmd.GetPayload().GetTypeUrl(), "type.googleapis.com"+"/")
+	msgName := strings.TrimPrefix(cmd.GetPayload().GetTypeUrl(), "type.googleapis.com/")
 	messageType := proto.MessageType(msgName)
 	message, ok := reflect.New(messageType.Elem()).Interface().(proto.Message)
 	if !ok {
 		return nil, fmt.Errorf("messageType is no proto.Message: %v", messageType)
 	}
-	err := proto.Unmarshal(cmd.Payload.Value, message)
-	if err != nil {
+	if err := proto.Unmarshal(cmd.Payload.Value, message); err != nil {
 		return nil, err
 	}
 	return c.Instance.HandleCommand(c, cmd.Name, message)
@@ -127,14 +126,13 @@ func (c *CommandContext) SideEffect(e *protocol.SideEffect) {
 }
 
 func (c *CommandContext) clearSideEffect() {
-	c.sideEffects = make([]*protocol.SideEffect, 0, cap(c.sideEffects)) // TODO: should we decrease that?
+	c.sideEffects = make([]*protocol.SideEffect, 0)
 }
 
 func (c *CommandContext) changed() (reply *any.Any, err error) {
-	// spec impl: checkActive()
 	reply, err = c.change(c)
 	if c.crdt.HasDelta() {
-		// the user is not allowed to change the CRDT.s
+		// the user is not allowed to change the CRDT.
 		err = ErrStateChanged
 	}
 	return
@@ -154,7 +152,6 @@ func (c *CommandContext) changed() (reply *any.Any, err error) {
  * @param effect The effect to perform when this stream is cancelled.
  */
 func (c *CommandContext) cancelled() error {
-	// spec impl: checkActive()
 	return c.cancel(c)
 }
 
@@ -207,9 +204,6 @@ func (c *CommandContext) clientActionFor(reply *any.Any) (*protocol.ClientAction
 }
 
 func (c *CommandContext) stateAction() *protocol.CrdtStateAction {
-	if c.crdt == nil {
-		return nil
-	}
 	if c.created && c.crdt.HasDelta() {
 		c.created = false
 		if c.deleted {
@@ -218,9 +212,7 @@ func (c *CommandContext) stateAction() *protocol.CrdtStateAction {
 		}
 		c.crdt.resetDelta()
 		return &protocol.CrdtStateAction{
-			Action: &protocol.CrdtStateAction_Create{
-				Create: c.crdt.State(),
-			},
+			Action: &protocol.CrdtStateAction_Create{Create: c.crdt.State()},
 		}
 	}
 	if c.created && c.deleted {
@@ -229,6 +221,7 @@ func (c *CommandContext) stateAction() *protocol.CrdtStateAction {
 		return nil
 	}
 	if c.deleted {
+		c.crdt = nil
 		return &protocol.CrdtStateAction{
 			Action: &protocol.CrdtStateAction_Delete{Delete: &protocol.CrdtDelete{}},
 		}

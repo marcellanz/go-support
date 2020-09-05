@@ -79,18 +79,8 @@ func (s *Server) Register(e *Entity) error {
 func (s *Server) Handle(stream protocol.EventSourced_HandleServer) error {
 	defer func() {
 		if r := recover(); r != nil {
-			// on panic we try to tell the proxy and panic again.
+			// on a panic we try to tell the proxy and panic again.
 			_ = sendProtocolFailure(fmt.Errorf("Server.Handle panic-ked with: %v", r), stream)
-			// there are two ways to do this
-			// a) report and close the stream and let others run
-			// b) report and panic and therefore crash the program
-			// how can we decide that the panic keeps the user function in
-			// a consistent state. this one occasion could be perfectly ok
-			// to crash, but thousands of other keep running. why get them all down?
-			// so then there is the presumption that a panic is truly exceptional
-			// and we can't be sure about anything to be safe after one.
-			// the proxy is well prepared for this, it is able to re-establish state
-			// and also isolate the erroneous entity type from others.
 			panic(r)
 		}
 	}()
@@ -134,7 +124,7 @@ func (s *Server) handle(stream protocol.EventSourced_HandleServer) error {
 			// context.failed should have been sent as a client reply failure
 			return fmt.Errorf("failed context was not reported: %w", runner.context.failed)
 		}
-		if runner.context.active == false {
+		if !runner.context.active {
 			// TODO: what do we report here
 			// see: https://github.com/cloudstateio/cloudstate/pull/119#discussion_r444851439
 			return nil
