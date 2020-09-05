@@ -22,6 +22,7 @@ type CRDTs struct {
 	pnCounter  *crdt.PNCounter
 	gSet       *crdt.GSet
 	orSet      *crdt.ORSet
+	flag       *crdt.Flag
 	crashedFor map[crdt.EntityId]bool
 }
 
@@ -30,7 +31,7 @@ func newCRDTs() *CRDTs {
 }
 
 func (entity *CRDTs) crashNextTime(id crdt.EntityId) {
-	if entity.crashedFor[id] == false {
+	if !entity.crashedFor[id] {
 		entity.crashedFor[id] = true
 	}
 }
@@ -45,6 +46,8 @@ func (entity *CRDTs) Set(_ *crdt.Context, c crdt.CRDT) {
 		entity.gSet = v
 	case *crdt.ORSet:
 		entity.orSet = v
+	case *crdt.Flag:
+		entity.flag = v
 	case *crdt.Vote:
 		entity.vote = v
 	}
@@ -66,6 +69,10 @@ func (entity *CRDTs) Default(ctx *crdt.Context) (crdt.CRDT, error) {
 	if strings.HasPrefix(ctx.EntityId.String(), "orset-") {
 		entity.orSet = crdt.NewORSet()
 		return entity.orSet, nil
+	}
+	if strings.HasPrefix(ctx.EntityId.String(), "flag-") {
+		entity.flag = crdt.NewFlag()
+		return entity.flag, nil
 	}
 	return nil, errors.New("unknown entity type")
 }

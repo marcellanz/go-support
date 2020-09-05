@@ -39,11 +39,11 @@ func TestCRDTGSet(t *testing.T) {
 				tr.expectedNil(m.Reply.GetStateAction().GetUpdate())
 				tr.expectedNil(m.Reply.GetStateAction().GetDelete())
 				// action reply
-				var reply crdt.GSetValueAnySupport
-				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &reply)
-				tr.expectedInt(len(reply.GetValues()), 1)
+				var r crdt.GSetResponse
+				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
+				tr.expectedInt(len(r.GetValue().GetValues()), 1)
 				var p pair
-				tr.toStruct(reply.GetValues()[0].GetAnyValue(), &p)
+				tr.toStruct(r.GetValue().GetValues()[0].GetAnyValue(), &p)
 				tr.expectedString(p.Left, "one")
 				tr.expectedInt64(p.Right, 1)
 				// create state action
@@ -67,11 +67,11 @@ func TestCRDTGSet(t *testing.T) {
 				tr.expectedNil(m.Reply.GetStateAction().GetCreate())
 				tr.expectedNil(m.Reply.GetStateAction().GetDelete())
 				// action reply
-				var reply crdt.GSetValueAnySupport
-				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &reply)
-				tr.expectedInt(len(reply.GetValues()), 2)
+				var r crdt.GSetResponse
+				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
+				tr.expectedInt(len(r.GetValue().GetValues()), 2)
 				found := 0
-				for _, v := range reply.GetValues() {
+				for _, v := range r.GetValue().GetValues() {
 					var p pair
 					tr.toStruct(v.GetAnyValue(), &p)
 					if reflect.DeepEqual(p, pair{Left: "one", Right: 1}) {

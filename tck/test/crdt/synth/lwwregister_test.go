@@ -41,11 +41,13 @@ func TestCRDTLWWRegister(t *testing.T) {
 				// action reply
 				tr.expectedNil(m.Reply.GetSideEffects())
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
-				var reg crdt.LWWRegisterValue
-				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &reg)
-				tr.expectedOneIn([]*any.Any{reg.GetValue()}, encoding.Struct(pair{"one", 1}))
-				// state
+				var r crdt.LWWRegisterResponse
+				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
+				tr.expectedOneIn([]*any.Any{r.GetValue().GetValue()}, encoding.Struct(pair{"one", 1}))
+				// state action
 				tr.expectedNotNil(m.Reply.GetStateAction().GetCreate())
+				tr.expectedNil(m.Reply.GetStateAction().GetUpdate())
+				tr.expectedNil(m.Reply.GetStateAction().GetDelete())
 				var p pair
 				tr.expectedTrue(m.Reply.GetStateAction().GetCreate().GetLwwregister().GetClock() == protocol.CrdtClock_DEFAULT)
 				tr.toStruct(m.Reply.GetStateAction().GetCreate().GetLwwregister().GetValue(), &p)
@@ -68,16 +70,35 @@ func TestCRDTLWWRegister(t *testing.T) {
 				// action reply
 				tr.expectedNil(m.Reply.GetSideEffects())
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
-				var reg crdt.LWWRegisterValue
-				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &reg)
-				tr.expectedOneIn([]*any.Any{reg.GetValue()}, encoding.Struct(pair{"two", 2}))
-				// state
+				var r crdt.LWWRegisterResponse
+				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
+				tr.expectedOneIn([]*any.Any{r.GetValue().GetValue()}, encoding.Struct(pair{"two", 2}))
+				// state action
 				tr.expectedNil(m.Reply.GetStateAction().GetCreate())
+				tr.expectedNotNil(m.Reply.GetStateAction().GetUpdate())
+				tr.expectedNil(m.Reply.GetStateAction().GetDelete())
 				var p pair
 				tr.toStruct(m.Reply.GetStateAction().GetUpdate().GetLwwregister().GetValue(), &p)
 				tr.expectedTrue(reflect.DeepEqual(p, pair{"two", 2}))
 				tr.expectedTrue(m.Reply.GetStateAction().GetUpdate().GetLwwregister().GetClock() == protocol.CrdtClock_CUSTOM)
 				tr.expectedTrue(m.Reply.GetStateAction().GetUpdate().GetLwwregister().GetCustomClockValue() == 7)
+			default:
+				tr.unexpected(m)
+			}
+		})
+		t.Run("Delete emits client action and create state action", func(t *testing.T) {
+			tr := tester{t}
+			switch m := p.command(entityId, command, lwwRegisterRequest(&crdt.Delete{})).Message.(type) {
+			case *protocol.CrdtStreamOut_Reply:
+				// action reply
+				tr.expectedNil(m.Reply.GetSideEffects())
+				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
+				var r crdt.LWWRegisterResponse
+				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
+				// state action
+				tr.expectedNil(m.Reply.GetStateAction().GetCreate())
+				tr.expectedNil(m.Reply.GetStateAction().GetUpdate())
+				tr.expectedNotNil(m.Reply.GetStateAction().GetDelete())
 			default:
 				tr.unexpected(m)
 			}

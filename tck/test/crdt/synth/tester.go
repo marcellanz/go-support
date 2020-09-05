@@ -68,6 +68,13 @@ func (t *tester) expectedUInt64(got uint64, want uint64) {
 	}
 }
 
+func (t *tester) expectedUInt32(got uint32, want uint32) {
+	t.t.Helper()
+	if got != want {
+		t.t.Fatalf("got = %v; wanted: %d", got, want)
+	}
+}
+
 func (t *tester) expectedString(got string, want string) {
 	t.t.Helper()
 	if got != want {

@@ -8,7 +8,6 @@ import (
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/cloudstateio/go-support/tck/proto/crdt"
-	"github.com/golang/protobuf/ptypes/empty"
 )
 
 func TestCRDTORSet(t *testing.T) {
@@ -39,9 +38,9 @@ func TestCRDTORSet(t *testing.T) {
 				// action reply
 				tr.expectedNil(m.Reply.GetSideEffects())
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
-				var set crdt.ORSetValue
-				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &set)
-				tr.expectedOneIn(set.GetValues(), encoding.Struct(pair{"one", 1}))
+				var r crdt.ORSetResponse
+				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
+				tr.expectedOneIn(r.GetValue().GetValues(), encoding.Struct(pair{"one", 1}))
 				// state
 				tr.expectedNotNil(m.Reply.GetStateAction().GetCreate())
 				tr.expectedOneIn(
@@ -66,10 +65,10 @@ func TestCRDTORSet(t *testing.T) {
 				tr.expectedNil(m.Reply.GetSideEffects())
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
 				tr.expectedNil(m.Reply.GetClientAction().GetForward())
-				var set crdt.ORSetValue
-				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &set)
-				tr.expectedOneIn(set.GetValues(), encoding.Struct(pair{"two", 2}))
-				tr.expectedInt(len(set.GetValues()), 1)
+				var r crdt.ORSetResponse
+				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
+				tr.expectedOneIn(r.GetValue().GetValues(), encoding.Struct(pair{"two", 2}))
+				tr.expectedInt(len(r.GetValue().GetValues()), 1)
 				// state
 				tr.expectedNotNil(m.Reply.GetStateAction().GetUpdate())
 				tr.expectedOneIn(
@@ -80,7 +79,7 @@ func TestCRDTORSet(t *testing.T) {
 				tr.unexpected(m)
 			}
 		})
-		t.Run("ORSetRemove emits client action and update state action", func(t *testing.T) {
+		t.Run("Delete emits client action and delete state action", func(t *testing.T) {
 			tr := tester{t}
 			p.command(entityId, command, orsetRequest(&crdt.ORSetAdd{Value: &crdt.AnySupportType{
 				Value: &crdt.AnySupportType_AnyValue{AnyValue: encoding.Struct(pair{"two", 2})}},
@@ -90,8 +89,8 @@ func TestCRDTORSet(t *testing.T) {
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
 				tr.expectedNil(m.Reply.GetSideEffects())
-				e := &empty.Empty{}
-				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), e)
+				var r crdt.ORSetResponse
+				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
 				tr.expectedNotNil(m.Reply.GetStateAction().GetDelete())
 			default:
 				tr.unexpected(m)

@@ -7,12 +7,10 @@ import (
 
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/cloudstateio/go-support/tck/proto/crdt"
-	"github.com/golang/protobuf/ptypes/empty"
 )
 
 func TestCRDTFlag(t *testing.T) {
 	s := newServer(t)
-	s.newClientConn()
 	defer s.teardown()
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -30,10 +28,11 @@ func TestCRDTFlag(t *testing.T) {
 				flagRequest(&crdt.Get{}),
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
+				tr.expectedNotNil(m.Reply.GetClientAction())
 				tr.expectedNil(m.Reply.GetSideEffects())
-				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
-				tr.expectedNil(m.Reply.GetStateAction().GetCreate())
+				tr.expectedNil(m.Reply.GetStateAction())
 				// action reply
+				tr.expectedNotNil(m.Reply.GetClientAction().GetReply())
 				var f crdt.FlagValue
 				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &f)
 				tr.expectedFalse(f.GetValue())
@@ -47,12 +46,15 @@ func TestCRDTFlag(t *testing.T) {
 				flagRequest(&crdt.FlagEnable{}),
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
+				// action reply
 				tr.expectedNil(m.Reply.GetSideEffects())
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
-				// action reply
-				var f crdt.FlagValue
+				var f crdt.FlagResponse
 				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &f)
-				tr.expectedTrue(f.GetValue())
+				tr.expectedTrue(f.GetValue().GetValue())
+				// state action
+				tr.expectedNil(m.Reply.GetStateAction().GetUpdate())
+				tr.expectedNil(m.Reply.GetStateAction().GetDelete())
 				tr.expectedNotNil(m.Reply.GetStateAction().GetCreate())
 				tr.expectedTrue(m.Reply.GetStateAction().GetCreate().GetFlag().GetValue())
 			default:
@@ -65,14 +67,15 @@ func TestCRDTFlag(t *testing.T) {
 				flagRequest(&crdt.Delete{}),
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
+				// action reply
 				tr.expectedNil(m.Reply.GetSideEffects())
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
-				e := &empty.Empty{}
-				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), e)
-				// action reply
+				var f crdt.FlagResponse
+				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &f)
+				// state action
 				tr.expectedNil(m.Reply.GetStateAction().GetCreate())
 				tr.expectedNil(m.Reply.GetStateAction().GetUpdate())
-				tr.expectedNil(m.Reply.GetStateAction().GetDelete())
+				tr.expectedNotNil(m.Reply.GetStateAction().GetDelete())
 			default:
 				tr.unexpected(m)
 			}
@@ -89,13 +92,17 @@ func TestCRDTFlag(t *testing.T) {
 				flagRequest(&crdt.Get{}),
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
+				// action reply
 				tr.expectedNil(m.Reply.GetSideEffects())
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
 				tr.expectedNil(m.Reply.GetStateAction().GetCreate())
-				// action reply
-				var f crdt.FlagValue
+				var f crdt.FlagResponse
 				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &f)
-				tr.expectedTrue(f.GetValue())
+				tr.expectedTrue(f.GetValue().GetValue())
+				// state action
+				tr.expectedNil(m.Reply.GetStateAction().GetCreate())
+				tr.expectedNil(m.Reply.GetStateAction().GetUpdate())
+				tr.expectedNil(m.Reply.GetStateAction().GetDelete())
 			default:
 				tr.unexpected(m)
 			}
@@ -112,13 +119,16 @@ func TestCRDTFlag(t *testing.T) {
 				flagRequest(&crdt.Get{}),
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
+				// action reply
 				tr.expectedNil(m.Reply.GetSideEffects())
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
-				tr.expectedNil(m.Reply.GetStateAction().GetCreate())
-				// action reply
-				var f crdt.FlagValue
+				var f crdt.FlagResponse
 				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &f)
-				tr.expectedTrue(f.GetValue())
+				tr.expectedTrue(f.GetValue().GetValue())
+				// state action
+				tr.expectedNil(m.Reply.GetStateAction().GetCreate())
+				tr.expectedNil(m.Reply.GetStateAction().GetUpdate())
+				tr.expectedNil(m.Reply.GetStateAction().GetDelete())
 			default:
 				tr.unexpected(m)
 			}

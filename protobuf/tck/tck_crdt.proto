@@ -34,6 +34,8 @@ service TckCrdt {
     rpc ProcessORSet (ORSetRequest) returns (ORSetResponse);
     rpc ProcessFlag (FlagRequest) returns (FlagResponse);
     rpc ProcessLWWRegister (LWWRegisterRequest) returns (LWWRegisterResponse);
+    //    rpc ProcessORMap (ORMapRequest) returns (ORMapResponse);
+    rpc ProcessVote (VoteRequest) returns (VoteResponse);
 
     rpc SetORMap (ORMapSet) returns (ORMapEntries);
     rpc DeleteORMap (ORMapKey) returns (ORMapEntries);
@@ -41,10 +43,25 @@ service TckCrdt {
     rpc GetORMapSize (Get) returns (ORMapSize);
     rpc GetORMapEntries (Get) returns (ORMapEntries);
     rpc GetORMapKeys (Get) returns (ORMapKeys);
+}
 
-    rpc VoteVote (Vote) returns (SelfVote);
-    rpc GetVoteSelfVote (Get) returns (SelfVote);
-    rpc GetVoters (Get) returns (Voters);
+message VoteRequest {
+    string id = 1 [(.cloudstate.entity_key) = true];
+    repeated VoteRequestAction actions = 2;
+}
+
+message VoteRequestAction {
+    oneof action {
+        Get get = 1;
+        Delete delete = 2;
+        VoteVote vote = 3;
+    }
+}
+
+message VoteResponse {
+    bool selfVote = 1;
+    uint32 voters = 2;
+    uint32 votesFor = 3;
 }
 
 message GCounterRequest {
@@ -310,7 +327,7 @@ message ORMapKeys {
     repeated google.protobuf.Any values = 1;
 }
 
-message Vote {
+message VoteVote {
     string key = 1 [(.cloudstate.entity_key) = true];
     string failWith = 2;
     bool value = 3;
