@@ -102,33 +102,33 @@ func (m *ORMap) Vote(key *any.Any) (*Vote, error) {
 }
 
 func (m *ORMap) SetFlag(key *any.Any, flag *Flag) {
-	m.set(key, flag)
+	m.Set(key, flag)
 }
 
 func (m *ORMap) SetGCounter(key *any.Any, counter *GCounter) {
-	m.set(key, counter)
+	m.Set(key, counter)
 }
 
 func (m *ORMap) SetGSet(key *any.Any, set *GSet) {
-	m.set(key, set)
+	m.Set(key, set)
 }
 
 func (m *ORMap) SetLWWRegister(key *any.Any, register *LWWRegister) {
-	m.set(key, register)
+	m.Set(key, register)
 }
 
 func (m *ORMap) SetORMap(key *any.Any, orMap *ORMap) {
-	m.set(key, orMap)
+	m.Set(key, orMap)
 }
 
 func (m *ORMap) SetORSet(key *any.Any, set *ORSet) {
-	m.set(key, set)
+	m.Set(key, set)
 }
 
 func (m *ORMap) SetPNCounter(key *any.Any, counter *PNCounter) {
-	m.set(key, counter)
+	m.Set(key, counter)
 }
 
 func (m *ORMap) SetVote(key *any.Any, vote *Vote) {
-	m.set(key, vote)
+	m.Set(key, vote)
 }

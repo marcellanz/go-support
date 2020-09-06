@@ -22,13 +22,13 @@ import (
 
 	"github.com/cloudstateio/go-support/cloudstate/crdt"
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
-	tc "github.com/cloudstateio/go-support/tck/proto/crdt"
+	tck "github.com/cloudstateio/go-support/tck/proto/crdt"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/empty"
 )
 
-type SyntheticCRDTs struct {
+type CRDTModel struct {
 	id          crdt.EntityId
 	gCounter    *crdt.GCounter
 	pnCounter   *crdt.PNCounter
@@ -40,11 +40,11 @@ type SyntheticCRDTs struct {
 	orMap       *crdt.ORMap
 }
 
-func NewEntity(id crdt.EntityId) *SyntheticCRDTs {
-	return &SyntheticCRDTs{id: id}
+func NewEntity(id crdt.EntityId) *CRDTModel {
+	return &CRDTModel{id: id}
 }
 
-func (s *SyntheticCRDTs) Set(_ *crdt.Context, c crdt.CRDT) {
+func (s *CRDTModel) Set(_ *crdt.Context, c crdt.CRDT) {
 	switch v := c.(type) {
 	case *crdt.GCounter:
 		s.gCounter = v
@@ -65,7 +65,7 @@ func (s *SyntheticCRDTs) Set(_ *crdt.Context, c crdt.CRDT) {
 	}
 }
 
-func (s *SyntheticCRDTs) Default(c *crdt.Context) (crdt.CRDT, error) {
+func (s *CRDTModel) Default(c *crdt.Context) (crdt.CRDT, error) {
 	switch strings.Split(c.EntityId.String(), "-")[0] {
 	case "gcounter":
 		return crdt.NewGCounter(), nil
@@ -88,84 +88,84 @@ func (s *SyntheticCRDTs) Default(c *crdt.Context) (crdt.CRDT, error) {
 	}
 }
 
-func (s *SyntheticCRDTs) HandleCommand(cc *crdt.CommandContext, _ string, cmd proto.Message) (*any.Any, error) {
+func (s *CRDTModel) HandleCommand(cc *crdt.CommandContext, _ string, cmd proto.Message) (*any.Any, error) {
 	switch c := cmd.(type) {
-	case *tc.GCounterRequest:
+	case *tck.GCounterRequest:
 		for _, as := range c.GetActions() {
 			switch a := as.Action.(type) {
-			case *tc.GCounterRequestAction_Increment:
+			case *tck.GCounterRequestAction_Increment:
 				s.gCounter.Increment(a.Increment.GetValue())
-				v := &tc.GCounterValue{Value: s.gCounter.Value()}
+				v := &tck.GCounterValue{Value: s.gCounter.Value()}
 				if with := a.Increment.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-				return encoding.MarshalAny(&tc.GCounterResponse{Value: v})
-			case *tc.GCounterRequestAction_Get:
+				return encoding.MarshalAny(&tck.GCounterResponse{Value: v})
+			case *tck.GCounterRequestAction_Get:
 				if with := a.Get.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-				return encoding.MarshalAny(&tc.GCounterResponse{Value: &tc.GCounterValue{Value: s.gCounter.Value()}})
-			case *tc.GCounterRequestAction_Delete:
+				return encoding.MarshalAny(&tck.GCounterResponse{Value: &tck.GCounterValue{Value: s.gCounter.Value()}})
+			case *tck.GCounterRequestAction_Delete:
 				cc.Delete()
 				if with := a.Delete.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-				return encoding.MarshalAny(&tc.GCounterResponse{})
+				return encoding.MarshalAny(&tck.GCounterResponse{})
 			}
 		}
-	case *tc.PNCounterRequest:
+	case *tck.PNCounterRequest:
 		for _, as := range c.GetActions() {
 			switch a := as.Action.(type) {
-			case *tc.PNCounterRequestAction_Increment:
+			case *tck.PNCounterRequestAction_Increment:
 				s.pnCounter.Increment(a.Increment.Value)
 				if with := a.Increment.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-				return encoding.MarshalAny(&tc.PNCounterResponse{Value: &tc.PNCounterValue{Value: s.pnCounter.Value()}})
-			case *tc.PNCounterRequestAction_Decrement:
+				return encoding.MarshalAny(&tck.PNCounterResponse{Value: &tck.PNCounterValue{Value: s.pnCounter.Value()}})
+			case *tck.PNCounterRequestAction_Decrement:
 				s.pnCounter.Decrement(a.Decrement.Value)
 				if with := a.Decrement.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-				return encoding.MarshalAny(&tc.PNCounterResponse{Value: &tc.PNCounterValue{Value: s.pnCounter.Value()}})
-			case *tc.PNCounterRequestAction_Get:
+				return encoding.MarshalAny(&tck.PNCounterResponse{Value: &tck.PNCounterValue{Value: s.pnCounter.Value()}})
+			case *tck.PNCounterRequestAction_Get:
 				if with := a.Get.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-				return encoding.MarshalAny(&tc.PNCounterResponse{Value: &tc.PNCounterValue{Value: s.pnCounter.Value()}})
-			case *tc.PNCounterRequestAction_Delete:
+				return encoding.MarshalAny(&tck.PNCounterResponse{Value: &tck.PNCounterValue{Value: s.pnCounter.Value()}})
+			case *tck.PNCounterRequestAction_Delete:
 				cc.Delete()
 				if with := a.Delete.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-				return encoding.MarshalAny(&tc.PNCounterResponse{})
+				return encoding.MarshalAny(&tck.PNCounterResponse{})
 			}
 		}
-	case *tc.GSetRequest:
+	case *tck.GSetRequest:
 		for _, as := range c.GetActions() {
 			switch a := as.Action.(type) {
-			case *tc.GSetRequestAction_Get:
-				v := make([]*tc.AnySupportType, 0, len(s.gSet.Value()))
+			case *tck.GSetRequestAction_Get:
+				v := make([]*tck.AnySupportType, 0, len(s.gSet.Value()))
 				for _, a := range s.gSet.Value() {
 					v = append(v, asAnySupportType(a))
 				}
 				if with := a.Get.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-				return encoding.MarshalAny(&tc.GSetResponse{Value: &tc.GSetValue{Values: v}})
-			case *tc.GSetRequestAction_Delete:
+				return encoding.MarshalAny(&tck.GSetResponse{Value: &tck.GSetValue{Values: v}})
+			case *tck.GSetRequestAction_Delete:
 				cc.Delete()
 				if with := a.Delete.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-				return encoding.MarshalAny(&tc.GSetResponse{})
-			case *tc.GSetRequestAction_Add:
+				return encoding.MarshalAny(&tck.GSetResponse{})
+			case *tck.GSetRequestAction_Add:
 				anySupportAdd(s.gSet, a.Add.Value)
-				v := make([]*tc.AnySupportType, 0, len(s.gSet.Value()))
+				v := make([]*tck.AnySupportType, 0, len(s.gSet.Value()))
 				for _, a := range s.gSet.Value() {
 					if strings.HasPrefix(a.TypeUrl, encoding.JSONTypeURLPrefix) {
-						v = append(v, &tc.AnySupportType{
-							Value: &tc.AnySupportType_AnyValue{AnyValue: a},
+						v = append(v, &tck.AnySupportType{
+							Value: &tck.AnySupportType_AnyValue{AnyValue: a},
 						})
 						continue
 					}
@@ -174,80 +174,80 @@ func (s *SyntheticCRDTs) HandleCommand(cc *crdt.CommandContext, _ string, cmd pr
 				if with := a.Add.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-				return encoding.MarshalAny(&tc.GSetResponse{Value: &tc.GSetValue{Values: v}})
+				return encoding.MarshalAny(&tck.GSetResponse{Value: &tck.GSetValue{Values: v}})
 			}
 		}
-	case *tc.ORSetRequest:
+	case *tck.ORSetRequest:
 		for _, as := range c.GetActions() {
 			switch a := as.Action.(type) {
-			case *tc.ORSetRequestAction_Get:
+			case *tck.ORSetRequestAction_Get:
 				if with := a.Get.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-				return encoding.MarshalAny(&tc.ORSetResponse{Value: &tc.ORSetValue{Values: s.orSet.Value()}})
-			case *tc.ORSetRequestAction_Delete:
+				return encoding.MarshalAny(&tck.ORSetResponse{Value: &tck.ORSetValue{Values: s.orSet.Value()}})
+			case *tck.ORSetRequestAction_Delete:
 				cc.Delete()
 				if with := a.Delete.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-				return encoding.MarshalAny(&tc.ORSetResponse{})
-			case *tc.ORSetRequestAction_Add:
+				return encoding.MarshalAny(&tck.ORSetResponse{})
+			case *tck.ORSetRequestAction_Add:
 				anySupportAdd(s.orSet, a.Add.Value)
 				if with := a.Add.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-				return encoding.MarshalAny(&tc.ORSetResponse{Value: &tc.ORSetValue{Values: s.orSet.Value()}})
-			case *tc.ORSetRequestAction_Remove:
+				return encoding.MarshalAny(&tck.ORSetResponse{Value: &tck.ORSetValue{Values: s.orSet.Value()}})
+			case *tck.ORSetRequestAction_Remove:
 				anySupportRemove(s.orSet, a.Remove.Value)
 				if with := a.Remove.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-				return encoding.MarshalAny(&tc.ORSetResponse{Value: &tc.ORSetValue{Values: s.orSet.Value()}})
+				return encoding.MarshalAny(&tck.ORSetResponse{Value: &tck.ORSetValue{Values: s.orSet.Value()}})
 			}
 		}
-	case *tc.FlagRequest:
+	case *tck.FlagRequest:
 		for _, as := range c.GetActions() {
 			switch a := as.Action.(type) {
-			case *tc.FlagRequestAction_Get:
+			case *tck.FlagRequestAction_Get:
 				if with := a.Get.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-				return encoding.MarshalAny(&tc.FlagResponse{Value: &tc.FlagValue{Value: s.flag.Value()}})
-			case *tc.FlagRequestAction_Delete:
+				return encoding.MarshalAny(&tck.FlagResponse{Value: &tck.FlagValue{Value: s.flag.Value()}})
+			case *tck.FlagRequestAction_Delete:
 				cc.Delete()
 				if with := a.Delete.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-				return encoding.MarshalAny(&tc.FlagResponse{})
-			case *tc.FlagRequestAction_Enable:
+				return encoding.MarshalAny(&tck.FlagResponse{})
+			case *tck.FlagRequestAction_Enable:
 				if with := a.Enable.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
 				s.flag.Enable()
-				return encoding.MarshalAny(&tc.FlagResponse{Value: &tc.FlagValue{Value: s.flag.Value()}})
+				return encoding.MarshalAny(&tck.FlagResponse{Value: &tck.FlagValue{Value: s.flag.Value()}})
 			}
 		}
-	case *tc.LWWRegisterRequest:
+	case *tck.LWWRegisterRequest:
 		for _, as := range c.GetActions() {
 			switch a := as.Action.(type) {
-			case *tc.LWWRegisterRequestAction_Get:
+			case *tck.LWWRegisterRequestAction_Get:
 				if with := a.Get.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-				return encoding.MarshalAny(&tc.LWWRegisterResponse{Value: &tc.LWWRegisterValue{Value: s.lwwRegister.Value()}})
-			case *tc.LWWRegisterRequestAction_Delete:
+				return encoding.MarshalAny(&tck.LWWRegisterResponse{Value: &tck.LWWRegisterValue{Value: s.lwwRegister.Value()}})
+			case *tck.LWWRegisterRequestAction_Delete:
 				cc.Delete()
 				if with := a.Delete.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-				return encoding.MarshalAny(&tc.FlagResponse{})
-			case *tc.LWWRegisterRequestAction_Set:
+				return encoding.MarshalAny(&tck.FlagResponse{})
+			case *tck.LWWRegisterRequestAction_Set:
 				if with := a.Set.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
 				anySupportAdd(&anySupportAdderSetter{s.lwwRegister}, a.Set.GetValue())
-				return encoding.MarshalAny(&tc.LWWRegisterResponse{Value: &tc.LWWRegisterValue{Value: s.lwwRegister.Value()}})
-			case *tc.LWWRegisterRequestAction_SetWithClock:
+				return encoding.MarshalAny(&tck.LWWRegisterResponse{Value: &tck.LWWRegisterValue{Value: s.lwwRegister.Value()}})
+			case *tck.LWWRegisterRequestAction_SetWithClock:
 				if with := a.SetWithClock.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
@@ -257,124 +257,128 @@ func (s *SyntheticCRDTs) HandleCommand(cc *crdt.CommandContext, _ string, cmd pr
 					crdt.Clock(uint64(a.SetWithClock.GetClock().Number())),
 					a.SetWithClock.CustomClockValue,
 				)
-				return encoding.MarshalAny(&tc.LWWRegisterResponse{Value: &tc.LWWRegisterValue{Value: s.lwwRegister.Value()}})
+				return encoding.MarshalAny(&tck.LWWRegisterResponse{Value: &tck.LWWRegisterValue{Value: s.lwwRegister.Value()}})
 			}
 		}
-	case *tc.VoteRequest:
+	case *tck.VoteRequest:
 		for _, as := range c.GetActions() {
 			switch a := as.Action.(type) {
-			case *tc.VoteRequestAction_Get:
+			case *tck.VoteRequestAction_Get:
 				if with := a.Get.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-				return encoding.MarshalAny(&tc.VoteResponse{
+				return encoding.MarshalAny(&tck.VoteResponse{
 					SelfVote: s.vote.SelfVote(),
 					Voters:   s.vote.Voters(),
 					VotesFor: s.vote.VotesFor(),
 				})
-			case *tc.VoteRequestAction_Delete:
+			case *tck.VoteRequestAction_Delete:
 				cc.Delete()
 				if with := a.Delete.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
 				return encoding.MarshalAny(&empty.Empty{})
-			case *tc.VoteRequestAction_Vote:
+			case *tck.VoteRequestAction_Vote:
 				s.vote.Vote(a.Vote.GetValue())
 				if with := a.Vote.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-				return encoding.MarshalAny(&tc.VoteResponse{
+				return encoding.MarshalAny(&tck.VoteResponse{
 					SelfVote: s.vote.SelfVote(),
 					Voters:   s.vote.Voters(),
 					VotesFor: s.vote.VotesFor(),
 				})
 			}
 		}
-	case *tc.ORMapRequest:
+	case *tck.ORMapRequest:
 		for _, as := range c.GetActions() {
 			switch a := as.Action.(type) {
-			case *tc.ORMapRequestAction_Get:
+			case *tck.ORMapRequestAction_Get:
 				if with := a.Get.FailWith; with != "" {
 					return nil, errors.New(with)
-				}
-				// entries := make([]*protocol.ORMapEntry, 0)
-				for _, v := range s.orMap.Values() {
-					v.GetState()
-				}
-				return encoding.MarshalAny(&tc.ORMapResponse{})
-			case *tc.ORMapRequestAction_Delete:
+				} // TODO: finish
+				return encoding.MarshalAny(&tck.ORMapResponse{})
+			case *tck.ORMapRequestAction_Delete:
 				if with := a.Delete.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-			case *tc.ORMapRequestAction_SetKey:
+				cc.Delete()
+				return encoding.MarshalAny(&tck.ORMapResponse{})
+			case *tck.ORMapRequestAction_SetKey:
 				// we reuse this entities implementation to
 				// handle requests for a certain CRDT of this
 				// ORMaps value.
-				cm := &SyntheticCRDTs{}
+				m := &CRDTModel{}
 				switch t := a.SetKey.GetRequest().(type) {
-				case *tc.ORMapSet_GCounterRequest:
+				case *tck.ORMapSet_GCounterRequest:
 					ctx := &crdt.CommandContext{Context: &crdt.Context{EntityId: "gcounter"}}
-					if !s.orMap.HasKey(a.SetKey.EntryKey) {
-						counter, _ := cm.Default(ctx.Context)
-						cm.Set(ctx.Context, counter)
-						s.orMap.SetGCounter(a.SetKey.EntryKey, cm.gCounter)
-					} else {
-						counter, _ := s.orMap.GCounter(a.SetKey.EntryKey)
-						cm.Set(ctx.Context, counter)
+					key := a.SetKey.EntryKey
+					if !s.orMap.HasKey(key) {
+						c, err := m.Default(ctx.Context)
+						if err != nil {
+							return nil, err
+						}
+						s.orMap.Set(key, c)
 					}
-					_, _ = cm.HandleCommand(ctx, "", t.GCounterRequest)
-					return encoding.MarshalAny(&tc.ORMapResponse{
-						Entries: &tc.ORMapEntries{
-							Values: append(make([]*tc.ORMapEntry, 0), &tc.ORMapEntry{
-								EntryKey: a.SetKey.EntryKey,
-								Value:    encoding.Struct(cm.gCounter.State()),
+					m.Set(ctx.Context, s.orMap.Get(key))
+					if _, err := m.HandleCommand(ctx, "", t.GCounterRequest); err != nil {
+						return nil, err
+					}
+					return encoding.MarshalAny(&tck.ORMapResponse{
+						Entries: &tck.ORMapEntries{
+							Values: append(make([]*tck.ORMapEntry, 0), &tck.ORMapEntry{
+								EntryKey: key,
+								Value:    encoding.Struct(m.gCounter.State()),
 							}),
 						},
 					})
-				case *tc.ORMapSet_PnCounterRequest:
+				case *tck.ORMapSet_PnCounterRequest:
 				}
 				if with := a.SetKey.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-			case *tc.ORMapRequestAction_DeleteKey:
+				return encoding.MarshalAny(&tck.ORMapResponse{})
+			case *tck.ORMapRequestAction_DeleteKey:
+				s.orMap.Delete(a.DeleteKey.EntryKey)
 				if with := a.DeleteKey.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
+				return encoding.MarshalAny(&tck.ORMapResponse{})
 			}
 		}
 	}
 	return nil, errors.New("unhandled command")
 }
 
-func asAnySupportType(x *any.Any) *tc.AnySupportType {
+func asAnySupportType(x *any.Any) *tck.AnySupportType {
 	switch x.TypeUrl {
 	case encoding.PrimitiveTypeURLPrefixBool:
-		return &tc.AnySupportType{
-			Value: &tc.AnySupportType_BoolValue{BoolValue: encoding.DecodeBool(x)},
+		return &tck.AnySupportType{
+			Value: &tck.AnySupportType_BoolValue{BoolValue: encoding.DecodeBool(x)},
 		}
 	case encoding.PrimitiveTypeURLPrefixBytes:
-		return &tc.AnySupportType{
-			Value: &tc.AnySupportType_BytesValue{BytesValue: encoding.DecodeBytes(x)},
+		return &tck.AnySupportType{
+			Value: &tck.AnySupportType_BytesValue{BytesValue: encoding.DecodeBytes(x)},
 		}
 	case encoding.PrimitiveTypeURLPrefixFloat:
-		return &tc.AnySupportType{
-			Value: &tc.AnySupportType_FloatValue{FloatValue: encoding.DecodeFloat32(x)},
+		return &tck.AnySupportType{
+			Value: &tck.AnySupportType_FloatValue{FloatValue: encoding.DecodeFloat32(x)},
 		}
 	case encoding.PrimitiveTypeURLPrefixDouble:
-		return &tc.AnySupportType{
-			Value: &tc.AnySupportType_DoubleValue{DoubleValue: encoding.DecodeFloat64(x)},
+		return &tck.AnySupportType{
+			Value: &tck.AnySupportType_DoubleValue{DoubleValue: encoding.DecodeFloat64(x)},
 		}
 	case encoding.PrimitiveTypeURLPrefixInt32:
-		return &tc.AnySupportType{
-			Value: &tc.AnySupportType_Int32Value{Int32Value: encoding.DecodeInt32(x)},
+		return &tck.AnySupportType{
+			Value: &tck.AnySupportType_Int32Value{Int32Value: encoding.DecodeInt32(x)},
 		}
 	case encoding.PrimitiveTypeURLPrefixInt64:
-		return &tc.AnySupportType{
-			Value: &tc.AnySupportType_Int64Value{Int64Value: encoding.DecodeInt64(x)},
+		return &tck.AnySupportType{
+			Value: &tck.AnySupportType_Int64Value{Int64Value: encoding.DecodeInt64(x)},
 		}
 	case encoding.PrimitiveTypeURLPrefixString:
-		return &tc.AnySupportType{
-			Value: &tc.AnySupportType_StringValue{StringValue: encoding.DecodeString(x)},
+		return &tck.AnySupportType{
+			Value: &tck.AnySupportType_StringValue{StringValue: encoding.DecodeString(x)},
 		}
 	}
 	panic(fmt.Sprintf("no mapping found for TypeUrl: %v", x.TypeUrl)) // we're allowed to panic here :)
@@ -400,65 +404,65 @@ type anySupportRemover interface {
 	Remove(x *any.Any)
 }
 
-func anySupportRemove(r anySupportRemover, t *tc.AnySupportType) {
+func anySupportRemove(r anySupportRemover, t *tck.AnySupportType) {
 	switch v := t.Value.(type) {
-	case *tc.AnySupportType_AnyValue:
+	case *tck.AnySupportType_AnyValue:
 		r.Remove(v.AnyValue)
-	case *tc.AnySupportType_StringValue:
+	case *tck.AnySupportType_StringValue:
 		r.Remove(encoding.String(v.StringValue))
-	case *tc.AnySupportType_BytesValue:
+	case *tck.AnySupportType_BytesValue:
 		r.Remove(encoding.Bytes(v.BytesValue))
-	case *tc.AnySupportType_BoolValue:
+	case *tck.AnySupportType_BoolValue:
 		r.Remove(encoding.Bool(v.BoolValue))
-	case *tc.AnySupportType_DoubleValue:
+	case *tck.AnySupportType_DoubleValue:
 		r.Remove(encoding.Float64(v.DoubleValue))
-	case *tc.AnySupportType_FloatValue:
+	case *tck.AnySupportType_FloatValue:
 		r.Remove(encoding.Float32(v.FloatValue))
-	case *tc.AnySupportType_Int32Value:
+	case *tck.AnySupportType_Int32Value:
 		r.Remove(encoding.Int32(v.Int32Value))
-	case *tc.AnySupportType_Int64Value:
+	case *tck.AnySupportType_Int64Value:
 		r.Remove(encoding.Int64(v.Int64Value))
 	}
 }
 
-func anySupportAdd(a anySupportAdder, t *tc.AnySupportType) {
+func anySupportAdd(a anySupportAdder, t *tck.AnySupportType) {
 	switch v := t.Value.(type) {
-	case *tc.AnySupportType_AnyValue:
+	case *tck.AnySupportType_AnyValue:
 		a.Add(v.AnyValue)
-	case *tc.AnySupportType_StringValue:
+	case *tck.AnySupportType_StringValue:
 		a.Add(encoding.String(v.StringValue))
-	case *tc.AnySupportType_BytesValue:
+	case *tck.AnySupportType_BytesValue:
 		a.Add(encoding.Bytes(v.BytesValue))
-	case *tc.AnySupportType_BoolValue:
+	case *tck.AnySupportType_BoolValue:
 		a.Add(encoding.Bool(v.BoolValue))
-	case *tc.AnySupportType_DoubleValue:
+	case *tck.AnySupportType_DoubleValue:
 		a.Add(encoding.Float64(v.DoubleValue))
-	case *tc.AnySupportType_FloatValue:
+	case *tck.AnySupportType_FloatValue:
 		a.Add(encoding.Float32(v.FloatValue))
-	case *tc.AnySupportType_Int32Value:
+	case *tck.AnySupportType_Int32Value:
 		a.Add(encoding.Int32(v.Int32Value))
-	case *tc.AnySupportType_Int64Value:
+	case *tck.AnySupportType_Int64Value:
 		a.Add(encoding.Int64(v.Int64Value))
 	}
 }
 
-func anySupportSetClock(r *crdt.LWWRegister, t *tc.AnySupportType, clock crdt.Clock, customValue int64) {
+func anySupportSetClock(r *crdt.LWWRegister, t *tck.AnySupportType, clock crdt.Clock, customValue int64) {
 	switch v := t.Value.(type) {
-	case *tc.AnySupportType_AnyValue:
+	case *tck.AnySupportType_AnyValue:
 		r.SetWithClock(v.AnyValue, clock, customValue)
-	case *tc.AnySupportType_StringValue:
+	case *tck.AnySupportType_StringValue:
 		r.SetWithClock(encoding.String(v.StringValue), clock, customValue)
-	case *tc.AnySupportType_BytesValue:
+	case *tck.AnySupportType_BytesValue:
 		r.SetWithClock(encoding.Bytes(v.BytesValue), clock, customValue)
-	case *tc.AnySupportType_BoolValue:
+	case *tck.AnySupportType_BoolValue:
 		r.SetWithClock(encoding.Bool(v.BoolValue), clock, customValue)
-	case *tc.AnySupportType_DoubleValue:
+	case *tck.AnySupportType_DoubleValue:
 		r.SetWithClock(encoding.Float64(v.DoubleValue), clock, customValue)
-	case *tc.AnySupportType_FloatValue:
+	case *tck.AnySupportType_FloatValue:
 		r.SetWithClock(encoding.Float32(v.FloatValue), clock, customValue)
-	case *tc.AnySupportType_Int32Value:
+	case *tck.AnySupportType_Int32Value:
 		r.SetWithClock(encoding.Int32(v.Int32Value), clock, customValue)
-	case *tc.AnySupportType_Int64Value:
+	case *tck.AnySupportType_Int64Value:
 		r.SetWithClock(encoding.Int64(v.Int64Value), clock, customValue)
 	}
 }

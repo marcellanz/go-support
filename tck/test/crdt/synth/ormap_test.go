@@ -2,7 +2,6 @@ package synth
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -45,7 +44,6 @@ func TestCRDTORMap(t *testing.T) {
 				}),
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
-				fmt.Printf("huh")
 				tr.expectedNotNil(m.Reply.GetStateAction().GetCreate())
 			default:
 				tr.unexpected(m)
