@@ -34,15 +34,27 @@ service TckCrdt {
     rpc ProcessORSet (ORSetRequest) returns (ORSetResponse);
     rpc ProcessFlag (FlagRequest) returns (FlagResponse);
     rpc ProcessLWWRegister (LWWRegisterRequest) returns (LWWRegisterResponse);
-    //    rpc ProcessORMap (ORMapRequest) returns (ORMapResponse);
+    rpc ProcessORMap (ORMapRequest) returns (ORMapResponse);
     rpc ProcessVote (VoteRequest) returns (VoteResponse);
+}
 
-    rpc SetORMap (ORMapSet) returns (ORMapEntries);
-    rpc DeleteORMap (ORMapKey) returns (ORMapEntries);
-    rpc ClearORMap (ORMapKey) returns (ORMapEntries);
-    rpc GetORMapSize (Get) returns (ORMapSize);
-    rpc GetORMapEntries (Get) returns (ORMapEntries);
-    rpc GetORMapKeys (Get) returns (ORMapKeys);
+message ORMapRequest {
+    string id = 1 [(.cloudstate.entity_key) = true];
+    repeated ORMapRequestAction actions = 2;
+}
+
+message ORMapRequestAction {
+    oneof action {
+        Get get = 1;
+        Delete delete = 2;
+        ORMapSet setKey = 3;
+        ORMapDelete deleteKey = 4;
+    }
+}
+
+message ORMapResponse {
+    ORMapEntries entries = 1;
+    ORMapKeys keys = 2;
 }
 
 message VoteRequest {
@@ -302,6 +314,16 @@ message ORMapSet {
     string failWith = 2;
     google.protobuf.Any entry_key = 3;
     google.protobuf.Any value = 4;
+    oneof request {
+        GCounterRequest gCounterRequest = 5;
+        PNCounterRequest pnCounterRequest = 6;
+    };
+}
+
+message ORMapDelete {
+    string key = 1 [(.cloudstate.entity_key) = true];
+    string failWith = 2;
+    google.protobuf.Any entry_key = 3;
 }
 
 message ORMapKey {

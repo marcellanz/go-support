@@ -66,31 +66,26 @@ func (s *SyntheticCRDTs) Set(_ *crdt.Context, c crdt.CRDT) {
 }
 
 func (s *SyntheticCRDTs) Default(c *crdt.Context) (crdt.CRDT, error) {
-	if strings.HasPrefix(c.EntityId.String(), "gcounter-") {
+	switch strings.Split(c.EntityId.String(), "-")[0] {
+	case "gcounter":
 		return crdt.NewGCounter(), nil
-	}
-	if strings.HasPrefix(c.EntityId.String(), "pncounter-") {
+	case "pncounter":
 		return crdt.NewPNCounter(), nil
-	}
-	if strings.HasPrefix(c.EntityId.String(), "gset-") {
+	case "gset":
 		return crdt.NewGSet(), nil
-	}
-	if strings.HasPrefix(c.EntityId.String(), "orset-") {
+	case "orset":
 		return crdt.NewORSet(), nil
-	}
-	if strings.HasPrefix(c.EntityId.String(), "flag-") {
+	case "flag":
 		return crdt.NewFlag(), nil
-	}
-	if strings.HasPrefix(c.EntityId.String(), "lwwregister-") {
+	case "lwwregister":
 		return crdt.NewLWWRegister(nil), nil
-	}
-	if strings.HasPrefix(c.EntityId.String(), "vote-") {
+	case "vote":
 		return crdt.NewVote(), nil
-	}
-	if strings.HasPrefix(c.EntityId.String(), "ormap-") {
+	case "ormap":
 		return crdt.NewORMap(), nil
+	default:
+		return nil, errors.New("unknown entity type")
 	}
-	return nil, errors.New("unknown entity type")
 }
 
 func (s *SyntheticCRDTs) HandleCommand(cc *crdt.CommandContext, _ string, cmd proto.Message) (*any.Any, error) {
@@ -101,19 +96,19 @@ func (s *SyntheticCRDTs) HandleCommand(cc *crdt.CommandContext, _ string, cmd pr
 			case *tc.GCounterRequestAction_Increment:
 				s.gCounter.Increment(a.Increment.GetValue())
 				v := &tc.GCounterValue{Value: s.gCounter.Value()}
-				if a.Increment.FailWith != "" {
-					return nil, errors.New(a.Increment.FailWith)
+				if with := a.Increment.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				return encoding.MarshalAny(&tc.GCounterResponse{Value: v})
 			case *tc.GCounterRequestAction_Get:
-				if a.Get.FailWith != "" {
-					return nil, errors.New(a.Get.FailWith)
+				if with := a.Get.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				return encoding.MarshalAny(&tc.GCounterResponse{Value: &tc.GCounterValue{Value: s.gCounter.Value()}})
 			case *tc.GCounterRequestAction_Delete:
 				cc.Delete()
-				if a.Delete.FailWith != "" {
-					return nil, errors.New(a.Delete.FailWith)
+				if with := a.Delete.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				return encoding.MarshalAny(&tc.GCounterResponse{})
 			}
@@ -123,25 +118,25 @@ func (s *SyntheticCRDTs) HandleCommand(cc *crdt.CommandContext, _ string, cmd pr
 			switch a := as.Action.(type) {
 			case *tc.PNCounterRequestAction_Increment:
 				s.pnCounter.Increment(a.Increment.Value)
-				if a.Increment.FailWith != "" {
-					return nil, errors.New(a.Increment.FailWith)
+				if with := a.Increment.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				return encoding.MarshalAny(&tc.PNCounterResponse{Value: &tc.PNCounterValue{Value: s.pnCounter.Value()}})
 			case *tc.PNCounterRequestAction_Decrement:
 				s.pnCounter.Decrement(a.Decrement.Value)
-				if a.Decrement.FailWith != "" {
-					return nil, errors.New(a.Decrement.FailWith)
+				if with := a.Decrement.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				return encoding.MarshalAny(&tc.PNCounterResponse{Value: &tc.PNCounterValue{Value: s.pnCounter.Value()}})
 			case *tc.PNCounterRequestAction_Get:
-				if a.Get.FailWith != "" {
-					return nil, errors.New(a.Get.FailWith)
+				if with := a.Get.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				return encoding.MarshalAny(&tc.PNCounterResponse{Value: &tc.PNCounterValue{Value: s.pnCounter.Value()}})
 			case *tc.PNCounterRequestAction_Delete:
 				cc.Delete()
-				if a.Delete.FailWith != "" {
-					return nil, errors.New(a.Delete.FailWith)
+				if with := a.Delete.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				return encoding.MarshalAny(&tc.PNCounterResponse{})
 			}
@@ -154,14 +149,14 @@ func (s *SyntheticCRDTs) HandleCommand(cc *crdt.CommandContext, _ string, cmd pr
 				for _, a := range s.gSet.Value() {
 					v = append(v, asAnySupportType(a))
 				}
-				if a.Get.FailWith != "" {
-					return nil, errors.New(a.Get.FailWith)
+				if with := a.Get.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				return encoding.MarshalAny(&tc.GSetResponse{Value: &tc.GSetValue{Values: v}})
 			case *tc.GSetRequestAction_Delete:
 				cc.Delete()
-				if a.Delete.FailWith != "" {
-					return nil, errors.New(a.Delete.FailWith)
+				if with := a.Delete.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				return encoding.MarshalAny(&tc.GSetResponse{})
 			case *tc.GSetRequestAction_Add:
@@ -176,8 +171,8 @@ func (s *SyntheticCRDTs) HandleCommand(cc *crdt.CommandContext, _ string, cmd pr
 					}
 					v = append(v, asAnySupportType(a))
 				}
-				if a.Add.FailWith != "" {
-					return nil, errors.New(a.Add.FailWith)
+				if with := a.Add.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				return encoding.MarshalAny(&tc.GSetResponse{Value: &tc.GSetValue{Values: v}})
 			}
@@ -186,26 +181,26 @@ func (s *SyntheticCRDTs) HandleCommand(cc *crdt.CommandContext, _ string, cmd pr
 		for _, as := range c.GetActions() {
 			switch a := as.Action.(type) {
 			case *tc.ORSetRequestAction_Get:
-				if a.Get.FailWith != "" {
-					return nil, errors.New(a.Get.FailWith)
+				if with := a.Get.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				return encoding.MarshalAny(&tc.ORSetResponse{Value: &tc.ORSetValue{Values: s.orSet.Value()}})
 			case *tc.ORSetRequestAction_Delete:
 				cc.Delete()
-				if a.Delete.FailWith != "" {
-					return nil, errors.New(a.Delete.FailWith)
+				if with := a.Delete.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				return encoding.MarshalAny(&tc.ORSetResponse{})
 			case *tc.ORSetRequestAction_Add:
 				anySupportAdd(s.orSet, a.Add.Value)
-				if a.Add.FailWith != "" {
-					return nil, errors.New(a.Add.FailWith)
+				if with := a.Add.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				return encoding.MarshalAny(&tc.ORSetResponse{Value: &tc.ORSetValue{Values: s.orSet.Value()}})
 			case *tc.ORSetRequestAction_Remove:
 				anySupportRemove(s.orSet, a.Remove.Value)
-				if a.Remove.FailWith != "" {
-					return nil, errors.New(a.Remove.FailWith)
+				if with := a.Remove.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				return encoding.MarshalAny(&tc.ORSetResponse{Value: &tc.ORSetValue{Values: s.orSet.Value()}})
 			}
@@ -214,19 +209,19 @@ func (s *SyntheticCRDTs) HandleCommand(cc *crdt.CommandContext, _ string, cmd pr
 		for _, as := range c.GetActions() {
 			switch a := as.Action.(type) {
 			case *tc.FlagRequestAction_Get:
-				if a.Get.FailWith != "" {
-					return nil, errors.New(a.Get.FailWith)
+				if with := a.Get.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				return encoding.MarshalAny(&tc.FlagResponse{Value: &tc.FlagValue{Value: s.flag.Value()}})
 			case *tc.FlagRequestAction_Delete:
 				cc.Delete()
-				if a.Delete.FailWith != "" {
-					return nil, errors.New(a.Delete.FailWith)
+				if with := a.Delete.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				return encoding.MarshalAny(&tc.FlagResponse{})
 			case *tc.FlagRequestAction_Enable:
-				if a.Enable.FailWith != "" {
-					return nil, errors.New(a.Enable.FailWith)
+				if with := a.Enable.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				s.flag.Enable()
 				return encoding.MarshalAny(&tc.FlagResponse{Value: &tc.FlagValue{Value: s.flag.Value()}})
@@ -236,25 +231,25 @@ func (s *SyntheticCRDTs) HandleCommand(cc *crdt.CommandContext, _ string, cmd pr
 		for _, as := range c.GetActions() {
 			switch a := as.Action.(type) {
 			case *tc.LWWRegisterRequestAction_Get:
-				if a.Get.FailWith != "" {
-					return nil, errors.New(a.Get.FailWith)
+				if with := a.Get.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				return encoding.MarshalAny(&tc.LWWRegisterResponse{Value: &tc.LWWRegisterValue{Value: s.lwwRegister.Value()}})
 			case *tc.LWWRegisterRequestAction_Delete:
 				cc.Delete()
-				if a.Delete.FailWith != "" {
-					return nil, errors.New(a.Delete.FailWith)
+				if with := a.Delete.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				return encoding.MarshalAny(&tc.FlagResponse{})
 			case *tc.LWWRegisterRequestAction_Set:
-				if a.Set.FailWith != "" {
-					return nil, errors.New(a.Set.FailWith)
+				if with := a.Set.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				anySupportAdd(&anySupportAdderSetter{s.lwwRegister}, a.Set.GetValue())
 				return encoding.MarshalAny(&tc.LWWRegisterResponse{Value: &tc.LWWRegisterValue{Value: s.lwwRegister.Value()}})
 			case *tc.LWWRegisterRequestAction_SetWithClock:
-				if a.SetWithClock.FailWith != "" {
-					return nil, errors.New(a.SetWithClock.FailWith)
+				if with := a.SetWithClock.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				anySupportSetClock(
 					s.lwwRegister,
@@ -269,8 +264,8 @@ func (s *SyntheticCRDTs) HandleCommand(cc *crdt.CommandContext, _ string, cmd pr
 		for _, as := range c.GetActions() {
 			switch a := as.Action.(type) {
 			case *tc.VoteRequestAction_Get:
-				if a.Get.FailWith != "" {
-					return nil, errors.New(a.Get.FailWith)
+				if with := a.Get.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				return encoding.MarshalAny(&tc.VoteResponse{
 					SelfVote: s.vote.SelfVote(),
@@ -279,20 +274,72 @@ func (s *SyntheticCRDTs) HandleCommand(cc *crdt.CommandContext, _ string, cmd pr
 				})
 			case *tc.VoteRequestAction_Delete:
 				cc.Delete()
-				if a.Delete.FailWith != "" {
-					return nil, errors.New(a.Delete.FailWith)
+				if with := a.Delete.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				return encoding.MarshalAny(&empty.Empty{})
 			case *tc.VoteRequestAction_Vote:
 				s.vote.Vote(a.Vote.GetValue())
-				if a.Vote.FailWith != "" {
-					return nil, errors.New(a.Vote.FailWith)
+				if with := a.Vote.FailWith; with != "" {
+					return nil, errors.New(with)
 				}
 				return encoding.MarshalAny(&tc.VoteResponse{
 					SelfVote: s.vote.SelfVote(),
 					Voters:   s.vote.Voters(),
 					VotesFor: s.vote.VotesFor(),
 				})
+			}
+		}
+	case *tc.ORMapRequest:
+		for _, as := range c.GetActions() {
+			switch a := as.Action.(type) {
+			case *tc.ORMapRequestAction_Get:
+				if with := a.Get.FailWith; with != "" {
+					return nil, errors.New(with)
+				}
+				// entries := make([]*protocol.ORMapEntry, 0)
+				for _, v := range s.orMap.Values() {
+					v.GetState()
+				}
+				return encoding.MarshalAny(&tc.ORMapResponse{})
+			case *tc.ORMapRequestAction_Delete:
+				if with := a.Delete.FailWith; with != "" {
+					return nil, errors.New(with)
+				}
+			case *tc.ORMapRequestAction_SetKey:
+				// we reuse this entities implementation to
+				// handle requests for a certain CRDT of this
+				// ORMaps value.
+				cm := &SyntheticCRDTs{}
+				switch t := a.SetKey.GetRequest().(type) {
+				case *tc.ORMapSet_GCounterRequest:
+					ctx := &crdt.CommandContext{Context: &crdt.Context{EntityId: "gcounter"}}
+					if !s.orMap.HasKey(a.SetKey.EntryKey) {
+						counter, _ := cm.Default(ctx.Context)
+						cm.Set(ctx.Context, counter)
+						s.orMap.SetGCounter(a.SetKey.EntryKey, cm.gCounter)
+					} else {
+						counter, _ := s.orMap.GCounter(a.SetKey.EntryKey)
+						cm.Set(ctx.Context, counter)
+					}
+					_, _ = cm.HandleCommand(ctx, "", t.GCounterRequest)
+					return encoding.MarshalAny(&tc.ORMapResponse{
+						Entries: &tc.ORMapEntries{
+							Values: append(make([]*tc.ORMapEntry, 0), &tc.ORMapEntry{
+								EntryKey: a.SetKey.EntryKey,
+								Value:    encoding.Struct(cm.gCounter.State()),
+							}),
+						},
+					})
+				case *tc.ORMapSet_PnCounterRequest:
+				}
+				if with := a.SetKey.FailWith; with != "" {
+					return nil, errors.New(with)
+				}
+			case *tc.ORMapRequestAction_DeleteKey:
+				if with := a.DeleteKey.FailWith; with != "" {
+					return nil, errors.New(with)
+				}
 			}
 		}
 	}
