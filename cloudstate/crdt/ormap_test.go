@@ -26,15 +26,15 @@ import (
 func TestORMap(t *testing.T) {
 	t.Run("should have no elements when instantiated", func(t *testing.T) {
 		m := NewORMap()
-		if m.Size() != 0 {
-			t.Fatalf("m.Size(): %v; want: %v", m.Size(), 0)
+		if got, want := m.Size(), 0; got != want {
+			t.Fatalf("got: %v; want: %v", got, want)
 		}
 		if m.Delta() != nil {
 			t.Fatal("m.Delta() is not nil but should")
 		}
 		m.resetDelta()
-		if elen := len(encDecState(m.State()).GetOrmap().Entries); elen > 0 {
-			t.Fatalf("len(Entries): %v; want: %v", elen, 0)
+		if got, want := len(encDecState(m.State()).GetOrmap().Entries), 0; got != want {
+			t.Fatalf("got: %v; want: %v", got, want)
 		}
 	})
 	t.Run("should reflect a state update", func(t *testing.T) {
@@ -63,14 +63,14 @@ func TestORMap(t *testing.T) {
 		)); err != nil {
 			t.Fatal(err)
 		}
-		if m.Size() != 2 {
-			t.Fatalf("m.Size(): %v; want: %v", m.Size(), 2)
+		if got, want := m.Size(), 2; got != want {
+			t.Fatalf("got: %v; want: %v", got, want)
 		}
-		if v0 := m.Get(encoding.String("one")).GetGcounter().Value; v0 != 5 {
-			t.Fatalf("GCounter.Value: %v; want: %v", v0, 5)
+		if got, want := m.Get(encoding.String("one")).State().GetGcounter().Value, uint64(5); got != want {
+			t.Fatalf("got: %v; want: %v", got, want)
 		}
-		if v0 := m.Get(encoding.String("two")).GetGcounter().Value; v0 != 7 {
-			t.Fatalf("GCounter.Value: %v; want: %v", v0, 7)
+		if got, want := m.Get(encoding.String("two")).State().GetGcounter().Value, uint64(7); got != want {
+			t.Fatalf("got: %v; want: %v", got, want)
 		}
 		if d := m.Delta(); d != nil {
 			t.Fatalf("m.Delta(): %v; want: %v", d, nil)
