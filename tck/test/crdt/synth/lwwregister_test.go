@@ -31,9 +31,13 @@ func TestCRDTLWWRegister(t *testing.T) {
 		p.init(&protocol.CrdtInit{ServiceName: serviceName, EntityId: entityId})
 		t.Run("LWWRegisterSet emits client action and create state action", func(t *testing.T) {
 			tr := tester{t}
+			one, err := encoding.Struct(pair{"one", 1})
+			if err != nil {
+				t.Fatal(err)
+			}
 			switch m := p.command(entityId, command, lwwRegisterRequest(&crdt.LWWRegisterSet{
 				Value: &crdt.AnySupportType{
-					Value: &crdt.AnySupportType_AnyValue{AnyValue: encoding.Struct(pair{"one", 1})},
+					Value: &crdt.AnySupportType_AnyValue{AnyValue: one},
 				},
 			}),
 			).Message.(type) {
@@ -43,7 +47,11 @@ func TestCRDTLWWRegister(t *testing.T) {
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
 				var r crdt.LWWRegisterResponse
 				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
-				tr.expectedOneIn([]*any.Any{r.GetValue().GetValue()}, encoding.Struct(pair{"one", 1}))
+				one, err := encoding.Struct(pair{"one", 1})
+				if err != nil {
+					t.Fatal(err)
+				}
+				tr.expectedOneIn([]*any.Any{r.GetValue().GetValue()}, one)
 				// state action
 				tr.expectedNotNil(m.Reply.GetStateAction().GetCreate())
 				tr.expectedNil(m.Reply.GetStateAction().GetUpdate())
@@ -58,9 +66,13 @@ func TestCRDTLWWRegister(t *testing.T) {
 		})
 		t.Run("LWWRegisterSetWithClock emits client action and update state action", func(t *testing.T) {
 			tr := tester{t}
+			two, err := encoding.Struct(pair{"two", 2})
+			if err != nil {
+				t.Fatal(err)
+			}
 			switch m := p.command(entityId, command, lwwRegisterRequest(&crdt.LWWRegisterSetWithClock{
 				Value: &crdt.AnySupportType{
-					Value: &crdt.AnySupportType_AnyValue{AnyValue: encoding.Struct(pair{"two", 2})},
+					Value: &crdt.AnySupportType_AnyValue{AnyValue: two},
 				},
 				Clock:            crdt.CrdtClock_CUSTOM,
 				CustomClockValue: 7,
@@ -72,7 +84,11 @@ func TestCRDTLWWRegister(t *testing.T) {
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
 				var r crdt.LWWRegisterResponse
 				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
-				tr.expectedOneIn([]*any.Any{r.GetValue().GetValue()}, encoding.Struct(pair{"two", 2}))
+				two, err := encoding.Struct(pair{"two", 2})
+				if err != nil {
+					t.Fatal(err)
+				}
+				tr.expectedOneIn([]*any.Any{r.GetValue().GetValue()}, two)
 				// state action
 				tr.expectedNil(m.Reply.GetStateAction().GetCreate())
 				tr.expectedNotNil(m.Reply.GetStateAction().GetUpdate())

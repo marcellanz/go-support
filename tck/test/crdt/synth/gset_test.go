@@ -32,8 +32,15 @@ func TestCRDTGSet(t *testing.T) {
 		}
 		t.Run("calling AddGSet should emit client action and create state action", func(t *testing.T) {
 			tr := tester{t}
+			one, err := encoding.Struct(pair{"one", 1})
+			if err != nil {
+				t.Fatal(err)
+			}
 			switch m := p.command(
-				entityId, command, gsetRequest(&crdt.GSetAdd{Key: entityId, Value: &crdt.AnySupportType{Value: &crdt.AnySupportType_AnyValue{AnyValue: encoding.Struct(pair{"one", 1})}}}),
+				entityId, command, gsetRequest(&crdt.GSetAdd{
+					Key:   entityId,
+					Value: &crdt.AnySupportType{Value: &crdt.AnySupportType_AnyValue{AnyValue: one}},
+				}),
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
 				tr.expectedNil(m.Reply.GetStateAction().GetUpdate())
@@ -60,8 +67,15 @@ func TestCRDTGSet(t *testing.T) {
 		})
 		t.Run("further calls of AddGSet should emit client action and delta state action", func(t *testing.T) {
 			tr := tester{t}
+			two, err := encoding.Struct(pair{"two", 2})
+			if err != nil {
+				t.Fatal(err)
+			}
 			switch m := p.command(
-				entityId, command, gsetRequest(&crdt.GSetAdd{Key: entityId, Value: &crdt.AnySupportType{Value: &crdt.AnySupportType_AnyValue{AnyValue: encoding.Struct(pair{"two", 2})}}}),
+				entityId, command, gsetRequest(&crdt.GSetAdd{
+					Key:   entityId,
+					Value: &crdt.AnySupportType{Value: &crdt.AnySupportType_AnyValue{AnyValue: two}},
+				}),
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
 				tr.expectedNil(m.Reply.GetStateAction().GetCreate())

@@ -30,8 +30,12 @@ func TestCRDTORSet(t *testing.T) {
 		p.init(&protocol.CrdtInit{ServiceName: serviceName, EntityId: entityId})
 		t.Run("ORSetAdd emits client action and create state action", func(t *testing.T) {
 			tr := tester{t}
+			one, err := encoding.Struct(pair{"one", 1})
+			if err != nil {
+				t.Fatal(err)
+			}
 			switch m := p.command(entityId, command, orsetRequest(&crdt.ORSetAdd{Value: &crdt.AnySupportType{
-				Value: &crdt.AnySupportType_AnyValue{AnyValue: encoding.Struct(pair{"one", 1})}},
+				Value: &crdt.AnySupportType_AnyValue{AnyValue: one}},
 			}),
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
@@ -40,24 +44,33 @@ func TestCRDTORSet(t *testing.T) {
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
 				var r crdt.ORSetResponse
 				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
-				tr.expectedOneIn(r.GetValue().GetValues(), encoding.Struct(pair{"one", 1}))
+				one, err := encoding.Struct(pair{"one", 1})
+				if err != nil {
+					t.Fatal(err)
+				}
+				tr.expectedOneIn(r.GetValue().GetValues(), one)
 				// state
 				tr.expectedNotNil(m.Reply.GetStateAction().GetCreate())
-				tr.expectedOneIn(
-					m.Reply.GetStateAction().GetCreate().GetOrset().GetItems(),
-					encoding.Struct(pair{"one", 1}),
-				)
+				tr.expectedOneIn(m.Reply.GetStateAction().GetCreate().GetOrset().GetItems(), one)
 			default:
 				tr.unexpected(m)
 			}
 		})
 		t.Run("ORSetRemove emits client action and update state action", func(t *testing.T) {
 			tr := tester{t}
+			two, err := encoding.Struct(pair{"two", 2})
+			if err != nil {
+				t.Fatal(err)
+			}
 			p.command(entityId, command, orsetRequest(&crdt.ORSetAdd{Value: &crdt.AnySupportType{
-				Value: &crdt.AnySupportType_AnyValue{AnyValue: encoding.Struct(pair{"two", 2})}},
+				Value: &crdt.AnySupportType_AnyValue{AnyValue: two}},
 			}))
+			one, err := encoding.Struct(pair{"one", 1})
+			if err != nil {
+				t.Fatal(err)
+			}
 			switch m := p.command(entityId, command, orsetRequest(&crdt.ORSetRemove{Value: &crdt.AnySupportType{
-				Value: &crdt.AnySupportType_AnyValue{AnyValue: encoding.Struct(pair{"one", 1})}},
+				Value: &crdt.AnySupportType_AnyValue{AnyValue: one}},
 			}),
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
@@ -67,22 +80,31 @@ func TestCRDTORSet(t *testing.T) {
 				tr.expectedNil(m.Reply.GetClientAction().GetForward())
 				var r crdt.ORSetResponse
 				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
-				tr.expectedOneIn(r.GetValue().GetValues(), encoding.Struct(pair{"two", 2}))
+				two, err := encoding.Struct(pair{"two", 2})
+				if err != nil {
+					t.Fatal(err)
+				}
+				tr.expectedOneIn(r.GetValue().GetValues(), two)
 				tr.expectedInt(len(r.GetValue().GetValues()), 1)
 				// state
 				tr.expectedNotNil(m.Reply.GetStateAction().GetUpdate())
-				tr.expectedOneIn(
-					m.Reply.GetStateAction().GetUpdate().GetOrset().GetRemoved(),
-					encoding.Struct(pair{"one", 1}),
-				)
+				one, err := encoding.Struct(pair{"one", 1})
+				if err != nil {
+					t.Fatal(err)
+				}
+				tr.expectedOneIn(m.Reply.GetStateAction().GetUpdate().GetOrset().GetRemoved(), one)
 			default:
 				tr.unexpected(m)
 			}
 		})
 		t.Run("Delete emits client action and delete state action", func(t *testing.T) {
 			tr := tester{t}
+			two, err := encoding.Struct(pair{"two", 2})
+			if err != nil {
+				t.Fatal(err)
+			}
 			p.command(entityId, command, orsetRequest(&crdt.ORSetAdd{Value: &crdt.AnySupportType{
-				Value: &crdt.AnySupportType_AnyValue{AnyValue: encoding.Struct(pair{"two", 2})}},
+				Value: &crdt.AnySupportType_AnyValue{AnyValue: two}},
 			}))
 			switch m := p.command(
 				entityId, command, orsetRequest(&crdt.Delete{}),
