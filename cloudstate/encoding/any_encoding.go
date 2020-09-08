@@ -27,9 +27,8 @@ func String(s string) *any.Any {
 	return primitive
 }
 
-func Struct(s interface{}) *any.Any {
-	aStruct, _ := MarshalJSON(s)
-	return aStruct
+func Struct(s interface{}) (*any.Any, error) {
+	return MarshalJSON(s)
 }
 
 func DecodeStruct(a *any.Any, s interface{}) error {

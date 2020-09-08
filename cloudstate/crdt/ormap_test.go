@@ -443,10 +443,18 @@ func TestORMap(t *testing.T) {
 		type c struct {
 			Field1 string
 		}
-		m.SetGCounter(encoding.Struct(&c{Field1: "one"}), NewGCounter())
-		m.SetGCounter(encoding.Struct(&c{Field1: "two"}), NewGCounter())
+		one, err := encoding.Struct(&c{Field1: "one"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		m.SetGCounter(one, NewGCounter())
+		two, err := encoding.Struct(&c{Field1: "two"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		m.SetGCounter(two, NewGCounter())
 		m.resetDelta()
-		m.Delete(encoding.Struct(&c{Field1: "one"}))
+		m.Delete(one)
 		if s := m.Size(); s != 1 {
 			t.Fatalf("m.Size(): %v; want: %v", s, 1)
 		}
@@ -455,8 +463,7 @@ func TestORMap(t *testing.T) {
 			t.Fatalf("added len: %v; want: %v", l, 1)
 		}
 		c0 := &c{}
-		err := encoding.DecodeStruct(m.Delta().GetOrmap().GetRemoved()[0], c0)
-		if err != nil {
+		if err := encoding.DecodeStruct(m.Delta().GetOrmap().GetRemoved()[0], c0); err != nil {
 			t.Fatal(err)
 		}
 		if f1 := c0.Field1; f1 != "one" {
@@ -465,10 +472,18 @@ func TestORMap(t *testing.T) {
 	})
 	t.Run("should work with json types", func(t *testing.T) {
 		m := NewORMap()
-		m.SetGCounter(encoding.Struct(struct{ Foo string }{Foo: "bar"}), NewGCounter())
-		m.SetGCounter(encoding.Struct(struct{ Foo string }{Foo: "baz"}), NewGCounter())
+		bar, err := encoding.Struct(struct{ Foo string }{Foo: "bar"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		m.SetGCounter(bar, NewGCounter())
+		baz, err := encoding.Struct(struct{ Foo string }{Foo: "baz"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		m.SetGCounter(baz, NewGCounter())
 		m.resetDelta()
-		m.Delete(encoding.Struct(struct{ Foo string }{Foo: "bar"}))
+		m.Delete(bar)
 		if s := m.Size(); s != 1 {
 			t.Fatalf("m.Size(): %v; want: %v", s, 1)
 		}
@@ -477,8 +492,7 @@ func TestORMap(t *testing.T) {
 			t.Fatalf("added len: %v; want: %v", l, 1)
 		}
 		c0 := &struct{ Foo string }{}
-		err := encoding.DecodeStruct(m.Delta().GetOrmap().GetRemoved()[0], c0)
-		if err != nil {
+		if err := encoding.DecodeStruct(m.Delta().GetOrmap().GetRemoved()[0], c0); err != nil {
 			t.Fatal(err)
 		}
 		if f1 := c0.Foo; f1 != "bar" {

@@ -162,13 +162,21 @@ func TestGset(t *testing.T) {
 		type Example struct {
 			Field1 string
 		}
-		s.Add(encoding.Struct(&Example{Field1: "one"}))
+		field1, err := encoding.Struct(&Example{Field1: "one"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.Add(field1)
 		s.resetDelta()
-		s.Add(encoding.Struct(&Example{Field1: "one"}))
+		s.Add(field1)
 		if s.Size() != 1 {
 			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 1)
 		}
-		s.Add(encoding.Struct(&Example{Field1: "two"}))
+		field2, err := encoding.Struct(&Example{Field1: "two"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.Add(field2)
 		if s.Size() != 2 {
 			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 2)
 		}

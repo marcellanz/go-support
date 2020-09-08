@@ -160,7 +160,7 @@ func TestORSet(t *testing.T) {
 		if s.Size() != 1 {
 			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 1)
 		}
-		//delta := encDecDelta(s.Delta())
+		// delta := encDecDelta(s.Delta())
 		s.resetDelta()
 		if s.HasDelta() {
 			t.Fatalf("set has delta")
@@ -305,12 +305,18 @@ func TestORSet(t *testing.T) {
 		type Example struct {
 			Field1 string
 		}
-		one := encoding.Struct(Example{Field1: "one"})
+		one, err := encoding.Struct(Example{Field1: "one"})
+		if err != nil {
+			t.Fatal(err)
+		}
 		s.Add(one)
-		two := encoding.Struct(Example{Field1: "two"})
+		two, err := encoding.Struct(Example{Field1: "two"})
+		if err != nil {
+			t.Fatal(err)
+		}
 		s.Add(two)
 		s.resetDelta()
-		s.Remove(encoding.Struct(Example{Field1: "one"}))
+		s.Remove(one)
 		if s.Size() != 1 {
 			t.Fatalf("s.Size(): %v; want: %v", s.Size(), 1)
 		}
@@ -320,8 +326,7 @@ func TestORSet(t *testing.T) {
 			t.Fatalf("rlen: %v; want: %v", rlen, 1)
 		}
 		e := &Example{}
-		err := encoding.UnmarshalJSON(delta.GetOrset().GetRemoved()[0], e)
-		if err != nil || e.Field1 != "one" {
+		if err := encoding.UnmarshalJSON(delta.GetOrset().GetRemoved()[0], e); err != nil || e.Field1 != "one" {
 			t.Fail()
 		}
 	})

@@ -28,10 +28,13 @@ func TestLWWRegister(t *testing.T) {
 	}
 
 	t.Run("should be instantiated with a value", func(t *testing.T) {
-		r := NewLWWRegister(encoding.Struct(Example{Field1: "foo"}))
-		example := Example{}
-		err := encoding.UnmarshalJSON(r.Value(), &example)
+		foo, err := encoding.Struct(Example{Field1: "foo"})
 		if err != nil {
+			t.Fatal(err)
+		}
+		r := NewLWWRegister(foo)
+		example := Example{}
+		if err := encoding.UnmarshalJSON(r.Value(), &example); err != nil {
 			t.Fatal(err)
 		}
 		if example.Field1 != "foo" {
@@ -55,14 +58,22 @@ func TestLWWRegister(t *testing.T) {
 	})
 
 	t.Run("should reflect a state update", func(t *testing.T) {
+		bar, err := encoding.Struct(Example{Field1: "bar"})
+		if err != nil {
+			t.Fatal(err)
+		}
 		r := LWWRegister{
-			value: encoding.Struct(Example{Field1: "bar"}),
+			value: bar,
+		}
+		foo, err := encoding.Struct(Example{Field1: "foo"})
+		if err != nil {
+			t.Fatal(err)
 		}
 		if err := r.applyState(encDecState(
 			&protocol.CrdtState{
 				State: &protocol.CrdtState_Lwwregister{
 					Lwwregister: &protocol.LWWRegisterState{
-						Value: encoding.Struct(Example{Field1: "foo"}),
+						Value: foo,
 					},
 				},
 			},
@@ -70,8 +81,7 @@ func TestLWWRegister(t *testing.T) {
 			t.Fatal(err)
 		}
 		example := Example{}
-		err := encoding.UnmarshalJSON(r.Value(), &example)
-		if err != nil {
+		if err := encoding.UnmarshalJSON(r.Value(), &example); err != nil {
 			t.Fatal(err)
 		}
 		if example.Field1 != "foo" {
@@ -80,11 +90,18 @@ func TestLWWRegister(t *testing.T) {
 	})
 
 	t.Run("should generate a delta", func(t *testing.T) {
-		r := NewLWWRegister(encoding.Struct(Example{Field1: "foo"}))
-		r.Set(encoding.Struct(Example{Field1: "bar"}))
-		example := Example{}
-		err := encoding.UnmarshalJSON(r.value, &example)
+		foo, err := encoding.Struct(Example{Field1: "foo"})
 		if err != nil {
+			t.Fatal(err)
+		}
+		r := NewLWWRegister(foo)
+		bar, err := encoding.Struct(Example{Field1: "bar"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.Set(bar)
+		example := Example{}
+		if err := encoding.UnmarshalJSON(r.value, &example); err != nil {
 			t.Fatal(err)
 		}
 		if example.Field1 != "bar" {
@@ -109,11 +126,18 @@ func TestLWWRegister(t *testing.T) {
 	})
 
 	t.Run("should generate deltas with a custom clock", func(t *testing.T) {
-		r := NewLWWRegister(encoding.Struct(Example{Field1: "foo"}))
-		r.SetWithClock(encoding.Struct(Example{Field1: "bar"}), Custom, 10)
-		example := Example{}
-		err := encoding.UnmarshalJSON(r.value, &example)
+		foo, err := encoding.Struct(Example{Field1: "foo"})
 		if err != nil {
+			t.Fatal(err)
+		}
+		r := NewLWWRegister(foo)
+		bar, err := encoding.Struct(Example{Field1: "bar"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.SetWithClock(bar, Custom, 10)
+		example := Example{}
+		if err := encoding.UnmarshalJSON(r.value, &example); err != nil {
 			t.Fatal(err)
 		}
 		if example.Field1 != "bar" {
@@ -141,13 +165,21 @@ func TestLWWRegister(t *testing.T) {
 	})
 
 	t.Run("should reflect a delta update", func(t *testing.T) {
-		r := NewLWWRegister(encoding.Struct(Example{Field1: "foo"}))
-		//r.Set(encoding.Struct(Example{Field1: "foo"})) // TODO: this is not the same, check
+		foo, err := encoding.Struct(Example{Field1: "foo"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := NewLWWRegister(foo)
+		// r.Set(encoding.Struct(Example{Field1: "foo"})) // TODO: this is not the same, check
+		bar, err := encoding.Struct(Example{Field1: "bar"})
+		if err != nil {
+			t.Fatal(err)
+		}
 		if err := r.applyDelta(encDecDelta(
 			&protocol.CrdtDelta{
 				Delta: &protocol.CrdtDelta_Lwwregister{
 					Lwwregister: &protocol.LWWRegisterDelta{
-						Value: encoding.Struct(Example{Field1: "bar"}),
+						Value: bar,
 					},
 				},
 			},
@@ -155,8 +187,7 @@ func TestLWWRegister(t *testing.T) {
 			t.Fatal(err)
 		}
 		e := Example{}
-		err := encoding.UnmarshalJSON(r.Value(), &e)
-		if err != nil {
+		if err := encoding.UnmarshalJSON(r.Value(), &e); err != nil {
 			t.Fatal(err)
 		}
 		if e.Field1 != "bar" {
