@@ -371,10 +371,14 @@ func orMapResponse(orMap *crdt.ORMap) *tck.ORMapResponse {
 		},
 	}
 	for _, k := range orMap.Keys() {
+		value, err := encoding.Struct(orMap.Get(k).State())
+		if err != nil {
+			panic(err)
+		}
 		r.Entries.Values = append(r.Entries.Values,
 			&tck.ORMapEntry{
 				EntryKey: k,
-				Value:    encoding.Struct(orMap.Get(k).State()),
+				Value:    value,
 			},
 		)
 	}
