@@ -54,8 +54,8 @@ message ORMapRequestAction {
 }
 
 message ORMapResponse {
-    ORMapEntries entries = 1;
-    ORMapKeys keys = 2;
+    ORMapKeys keys = 1;
+    ORMapEntries entries = 2;
 }
 
 message VoteRequest {

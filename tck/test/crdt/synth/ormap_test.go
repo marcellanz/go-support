@@ -61,6 +61,14 @@ func TestCRDTORMap(t *testing.T) {
 				}),
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
+				tr.expectedNotNil(m.Reply.GetClientAction())
+
+				var r crdt.ORMapResponse
+				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
+				tr.expectedInt(len(r.GetKeys().GetValues()), 1)
+				tr.expectedOneIn(r.GetKeys().GetValues(), encoding.String("niner"))
+				tr.expectedInt(len(r.GetEntries().GetValues()), 1)
+
 				tr.expectedNotNil(m.Reply.GetStateAction().GetUpdate())
 				tr.expectedInt(len(m.Reply.GetStateAction().GetUpdate().GetOrmap().GetUpdated()), 1)
 				tr.expectedUInt64(
@@ -78,16 +86,6 @@ func TestCRDTORMap(t *testing.T) {
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
 				tr.expectedNotNil(m.Reply.GetStateAction().GetDelete())
-			default:
-				tr.unexpected(m)
-			}
-		})
-		t.Run("Delete", func(t *testing.T) {
-			tr := tester{t}
-			switch m := p.command(entityId, command,
-				ormapRequest(&crdt.Delete{}),
-			).Message.(type) {
-			case *protocol.CrdtStreamOut_Failure:
 			default:
 				tr.unexpected(m)
 			}
