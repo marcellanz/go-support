@@ -50,8 +50,8 @@ func NewORMap() *ORMap {
 	return &ORMap{
 		value: make(map[uint64]*orMapValue),
 		delta: orMapDelta{
-			added:   make(map[uint64]*any.Any, 8),
-			removed: make(map[uint64]*any.Any, 8),
+			added:   make(map[uint64]*any.Any),
+			removed: make(map[uint64]*any.Any),
 			cleared: false,
 		},
 		anyHasher: &anyHasher{},
@@ -69,8 +69,8 @@ func (m *ORMap) Size() int {
 
 func (m *ORMap) Values() []*protocol.CrdtState {
 	values := make([]*protocol.CrdtState, 0, len(m.value))
-	for _, v := range m.value {
-		values = append(values, v.value.State())
+	for i, v := range m.value {
+		values[i] = v.value.State()
 	}
 	return values
 }
@@ -83,14 +83,14 @@ func (m *ORMap) Keys() []*any.Any {
 	return keys
 }
 
-func (m *ORMap) Get(key *any.Any) *protocol.CrdtState {
+func (m *ORMap) Get(key *any.Any) CRDT {
 	if s, ok := m.value[m.hashAny(key)]; ok {
-		return s.value.State()
+		return s.value
 	}
 	return nil
 }
 
-func (m *ORMap) set(key *any.Any, value CRDT) {
+func (m *ORMap) Set(key *any.Any, value CRDT) {
 	hk := m.hashAny(key)
 	// why that?
 	if _, has := m.value[hk]; has {
@@ -253,7 +253,7 @@ func (m *ORMap) applyState(state *protocol.CrdtState) error {
 	if s == nil {
 		return fmt.Errorf("unable to apply state %v to the ORMap", state)
 	}
-	m.value = make(map[uint64]*orMapValue)
+	m.value = make(map[uint64]*orMapValue, len(s.GetEntries()))
 	for _, entry := range s.GetEntries() {
 		v := &orMapValue{
 			key:   entry.GetKey(),

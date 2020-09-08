@@ -29,6 +29,9 @@ func TestCRDTORMap(t *testing.T) {
 				ormapRequest(&crdt.Get{}),
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
+				tr.expectedNil(m.Reply.GetStateAction())
+				tr.expectedNil(m.Reply.GetSideEffects())
+				tr.expectedNotNil(m.Reply.GetClientAction())
 			default:
 				tr.unexpected(m)
 			}
@@ -36,31 +39,87 @@ func TestCRDTORMap(t *testing.T) {
 		t.Run("Set – GCounter", func(t *testing.T) {
 			tr := tester{t}
 			switch m := p.command(entityId, command,
-				ormapRequest(&crdt.ORMapSet{
-					EntryKey: encoding.String("one"),
-					Request: &crdt.ORMapSet_GCounterRequest{
-						GCounterRequest: gcounterRequest(&crdt.GCounterIncrement{Value: 1}),
+				ormapRequest(&crdt.ORMapActionRequest{
+					EntryKey: encoding.String("niner"),
+					Request: &crdt.ORMapActionRequest_GCounterRequest{
+						GCounterRequest: gcounterRequest(&crdt.GCounterIncrement{Value: 9}),
 					},
 				}),
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
 				tr.expectedNotNil(m.Reply.GetStateAction().GetCreate())
+				tr.expectedNotNil(m.Reply.GetClientAction())
 			default:
 				tr.unexpected(m)
 			}
 			switch m := p.command(entityId, command,
-				ormapRequest(&crdt.ORMapSet{
-					EntryKey: encoding.String("one"),
-					Request: &crdt.ORMapSet_GCounterRequest{
-						GCounterRequest: gcounterRequest(&crdt.GCounterIncrement{Value: 1}),
+				ormapRequest(&crdt.ORMapActionRequest{
+					EntryKey: encoding.String("niner"),
+					Request: &crdt.ORMapActionRequest_GCounterRequest{
+						GCounterRequest: gcounterRequest(&crdt.GCounterIncrement{Value: 18}),
 					},
 				}),
 			).Message.(type) {
 			case *protocol.CrdtStreamOut_Reply:
 				tr.expectedNotNil(m.Reply.GetStateAction().GetUpdate())
+				tr.expectedInt(len(m.Reply.GetStateAction().GetUpdate().GetOrmap().GetUpdated()), 1)
+				tr.expectedUInt64(
+					m.Reply.GetStateAction().GetUpdate().GetOrmap().GetUpdated()[0].Delta.GetGcounter().Increment,
+					18,
+				)
 			default:
 				tr.unexpected(m)
 			}
 		})
+		t.Run("Delete", func(t *testing.T) {
+			tr := tester{t}
+			switch m := p.command(entityId, command,
+				ormapRequest(&crdt.Delete{}),
+			).Message.(type) {
+			case *protocol.CrdtStreamOut_Reply:
+				tr.expectedNotNil(m.Reply.GetStateAction().GetDelete())
+			default:
+				tr.unexpected(m)
+			}
+		})
+		t.Run("Delete", func(t *testing.T) {
+			tr := tester{t}
+			switch m := p.command(entityId, command,
+				ormapRequest(&crdt.Delete{}),
+			).Message.(type) {
+			case *protocol.CrdtStreamOut_Failure:
+			default:
+				tr.unexpected(m)
+			}
+		})
+	})
+	t.Run("ORMap – State", func(t *testing.T) {
+		tr := tester{t}
+		entityId := "ormap-2"
+		command := "ProcessORMap"
+		p := newProxy(ctx, s)
+		defer p.teardown()
+		p.init(&protocol.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		p.state(&protocol.ORMapState{
+			Entries: []*protocol.ORMapEntry{
+				{
+					Key:   encoding.String("one"),
+					Value: &protocol.CrdtState{State: &protocol.CrdtState_Flag{Flag: &protocol.FlagState{Value: false}}},
+				},
+			},
+		})
+		switch m := p.command(entityId, command,
+			ormapRequest(&crdt.ORMapActionRequest{
+				EntryKey: encoding.String("one"),
+				Request: &crdt.ORMapActionRequest_FlagRequest{
+					FlagRequest: flagRequest(&crdt.FlagEnable{}),
+				},
+			}),
+		).Message.(type) {
+		case *protocol.CrdtStreamOut_Reply:
+			tr.expectedNotNil(m.Reply.GetStateAction().GetCreate())
+		default:
+			tr.unexpected(m)
+		}
 	})
 }

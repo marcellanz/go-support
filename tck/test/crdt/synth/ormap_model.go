@@ -23,6 +23,9 @@ func ormapRequest(a ...proto.Message) *crdt.ORMapRequest {
 		case *crdt.ORMapDelete:
 			r.Id = t.Key
 			r.Actions = append(r.Actions, &crdt.ORMapRequestAction{Action: &crdt.ORMapRequestAction_DeleteKey{DeleteKey: t}})
+		case *crdt.ORMapActionRequest:
+			r.Id = t.Key
+			r.Actions = append(r.Actions, &crdt.ORMapRequestAction{Action: &crdt.ORMapRequestAction_Request{Request: t}})
 		default:
 			panic("no type matched")
 		}

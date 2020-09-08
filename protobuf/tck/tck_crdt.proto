@@ -49,6 +49,7 @@ message ORMapRequestAction {
         Delete delete = 2;
         ORMapSet setKey = 3;
         ORMapDelete deleteKey = 4;
+        ORMapActionRequest request = 5;
     }
 }
 
@@ -244,10 +245,6 @@ message GSetValueAnySupport {
     repeated AnySupportType values = 1;
 }
 
-message GSetSize {
-    sint64 value = 1;
-}
-
 message ORSetAdd {
     string key = 1 [(.cloudstate.entity_key) = true];
     string failWith = 2;
@@ -262,10 +259,6 @@ message ORSetRemove {
 
 message ORSetValue {
     repeated google.protobuf.Any values = 1;
-}
-
-message ORSetSize {
-    sint64 value = 1;
 }
 
 message FlagEnable {
@@ -317,6 +310,28 @@ message ORMapSet {
     oneof request {
         GCounterRequest gCounterRequest = 5;
         PNCounterRequest pnCounterRequest = 6;
+        GSetRequest gsetRequest = 7;
+        ORSetRequest orSetRequest = 8;
+        FlagRequest flagRequest = 9;
+        LWWRegisterRequest lwwRegisterRequest = 10;
+        ORMapRequest orMapRequest = 11;
+        VoteRequest voteRequest = 12;
+    };
+}
+
+message ORMapActionRequest {
+    string key = 1 [(.cloudstate.entity_key) = true];
+    string failWith = 2;
+    google.protobuf.Any entry_key = 3;
+    oneof request {
+        GCounterRequest gCounterRequest = 4;
+        PNCounterRequest pnCounterRequest = 5;
+        GSetRequest gsetRequest = 6;
+        ORSetRequest orSetRequest = 7;
+        FlagRequest flagRequest = 8;
+        LWWRegisterRequest lwwRegisterRequest = 9;
+        ORMapRequest orMapRequest = 10;
+        VoteRequest voteRequest = 11;
     };
 }
 
@@ -324,12 +339,6 @@ message ORMapDelete {
     string key = 1 [(.cloudstate.entity_key) = true];
     string failWith = 2;
     google.protobuf.Any entry_key = 3;
-}
-
-message ORMapKey {
-    string key = 1 [(.cloudstate.entity_key) = true];
-    string failWith = 2;
-    google.protobuf.Any value = 3;
 }
 
 message ORMapEntry {
@@ -341,10 +350,6 @@ message ORMapEntries {
     repeated ORMapEntry values = 1;
 }
 
-message ORMapSize {
-    sint64 value = 1;
-}
-
 message ORMapKeys {
     repeated google.protobuf.Any values = 1;
 }
@@ -353,12 +358,4 @@ message VoteVote {
     string key = 1 [(.cloudstate.entity_key) = true];
     string failWith = 2;
     bool value = 3;
-}
-
-message SelfVote {
-    bool value = 1;
-}
-
-message Voters {
-    uint32 value = 1;
 }

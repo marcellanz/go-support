@@ -94,9 +94,10 @@ func (t *tester) expectedNil(got interface{}) {
 	if got == nil {
 		return
 	}
-	if !reflect.ValueOf(got).IsNil() {
-		t.t.Fatalf("got = %v; wanted: nil", got)
+	if reflect.ValueOf(got).IsNil() {
+		return
 	}
+	t.t.Fatalf("got = %v; wanted: nil", got)
 }
 
 func (t *tester) expectedNotNil(got interface{}) {

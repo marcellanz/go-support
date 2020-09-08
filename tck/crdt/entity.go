@@ -305,39 +305,64 @@ func (s *CRDTModel) HandleCommand(cc *crdt.CommandContext, _ string, cmd proto.M
 				cc.Delete()
 				return encoding.MarshalAny(&tck.ORMapResponse{})
 			case *tck.ORMapRequestAction_SetKey:
-				// we reuse this entities implementation to
-				// handle requests for a certain CRDT of this
-				// ORMaps value.
-				m := &CRDTModel{}
-				switch t := a.SetKey.GetRequest().(type) {
-				case *tck.ORMapSet_GCounterRequest:
+				// s.orMap.Set()
+			case *tck.ORMapRequestAction_Request:
+				// we reuse this entities implementation to handle
+				// requests for CRDT values of this ORMap.
+				key := a.Request.GetEntryKey()
+				switch t := a.Request.GetRequest().(type) {
+				case *tck.ORMapActionRequest_GCounterRequest:
 					ctx := &crdt.CommandContext{Context: &crdt.Context{EntityId: "gcounter"}}
-					key := a.SetKey.EntryKey
-					if !s.orMap.HasKey(key) {
-						c, err := m.Default(ctx.Context)
-						if err != nil {
-							return nil, err
-						}
-						s.orMap.Set(key, c)
-					}
-					m.Set(ctx.Context, s.orMap.Get(key))
-					if _, err := m.HandleCommand(ctx, "", t.GCounterRequest); err != nil {
+					if err := s.runRequest(ctx, key, t.GCounterRequest); err != nil {
 						return nil, err
 					}
-					return encoding.MarshalAny(&tck.ORMapResponse{
-						Entries: &tck.ORMapEntries{
-							Values: append(make([]*tck.ORMapEntry, 0), &tck.ORMapEntry{
-								EntryKey: key,
-								Value:    encoding.Struct(m.gCounter.State()),
-							}),
-						},
-					})
-				case *tck.ORMapSet_PnCounterRequest:
+				case *tck.ORMapActionRequest_FlagRequest:
+					ctx := &crdt.CommandContext{Context: &crdt.Context{EntityId: "flag"}}
+					if err := s.runRequest(ctx, key, t.FlagRequest); err != nil {
+						return nil, err
+					}
+				case *tck.ORMapActionRequest_GsetRequest:
+					ctx := &crdt.CommandContext{Context: &crdt.Context{EntityId: "gset"}}
+					if err := s.runRequest(ctx, key, t.GsetRequest); err != nil {
+						return nil, err
+					}
+				case *tck.ORMapActionRequest_LwwRegisterRequest:
+					ctx := &crdt.CommandContext{Context: &crdt.Context{EntityId: "lwwregister"}}
+					if err := s.runRequest(ctx, key, t.LwwRegisterRequest); err != nil {
+						return nil, err
+					}
+				case *tck.ORMapActionRequest_OrMapRequest: // yeah, really!
+					ctx := &crdt.CommandContext{Context: &crdt.Context{EntityId: "ormap"}}
+					if err := s.runRequest(ctx, key, t.OrMapRequest); err != nil {
+						return nil, err
+					}
+				case *tck.ORMapActionRequest_OrSetRequest:
+					ctx := &crdt.CommandContext{Context: &crdt.Context{EntityId: "orset"}}
+					if err := s.runRequest(ctx, key, t.OrSetRequest); err != nil {
+						return nil, err
+					}
+				case *tck.ORMapActionRequest_VoteRequest:
+					ctx := &crdt.CommandContext{Context: &crdt.Context{EntityId: "vote"}}
+					if err := s.runRequest(ctx, key, t.VoteRequest); err != nil {
+						return nil, err
+					}
+				case *tck.ORMapActionRequest_PnCounterRequest:
+					ctx := &crdt.CommandContext{Context: &crdt.Context{EntityId: "pncounter"}}
+					if err := s.runRequest(ctx, key, t.PnCounterRequest); err != nil {
+						return nil, err
+					}
 				}
-				if with := a.SetKey.FailWith; with != "" {
+				if with := a.Request.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-				return encoding.MarshalAny(&tck.ORMapResponse{})
+				return encoding.MarshalAny(&tck.ORMapResponse{
+					Entries: &tck.ORMapEntries{
+						Values: append(make([]*tck.ORMapEntry, 0), &tck.ORMapEntry{
+							EntryKey: key,
+							Value:    encoding.Struct(s.orMap.Get(key).State()),
+						}),
+					},
+				})
 			case *tck.ORMapRequestAction_DeleteKey:
 				s.orMap.Delete(a.DeleteKey.EntryKey)
 				if with := a.DeleteKey.FailWith; with != "" {
@@ -348,6 +373,24 @@ func (s *CRDTModel) HandleCommand(cc *crdt.CommandContext, _ string, cmd proto.M
 		}
 	}
 	return nil, errors.New("unhandled command")
+}
+
+// runRequest runs the given action request using a temporary CRDTModel
+// with the requests corresponding CRDT as its state.
+func (s *CRDTModel) runRequest(ctx *crdt.CommandContext, key *any.Any, req proto.Message) error {
+	m := &CRDTModel{}
+	if !s.orMap.HasKey(key) {
+		c, err := m.Default(ctx.Context)
+		if err != nil {
+			return err
+		}
+		s.orMap.Set(key, c) // triggers a set delta
+	}
+	m.Set(nil, s.orMap.Get(key))
+	if _, err := m.HandleCommand(ctx, "", req); err != nil {
+		return err
+	}
+	return nil
 }
 
 func asAnySupportType(x *any.Any) *tck.AnySupportType {

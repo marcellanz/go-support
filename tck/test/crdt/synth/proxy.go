@@ -136,6 +136,12 @@ func (p *proxy) state(m proto.Message) {
 				Vote: s,
 			}},
 		})
+	case *protocol.ORMapState:
+		p.sendState(state{
+			&protocol.CrdtState{State: &protocol.CrdtState_Ormap{
+				Ormap: s,
+			}},
+		})
 	default:
 		p.t.Fatal("state type not found")
 	}
