@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Lightbend Inc.
+// Copyright 2019 Lightbend Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,13 +25,15 @@ import (
 // sendProtocolFailure sends a given error to the proxy. If the error is a protocol.ServerError a corresponding
 // commandId is unwrapped and added to the failure. Any other failure is sent as a protocol failure.
 //
-// we send protocol.ClientError as protocol.ClientAction_Failure for everything the user function would like to inform the client about.
-// we send protocol.ServerError as protocol.Failure for everything else that is not originated by the user function.
+// we send protocol.ClientError as a protocol.ClientAction_Failure for everything the user function would like to inform the client about.
+// we send protocol.ServerError as a protocol.Failure for everything else that is not originated by the user function.
 // whenever possible, the command id is set.
 //
 // failure semantics are defined here:
+// - https://github.com/cloudstateio/cloudstate/issues/375#issuecomment-672336020
 // - https://github.com/cloudstateio/cloudstate/pull/119#discussion_r375619440
 // - https://github.com/cloudstateio/cloudstate/pull/392
+// - https://github.com/cloudstateio/cloudstate/issues/375#issuecomment-671108797
 //
 // Any error coming not from context.fail, closes the stream, independently if it's a protocol error or an entity error.
 func sendProtocolFailure(e error, s protocol.EventSourced_HandleServer) error {

@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Lightbend Inc.
+// Copyright 2019 Lightbend Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,63 +27,94 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 )
 
+// runner attaches a context to a stream and runs it.
 type runner struct {
-	stream        protocol.EventSourced_HandleServer
-	context       *Context
-	stateReceived bool
+	stream  protocol.EventSourced_HandleServer
+	context *Context
 }
 
-func (r *runner) handleSnapshot() (*any.Any, error) {
-	if !r.context.shouldSnapshot() {
-		return nil, nil
-	}
-	s, ok := r.context.Instance.(Snapshooter)
-	if !ok {
-		return nil, nil
-	}
-	snap, err := s.Snapshot(r.context)
-	if err != nil {
-		return nil, fmt.Errorf("getting a snapshot has failed: %w", err)
-	}
-	// TODO: we expect a proto.Message but should support other formats
-	snapshot, err := encoding.MarshalAny(snap)
-	if err != nil {
-		return nil, err
-	}
-	r.context.resetSnapshotEvery()
-	return snapshot, nil
-}
-
-func (r *runner) handleEvent(event *protocol.EventSourcedEvent) error {
-	// TODO: here's the point where events can be protobufs, serialized as json or other formats
-	msgName := strings.TrimPrefix(event.Payload.GetTypeUrl(), encoding.ProtoAnyBase+"/")
+// handleCommand handles a command received from the Cloudstate proxy.
+func (r *runner) handleCommand(cmd *protocol.Command) error {
+	msgName := strings.TrimPrefix(cmd.Payload.GetTypeUrl(), encoding.ProtoAnyBase+"/")
 	messageType := proto.MessageType(msgName)
 	if messageType.Kind() != reflect.Ptr {
-		return fmt.Errorf("messageType.Kind() is not a pointer type: %v", messageType)
+		return fmt.Errorf("messageType: %s is of non Ptr kind", messageType)
 	}
-	// get a zero-ed message of this type
+	// Get a zero-ed message of this type.
 	message, ok := reflect.New(messageType.Elem()).Interface().(proto.Message)
 	if !ok {
-		return fmt.Errorf("unable to create a new zero-ed message of type: %v", messageType)
+		return fmt.Errorf("messageType is no proto.Message: %v", messageType)
 	}
-	// and marshal what we got as an any.Any onto it
-	if err := proto.Unmarshal(event.Payload.Value, message); err != nil {
+	// Unmarshal the payload to the zero-ed message.
+	err := proto.Unmarshal(cmd.Payload.Value, message)
+	if err != nil {
 		return fmt.Errorf("%s, %w", err, encoding.ErrMarshal)
 	}
-	// we're ready to handle the proto message
-	if err := r.context.Instance.HandleEvent(r.context, message); err != nil {
-		return err
+	// The gRPC implementation returns the rpc return method and an error as a second return value.
+	reply, errReturned := r.context.Instance.HandleCommand(r.context, cmd.Name, message)
+	// We the take error returned as a client failure except if it's a protocol.ServerError.
+	if errReturned != nil {
+		// If the error is a ServerError, we return this error and the stream will end.
+		if _, ok := err.(protocol.ServerError); ok {
+			return err
+		}
+		r.context.failed = nil
+		return r.sendClientActionFailure(&protocol.Failure{
+			CommandId:   cmd.Id,
+			Description: errReturned.Error(),
+		})
 	}
-	return r.context.failed
-}
-
-// applyEvent applies an event to a local entity.
-func (r *runner) applyEvent(event interface{}) error {
-	payload, err := encoding.MarshalAny(event)
+	// The context may have failed. As it is not defined per spec what state
+	// a user function would have after a client failure, we get safe and
+	// let the stream fail.
+	if r.context.failed != nil {
+		return r.context.failed
+	}
+	// Get the reply.
+	callReply, err := encoding.MarshalAny(reply)
+	if err != nil { // this should never happen
+		return protocol.ServerError{
+			Failure: &protocol.Failure{CommandId: cmd.GetId()},
+			Err:     fmt.Errorf("marshalling of reply failed: %w", err),
+		}
+	}
+	// Apply the events.
+	for _, e := range r.context.events {
+		if err := r.context.Instance.HandleEvent(r.context, e); err != nil {
+			return protocol.ServerError{
+				Failure: &protocol.Failure{CommandId: cmd.GetId()},
+				Err:     err,
+			}
+		}
+	}
+	// Get the events emitted.
+	events, err := r.context.marshalEventsAny()
 	if err != nil {
-		return err
+		return protocol.ServerError{
+			Failure: &protocol.Failure{CommandId: cmd.GetId()},
+			Err:     fmt.Errorf("marshalling of events failed: %w", err),
+		}
 	}
-	return r.handleEvent(&protocol.EventSourcedEvent{Payload: payload})
+	// Handle the snapshot.
+	snapshot, err := r.handleSnapshot()
+	if err != nil {
+		return protocol.ServerError{
+			Failure: &protocol.Failure{CommandId: cmd.GetId()},
+			Err:     fmt.Errorf("marshalling of the snapshot failed: %w", err),
+		}
+	}
+	return r.sendEventSourcedReply(&protocol.EventSourcedReply{
+		CommandId: cmd.GetId(),
+		ClientAction: &protocol.ClientAction{
+			Action: &protocol.ClientAction_Reply{
+				Reply: &protocol.Reply{
+					Payload: callReply,
+				},
+			},
+		},
+		Events:   events,
+		Snapshot: snapshot,
+	})
 }
 
 func (r *runner) handleInitSnapshot(snapshot *protocol.EventSourcedSnapshot) error {
@@ -103,6 +134,59 @@ func (r *runner) handleInitSnapshot(snapshot *protocol.EventSourcedSnapshot) err
 	return nil
 }
 
+func (r *runner) handleSnapshot() (*any.Any, error) {
+	if !r.context.shouldSnapshot() {
+		return nil, nil
+	}
+	s, ok := r.context.Instance.(Snapshooter)
+	if !ok {
+		return nil, nil
+	}
+	snap, err := s.Snapshot(r.context)
+	if err != nil {
+		return nil, fmt.Errorf("getting a snapshot has failed: %w", err)
+	}
+	// TODO: we expect a proto.Message but should support other format
+	snapshot, err := encoding.MarshalAny(snap)
+	if err != nil {
+		return nil, err
+	}
+	r.context.resetSnapshotEvery()
+	return snapshot, nil
+}
+
+func (r *runner) handleEvent(event *protocol.EventSourcedEvent) error {
+	// TODO: here's the point where events can be protobufs, serialized as json or other formats
+	msgName := strings.TrimPrefix(event.Payload.GetTypeUrl(), encoding.ProtoAnyBase+"/")
+	messageType := proto.MessageType(msgName)
+	if messageType.Kind() != reflect.Ptr {
+		return fmt.Errorf("messageType.Kind() is not a pointer type: %v", messageType)
+	}
+	// Get a zero-ed message of this type.
+	message, ok := reflect.New(messageType.Elem()).Interface().(proto.Message)
+	if !ok {
+		return fmt.Errorf("unable to create a new zero-ed message of type: %v", messageType)
+	}
+	// Marshal what we got as an any.Any onto it.
+	if err := proto.Unmarshal(event.Payload.Value, message); err != nil {
+		return fmt.Errorf("%s: %w", err, encoding.ErrMarshal)
+	}
+	// We're ready to handle the proto message.
+	if err := r.context.Instance.HandleEvent(r.context, message); err != nil {
+		return err
+	}
+	return r.context.failed
+}
+
+// applyEvent applies an event to a local entity.
+func (r *runner) applyEvent(event interface{}) error {
+	payload, err := encoding.MarshalAny(event)
+	if err != nil {
+		return err
+	}
+	return r.handleEvent(&protocol.EventSourcedEvent{Payload: payload})
+}
+
 func (*runner) unmarshalSnapshot(s *protocol.EventSourcedSnapshot) (interface{}, error) {
 	// see: https://developers.google.com/protocol-buffers/docs/reference/csharp/class/google/protobuf/well-known-types/any#typeurl
 	typeUrl := s.Snapshot.GetTypeUrl()
@@ -115,11 +199,7 @@ func (*runner) unmarshalSnapshot(s *protocol.EventSourcedSnapshot) (interface{},
 	}
 	switch typeURL.Host {
 	case encoding.PrimitiveTypeURLPrefix:
-		snapshot, err := encoding.UnmarshalPrimitive(s.Snapshot)
-		if err != nil {
-			return nil, err
-		}
-		return snapshot, nil
+		return encoding.UnmarshalPrimitive(s.Snapshot)
 	case encoding.ProtoAnyBase:
 		msgName := strings.TrimPrefix(s.Snapshot.GetTypeUrl(), encoding.ProtoAnyBase+"/") // TODO: this might be something else than a proto message
 		messageType := proto.MessageType(msgName)
@@ -136,110 +216,6 @@ func (*runner) unmarshalSnapshot(s *protocol.EventSourcedSnapshot) (interface{},
 		return message, nil
 	}
 	return nil, fmt.Errorf("no snapshot unmarshaller found for: %v", typeURL.String())
-}
-
-// handleCommand handles a command received from the Cloudstate proxy.
-//
-// TODO: remove these following lines of comment
-// "Unary RPCs where the client sends a single request to the server and
-// gets a single response back, just like a normal function call." are supported right now.
-//
-// to handle a command we need
-// - the entity id, which identifies the entity (its instance) uniquely(?) for this user function instance
-// - the service name, like "com.example.shoppingcart.ShoppingCart"
-// - a command id
-// - a command name, which is one of the gRPC service rpcs defined by this entities service
-// - the command payload, which is the message sent for the command as a protobuf.Any blob
-// - a streamed flag, (TODO: for what?)
-//
-// together, these properties allow to call a method of the entities registered service and
-// return its response as a reply to the Cloudstate proxy.
-//
-// Events:
-// Beside calling the service method, we have to collect "events" the service might emit.
-// These events afterwards have to be handled by a EventHandler to update the state of the
-// entity. The Cloudstate proxy can re-play these events at any time.
-func (r *runner) handleCommand(cmd *protocol.Command) error {
-	msgName := strings.TrimPrefix(cmd.Payload.GetTypeUrl(), encoding.ProtoAnyBase+"/")
-	messageType := proto.MessageType(msgName)
-	if messageType.Kind() != reflect.Ptr {
-		return fmt.Errorf("messageType: %s is of non Ptr kind", messageType)
-	}
-	// get a zero-ed message of this type.
-	message, ok := reflect.New(messageType.Elem()).Interface().(proto.Message)
-	if !ok {
-		return fmt.Errorf("messageType is no proto.Message: %v", messageType)
-	}
-	// unmarshal the payload to the zero-ed message.
-	err := proto.Unmarshal(cmd.Payload.Value, message)
-	if err != nil {
-		return fmt.Errorf("%s, %w", err, encoding.ErrMarshal)
-	}
-	// The gRPC implementation returns the rpc return method and an error as a second return value.
-	reply, errReturned := r.context.Instance.HandleCommand(r.context, cmd.Name, message)
-	// We the take error returned as a client failure except if it's a protocol.ServerError.
-	if errReturned != nil {
-		// if the error is a ServerError, we return this error and the stream will end.
-		if _, ok := err.(protocol.ServerError); ok {
-			return err
-		}
-		r.context.failed = nil
-		return r.sendClientActionFailure(&protocol.Failure{
-			CommandId:   cmd.Id,
-			Description: errReturned.Error(),
-		})
-	}
-	// the context may have failed. As it is not defined what state
-	// a user function would have after a client failure, we get safe and
-	// let the stream fail.
-	if r.context.failed != nil {
-		return r.context.failed
-	}
-	// the reply
-	callReply, err := encoding.MarshalAny(reply)
-	if err != nil { // this should never happen
-		return protocol.ServerError{
-			Failure: &protocol.Failure{CommandId: cmd.GetId()},
-			Err:     fmt.Errorf("marshalling of reply failed. %w", err),
-		}
-	}
-	// apply events
-	for _, e := range r.context.events {
-		if err := r.context.Instance.HandleEvent(r.context, e); err != nil {
-			return protocol.ServerError{
-				Failure: &protocol.Failure{CommandId: cmd.GetId()},
-				Err:     err,
-			}
-		}
-	}
-	// emitted events
-	events, err := r.context.marshalEventsAny()
-	if err != nil {
-		return protocol.ServerError{
-			Failure: &protocol.Failure{CommandId: cmd.GetId()},
-			Err:     fmt.Errorf("marshalling of events failed. %w", err),
-		}
-	}
-	// snapshot
-	snapshot, err := r.handleSnapshot()
-	if err != nil {
-		return protocol.ServerError{
-			Failure: &protocol.Failure{CommandId: cmd.GetId()},
-			Err:     fmt.Errorf("marshalling of the snapshot failed. %w", err),
-		}
-	}
-	return r.sendEventSourcedReply(&protocol.EventSourcedReply{
-		CommandId: cmd.GetId(),
-		ClientAction: &protocol.ClientAction{
-			Action: &protocol.ClientAction_Reply{
-				Reply: &protocol.Reply{
-					Payload: callReply,
-				},
-			},
-		},
-		Events:   events,
-		Snapshot: snapshot,
-	})
 }
 
 func (r *runner) sendEventSourcedReply(rep *protocol.EventSourcedReply) error {

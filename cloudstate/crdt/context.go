@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Lightbend Inc.
+// Copyright 2019 Lightbend Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ package crdt
 import (
 	"context"
 	"errors"
-	"fmt"
 )
 
 // Context holds the context of a running entity.
@@ -51,7 +50,7 @@ func (c *Context) StreamCtx() context.Context {
 // SetCRDT lets the user function set the CRDT for the entity.
 func (c *Context) SetCRDT(newCRDT CRDT) error {
 	if c.crdt != nil {
-		return fmt.Errorf("the CRTD has already been created")
+		return errors.New("the CRTD has already been created")
 	}
 	c.crdt = newCRDT
 	c.created = true

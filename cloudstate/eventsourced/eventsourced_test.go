@@ -84,7 +84,7 @@ func resetTestEntity() {
 	}
 }
 
-// IncrementByCommand with value receiver
+// IncrementByCommand with value receiver.
 func (te *TestEntity) IncrementByCommand(ctx *Context, ibc *IncrementByCommand) (*empty.Empty, error) {
 	ctx.Emit(&IncrementByEvent{
 		Value: ibc.Amount,
@@ -92,7 +92,7 @@ func (te *TestEntity) IncrementByCommand(ctx *Context, ibc *IncrementByCommand) 
 	return &empty.Empty{}, nil
 }
 
-// DecrementByCommand with pointer receiver
+// DecrementByCommand with pointer receiver.
 func (te *TestEntity) DecrementByCommand(ctx *Context, ibc *DecrementByCommand) (*empty.Empty, error) {
 	ctx.Emit(&DecrementByEvent{
 		Value: ibc.Amount,
@@ -207,26 +207,6 @@ func newHandler(t *testing.T) *Server {
 	return handler
 }
 
-// func initHandler(handler *Server, t *testing.T) {
-// 	server := TestEventSourcedHandleServer{}
-// 	err := handler.handleInit(&protocol.EventSourcedInit{
-// 		ServiceName: "TestEventSourcedServer-Service",
-// 		EntityId:    "entity-0",
-// 	}, &runner{stream: server})
-// 	if err != nil {
-// 		t.Errorf("%v", err)
-// 		t.Fail()
-// 	}
-// }
-
-// func marshal(msg proto.Message, t *testing.T) ([]byte, error) {
-// 	cmd, err := proto.Marshal(msg)
-// 	if err != nil {
-// 		t.Errorf("%v", err)
-// 	}
-// 	return cmd, err
-// }
-
 func TestMain(m *testing.M) {
 	proto.RegisterType((*IncrementByEvent)(nil), "IncrementByEvent")
 	proto.RegisterType((*DecrementByEvent)(nil), "DecrementByEvent")
@@ -260,50 +240,3 @@ func TestSnapshot(t *testing.T) {
 		t.Fatalf("testEntity.Value should be 0 but was not: %+v", testEntity)
 	}
 }
-
-// func Ignore_TestEventSourcedServerHandlesCommandAndEvents(t *testing.T) {
-// 	resetTestEntity()
-// 	handler := newHandler(t)
-// 	initHandler(handler, t)
-// 	incrementedTo := int64(7)
-// 	incrCmdValue, err := marshal(&IncrementByCommand{Amount: incrementedTo}, t)
-// 	incrCommand := protocol.Command{
-// 		EntityId: "entity-0",
-// 		Id:       1,
-// 		Name:     "IncrementByCommand",
-// 		Payload: &any.Any{
-// 			TypeUrl: "type.googleapis.com/IncrementByCommand",
-// 			Value:   incrCmdValue,
-// 		},
-// 	}
-// 	server := TestEventSourcedHandleServer{}
-// 	r := &runner{stream: server}
-// 	err = r.handleCommand(&incrCommand)
-// 	if err != nil {
-// 		t.Fatalf("%v", err)
-// 	}
-// 	if testEntity.Value != incrementedTo {
-// 		t.Fatalf("testEntity.Value: (%v) != incrementedTo: (%v)", testEntity.Value, incrementedTo)
-// 	}
-//
-// 	decrCmdValue, err := proto.Marshal(&DecrementByCommand{Amount: incrementedTo})
-// 	if err != nil {
-// 		t.Fatalf("%v", err)
-// 	}
-// 	decrCommand := protocol.Command{
-// 		EntityId: "entity-0",
-// 		Id:       1,
-// 		Name:     "DecrementByCommand",
-// 		Payload: &any.Any{
-// 			TypeUrl: "type.googleapis.com/DecrementByCommand",
-// 			Value:   decrCmdValue,
-// 		},
-// 	}
-// 	err = r.handleCommand(&decrCommand)
-// 	if err != nil {
-// 		t.Fatalf("%v", err)
-// 	}
-// 	if testEntity.Value != 0 {
-// 		t.Fatalf("testEntity.Value != 0")
-// 	}
-// }

@@ -34,20 +34,13 @@ protoc --go_out=plugins=grpc,paths=source_relative:tck/shoppingcart/persistence 
   --proto_path=protobuf/proxy \
   --proto_path=protobuf/example/shoppingcart/persistence protobuf/example/shoppingcart/persistence/domain.proto
 
-# TCL presence sample
+# TCK presence sample
 protoc --go_out=plugins=grpc:. \
   --proto_path=protobuf/protocol/ \
   --proto_path=protobuf/frontend/ \
   --proto_path=protobuf/proxy/ \
   --proto_path=tck/presence/ \
   tck/presence/presence.proto
-
-# TCK crdts sample
-protoc --go_out=plugins=grpc:. \
-  --proto_path=protobuf/protocol \
-  --proto_path=protobuf/frontend \
-  --proto_path=protobuf/proxy \
-  --proto_path=protobuf/example protobuf/example/crdts/crdt-example.proto
 
 # TCK
 protoc --go_out=plugins=grpc,paths=source_relative:./tck/proto/crdt \

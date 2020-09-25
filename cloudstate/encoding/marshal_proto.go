@@ -25,7 +25,7 @@ import (
 
 var ErrMarshal = errors.New("unable to marshal a message")
 
-// MarshalAny marshals a proto.Message to a any.Any value.
+// MarshalAny marshals a proto.Message to an any.Any value.
 func MarshalAny(pb interface{}) (*any.Any, error) {
 	// TODO: protobufs are expected here, but Cloudstate supports other formats
 	message, ok := pb.(proto.Message)
@@ -34,7 +34,7 @@ func MarshalAny(pb interface{}) (*any.Any, error) {
 	}
 	bytes, err := proto.Marshal(message)
 	if err != nil {
-		return nil, fmt.Errorf("%s, %w", err, ErrMarshal)
+		return nil, fmt.Errorf("%s: %w", err, ErrMarshal)
 	}
 	return &any.Any{
 		TypeUrl: fmt.Sprintf("%s/%s", ProtoAnyBase, proto.MessageName(message)),

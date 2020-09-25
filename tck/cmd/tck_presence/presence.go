@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"log"
 
 	"github.com/cloudstateio/go-support/cloudstate"
@@ -45,7 +44,7 @@ func (p *Presence) Connect(c *crdt.CommandContext) (*any.Any, error) {
 	})
 
 	if true {
-		return nil, fmt.Errorf("its a failure")
+		return nil, errors.New("its a failure")
 	}
 	if false {
 		c.EndStream()

@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Lightbend Inc.
+// Copyright 2019 Lightbend Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,11 +20,11 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-func gcounterRequest(a ...proto.Message) *crdt.GCounterRequest {
+func gcounterRequest(messages ...proto.Message) *crdt.GCounterRequest {
 	r := &crdt.GCounterRequest{
 		Actions: make([]*crdt.GCounterRequestAction, 0),
 	}
-	for _, i := range a {
+	for _, i := range messages {
 		switch t := i.(type) {
 		case *crdt.Get:
 			r.Id = t.Key

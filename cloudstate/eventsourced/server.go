@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Lightbend Inc.
+// Copyright 2019 Lightbend Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,9 +44,10 @@ func NewServer() *Server {
 	}
 }
 
+// Register registers an Entity a an event sourced entity for CloudState.
 func (s *Server) Register(e *Entity) error {
 	if e.EntityFunc == nil {
-		return fmt.Errorf("the entity has to define an EntityFunc but did not")
+		return errors.New("the entity has to define an EntityFunc but did not")
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -116,18 +117,15 @@ func (s *Server) handle(stream protocol.EventSourced_HandleServer) error {
 			return err
 		}
 	default:
-		return fmt.Errorf("a message was received without having an EventSourcedInit message handled before: %v", first.GetMessage())
+		return fmt.Errorf("a message was received without having an EventSourcedInit message handled before: %+v", first.GetMessage())
 	}
 	for {
 		if runner.context.failed != nil {
-			// failed means deactivated. we may never get this far.
-			// context.failed should have been sent as a client reply failure
-			return fmt.Errorf("failed context was not reported: %w", runner.context.failed)
-		}
-		if !runner.context.active {
+			// failed means deactivated. We may never get this far.
+			// context.failed should have been sent as a client reply failure.
 			// TODO: what do we report here
 			// see: https://github.com/cloudstateio/cloudstate/pull/119#discussion_r444851439
-			return nil
+			return fmt.Errorf("failed context was not reported: %w", runner.context.failed)
 		}
 		msg, err := runner.stream.Recv()
 		if err == io.EOF {
@@ -138,15 +136,17 @@ func (s *Server) handle(stream protocol.EventSourced_HandleServer) error {
 		}
 		switch m := msg.GetMessage().(type) {
 		case *protocol.EventSourcedStreamIn_Command:
-			if err := runner.handleCommand(m.Command); err != nil {
-				if _, ok := err.(protocol.ServerError); !ok {
-					return protocol.ServerError{
-						Failure: &protocol.Failure{CommandId: m.Command.Id},
-						Err:     err,
-					}
-				}
-				return err
+			err := runner.handleCommand(m.Command)
+			if err == nil {
+				continue
 			}
+			if _, ok := err.(protocol.ServerError); !ok {
+				return protocol.ServerError{
+					Failure: &protocol.Failure{CommandId: m.Command.Id},
+					Err:     err,
+				}
+			}
+			return err
 		case *protocol.EventSourcedStreamIn_Event:
 			if err := runner.handleEvent(m.Event); err != nil {
 				return err
@@ -156,7 +156,7 @@ func (s *Server) handle(stream protocol.EventSourced_HandleServer) error {
 		case nil:
 			return errors.New("empty message received")
 		default:
-			return fmt.Errorf("unknown message received: %v", msg.GetMessage())
+			return fmt.Errorf("unknown message received: %+v", msg.GetMessage())
 		}
 	}
 }
@@ -178,7 +178,6 @@ func (s *Server) handleInit(init *protocol.EventSourcedInit, r *runner) error {
 		EntityId:           id,
 		EventSourcedEntity: entity,
 		Instance:           entity.EntityFunc(id),
-		active:             true,
 		eventSequence:      0,
 		ctx:                r.stream.Context(),
 	}

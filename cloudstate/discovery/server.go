@@ -74,7 +74,7 @@ func (s *EntityDiscoveryServer) Discover(_ context.Context, pi *protocol.ProxyIn
 	)
 	log.Printf("Responding with: %v\n", s.entitySpec.GetServiceInfo())
 	// TODO: s.entitySpec can be written potentially but should not after we started to run the server.
-	// check how to enforce that after CloudState.Run has started.
+	// Check how to enforce that after CloudState.Run has started.
 	return s.entitySpec, nil
 }
 
@@ -99,7 +99,7 @@ func (s *EntityDiscoveryServer) resolveFileDescriptors(dc protocol.DescriptorCon
 			return err
 		}
 	}
-	// dependent domain descriptors
+	// Add dependent domain descriptors.
 	for _, dp := range dc.Domain {
 		if err := s.registerFileDescriptorProto(dp); err != nil {
 			return err
@@ -168,7 +168,7 @@ func (s *EntityDiscoveryServer) registerFileDescriptorProto(filename string) err
 }
 
 func (s *EntityDiscoveryServer) registerFileDescriptor(msg descriptor.Message) error {
-	fd, _ := descriptor.ForMessage(msg) // this can panic
+	fd, _ := descriptor.ForMessage(msg) // this can panic.
 	if r := recover(); r != nil {
 		return fmt.Errorf("descriptor.ForMessage panicked (%v) for: %+v", r, msg)
 	}

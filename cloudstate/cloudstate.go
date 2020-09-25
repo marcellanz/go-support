@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Lightbend Inc.
+// Copyright 2019 Lightbend Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 package cloudstate
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -49,52 +50,55 @@ func New(c protocol.Config) (*CloudState, error) {
 	return cs, nil
 }
 
-// RegisterEventSourced registers an event sourced entity for CloudState.
-func (cs *CloudState) RegisterEventSourced(e *eventsourced.Entity, config protocol.DescriptorConfig) error {
-	if err := cs.eventSourcedServer.Register(e); err != nil {
+// RegisterEventSourced registers an event sourced entity for Cloudstate.
+func (cs *CloudState) RegisterEventSourced(entity *eventsourced.Entity, config protocol.DescriptorConfig) error {
+	if err := cs.eventSourcedServer.Register(entity); err != nil {
 		return err
 	}
-	if err := cs.entityDiscoveryServer.RegisterEventSourcedEntity(e, config); err != nil {
+	if err := cs.entityDiscoveryServer.RegisterEventSourcedEntity(entity, config); err != nil {
 		return err
 	}
 	return nil
 }
 
 // RegisterCRDT registers a CRDT entity for CloudState.
-func (cs *CloudState) RegisterCRDT(e *crdt.Entity, config protocol.DescriptorConfig) error {
-	if err := cs.crdtServer.Register(e); err != nil {
+func (cs *CloudState) RegisterCRDT(entity *crdt.Entity, config protocol.DescriptorConfig) error {
+	if err := cs.crdtServer.Register(entity); err != nil {
 		return err
 	}
-	if err := cs.entityDiscoveryServer.RegisterCRDTEntity(e, config); err != nil {
+	if err := cs.entityDiscoveryServer.RegisterCRDTEntity(entity, config); err != nil {
 		return err
 	}
 	return nil
 }
 
+// Run runs the CloudState instance on the interface and port defined by
+// the HOST and PORT environment variable.
+func (cs *CloudState) Run() error {
+	host, ok := os.LookupEnv("HOST")
+	if !ok {
+		return errors.New("unable to get environment variable \"HOST\"")
+	}
+	port, ok := os.LookupEnv("PORT")
+	if !ok {
+		return errors.New("unable to get environment variable \"PORT\"")
+	}
+	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%s", host, port))
+	if err != nil {
+		return fmt.Errorf("failed to listen: %w", err)
+	}
+	if err := cs.RunWithListener(lis); err != nil {
+		return fmt.Errorf("failed to RunWithListener for: %v with: %w", lis, err)
+	}
+	return nil
+}
+
+// Run runs the CloudState instance with a listener provided.
 func (cs *CloudState) RunWithListener(lis net.Listener) error {
 	return cs.grpcServer.Serve(lis)
 }
 
-// Run runs the CloudState instance.
-func (cs *CloudState) Run() error {
-	host, ok := os.LookupEnv("HOST")
-	if !ok {
-		return fmt.Errorf("unable to get environment variable \"HOST\"")
-	}
-	port, ok := os.LookupEnv("PORT")
-	if !ok {
-		return fmt.Errorf("unable to get environment variable \"PORT\"")
-	}
-	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%s", host, port))
-	if err != nil {
-		return fmt.Errorf("failed to listen: %v", err)
-	}
-	if e := cs.RunWithListener(lis); e != nil {
-		return fmt.Errorf("failed to grpcServer.Serve for: %v", lis)
-	}
-	return nil
-}
-
+// Stop gracefully stops the Cloudstate instance.
 func (cs *CloudState) Stop() {
 	cs.grpcServer.GracefulStop()
 	fmt.Println("CloudState stopped")

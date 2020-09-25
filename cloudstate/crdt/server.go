@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Lightbend Inc.
+// Copyright 2019 Lightbend Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ func NewServer() *Server {
 // The handled entities value are captured by a context that is held fo each of them.
 func (s *Server) Register(e *Entity) error {
 	if e.EntityFunc == nil {
-		return fmt.Errorf("the entity has to define an EntityFunc but did not")
+		return errors.New("the entity has to define an EntityFunc but did not")
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -163,7 +163,7 @@ func (s *Server) handle(stream protocol.Crdt_HandleServer) error {
 		case nil:
 			return errors.New("empty message received")
 		default:
-			return fmt.Errorf("unknown message received: %v", msg.GetMessage())
+			return fmt.Errorf("unknown message received: %+v", msg.GetMessage())
 		}
 	}
 }

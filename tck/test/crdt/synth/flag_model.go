@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Lightbend Inc.
+// Copyright 2019 Lightbend Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,11 +20,11 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-func flagRequest(a ...proto.Message) *crdt.FlagRequest {
+func flagRequest(messages ...proto.Message) *crdt.FlagRequest {
 	r := &crdt.FlagRequest{
 		Actions: make([]*crdt.FlagRequestAction, 0),
 	}
-	for _, i := range a {
+	for _, i := range messages {
 		switch t := i.(type) {
 		case *crdt.Get:
 			r.Id = t.Key

@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Lightbend Inc.
+// Copyright 2019 Lightbend Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,11 +20,11 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-func voteRequest(a ...proto.Message) *crdt.VoteRequest {
+func voteRequest(messages ...proto.Message) *crdt.VoteRequest {
 	r := &crdt.VoteRequest{
 		Actions: make([]*crdt.VoteRequestAction, 0),
 	}
-	for _, i := range a {
+	for _, i := range messages {
 		switch t := i.(type) {
 		case *crdt.Get:
 			r.Id = t.Key

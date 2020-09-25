@@ -15,7 +15,7 @@
 
 package encoding
 
-//func TestMarshalAnyProto(t *testing.T) {
+// func TestMarshalAnyProto(t *testing.T) {
 //	event := eventsourced.IncrementByEvent{Value: 29}
 //	any, err := MarshalAny(&event)
 //	if err != nil {
@@ -32,4 +32,4 @@ package encoding
 //	if event2.Value != event.Value {
 //		t.Fatalf("event2.Value: %d != event.Value: %d", event2.Value, event.Value)
 //	}
-//}
+// }

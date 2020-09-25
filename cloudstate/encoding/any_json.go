@@ -33,6 +33,7 @@ func JSON(value interface{}) (*any.Any, error) {
 	return MarshalJSON(value)
 }
 
+// MarshalJSON encodes a struct type into its Cloudstate Any JSON value.
 func MarshalJSON(value interface{}) (*any.Any, error) {
 	typeOf := reflect.TypeOf(value)
 	if typeOf.Kind() == reflect.Ptr {
@@ -53,8 +54,7 @@ func MarshalJSON(value interface{}) (*any.Any, error) {
 	}, nil
 }
 
-// UnmarshalPrimitive decodes a CloudState Any proto message
-// into its JSON value.
+// UnmarshalPrimitive decodes a Cloudstate Any protobuf message into its JSON value.
 func UnmarshalJSON(any *any.Any, target interface{}) error {
 	if !strings.HasPrefix(any.GetTypeUrl(), JSONTypeURLPrefix) {
 		return ErrNotMarshalled

@@ -1,5 +1,5 @@
 //
-// Copyright 2020 Lightbend Inc.
+// Copyright 2019 Lightbend Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import (
 )
 
 type Context struct {
-	// EntityId
 	EntityId EntityId
 	// EventSourcedEntity describes the instance hold by the EntityInstance.
 	EventSourcedEntity *Entity
@@ -31,7 +30,6 @@ type Context struct {
 	Instance EntityHandler
 
 	failed        error
-	active        bool
 	eventSequence int64
 	events        []interface{}
 	ctx           context.Context
@@ -40,14 +38,14 @@ type Context struct {
 // Emit is called by a command handler.
 func (c *Context) Emit(event interface{}) {
 	if c.failed != nil {
-		// we can't fail sooner but won't handle events
-		// after one failed anymore.
+		// we can't fail sooner but won't handle events after one failed anymore.
 		return
 	}
 	c.events = append(c.events, event)
 	c.eventSequence++
 }
 
+// StreamCtx returns the context.Context for the contexts' current running stream.
 func (c *Context) StreamCtx() context.Context {
 	return c.ctx
 }
@@ -66,13 +64,13 @@ func (c *Context) resetSnapshotEvery() {
 
 // marshalEventsAny marshals and the clears events emitted through the context.
 func (c *Context) marshalEventsAny() ([]*any.Any, error) {
-	events := make([]*any.Any, 0, len(c.events))
-	for _, evt := range c.events {
+	events := make([]*any.Any, len(c.events))
+	for i, evt := range c.events {
 		event, err := encoding.MarshalAny(evt)
 		if err != nil {
 			return nil, err
 		}
-		events = append(events, event)
+		events[i] = event
 	}
 	c.events = make([]interface{}, 0)
 	return events, nil

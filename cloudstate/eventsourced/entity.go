@@ -32,7 +32,7 @@ type Entity struct {
 	// isn’t depend on type names in your code.
 	// Setting it is mandatory.
 	PersistenceID string
-	// The snapshotEvery parameter controls how often snapshots are taken,
+	// SnapshotEvery controls how often snapshots are taken,
 	// so that the entity doesn't need to be recovered from the whole journal
 	// each time it’s loaded. If left unset, it defaults to 100.
 	// Setting it to a negative number will result in snapshots never being taken.
@@ -77,6 +77,5 @@ type Snapshooter interface {
 	// entire journal doesn't need to be replayed, just the changes since
 	// the last snapshot.
 	Snapshot(ctx *Context) (snapshot interface{}, err error)
-	//
 	HandleSnapshot(ctx *Context, snapshot interface{}) error
 }
