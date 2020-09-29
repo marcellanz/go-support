@@ -24,7 +24,7 @@ import "google/protobuf/any.proto";
 import "cloudstate/entity.proto";
 
 option java_package = "io.cloudstate.protocol";
-option go_package = "cloudstate/protocol";
+option go_package = "github.com/cloudstateio/go-support/cloudstate/entity;entity";
 
 // A function command.
 //
@@ -66,7 +66,8 @@ service StatelessFunction {
     // The input command will contain the service name, command name, request metadata and the command
     // payload. The reply may contain a direct reply, a forward or a failure, and it may contain many
     // side effects.
-    rpc handleUnary(FunctionCommand) returns (FunctionReply) {}
+    rpc handleUnary (FunctionCommand) returns (FunctionReply) {
+    }
 
     // Handle a streamed in command.
     //
@@ -89,7 +90,8 @@ service StatelessFunction {
     //
     // Either the client or the server may cancel the stream at any time, cancellation is indicated
     // through an HTTP2 stream RST message.
-    rpc handleStreamedIn(stream FunctionCommand) returns (FunctionReply) {}
+    rpc handleStreamedIn (stream FunctionCommand) returns (FunctionReply) {
+    }
 
     // Handle a streamed out command.
     //
@@ -100,7 +102,8 @@ service StatelessFunction {
     //
     // Either the client or the server may cancel the stream at any time, cancellation is indicated
     // through an HTTP2 stream RST message.
-    rpc handleStreamedOut(FunctionCommand) returns (stream FunctionReply) {}
+    rpc handleStreamedOut (FunctionCommand) returns (stream FunctionReply) {
+    }
 
     // Handle a full duplex streamed command.
     //
@@ -127,6 +130,7 @@ service StatelessFunction {
     //
     // Either the client or the server may cancel the stream at any time, cancellation is indicated
     // through an HTTP2 stream RST message.
-    rpc handleStreamed(stream FunctionCommand) returns (stream FunctionReply) {}
+    rpc handleStreamed (stream FunctionCommand) returns (stream FunctionReply) {
+    }
 
 }

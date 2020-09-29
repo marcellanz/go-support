@@ -16,36 +16,37 @@ set -o pipefail
 #
 # check this: https://github.com/grpc/grpc-go/pull/3453
 
-protoc --go_out=plugins=grpc,paths=source_relative:. --proto_path=protobuf/frontend/ protobuf/frontend/cloudstate/entity_key.proto
-protoc --go_out=plugins=grpc:. --proto_path=protobuf/protocol/ protobuf/protocol/cloudstate/entity.proto
-protoc --go_out=plugins=grpc:. --proto_path=protobuf/protocol/ protobuf/protocol/cloudstate/event_sourced.proto
-protoc --go_out=plugins=grpc:. --proto_path=protobuf/protocol/ protobuf/protocol/cloudstate/function.proto
-protoc --go_out=plugins=grpc:. --proto_path=protobuf/protocol/ protobuf/protocol/cloudstate/crdt.proto
+protoc --go_out=plugins=grpc,paths=source_relative:cloudstate/ --proto_path=protobuf/protocol/cloudstate entity.proto
+protoc --go_out=plugins=grpc,paths=source_relative:cloudstate/ --proto_path=protobuf/frontend/cloudstate entity_key.proto
+protoc --go_out=plugins=grpc,paths=source_relative:cloudstate/entity --proto_path=protobuf/protocol/ \
+  --proto_path=protobuf/protocol/cloudstate crdt.proto
+protoc --go_out=plugins=grpc,paths=source_relative:cloudstate/entity --proto_path=protobuf/protocol/ \
+  --proto_path=protobuf/protocol/cloudstate function.proto
+protoc --go_out=plugins=grpc,paths=source_relative:cloudstate/entity --proto_path=protobuf/protocol/ \
+  --proto_path=protobuf/protocol/cloudstate event_sourced.proto
 
 # TCK shopping cart sample
 protoc --go_out=plugins=grpc:. \
   --proto_path=protobuf/protocol \
   --proto_path=protobuf/frontend \
   --proto_path=protobuf/proxy \
-  --proto_path=protobuf/example protobuf/example/shoppingcart/shoppingcart.proto
+  --proto_path=protobuf/example/shoppingcart shoppingcart.proto
 protoc --go_out=plugins=grpc,paths=source_relative:tck/shoppingcart/persistence \
   --proto_path=protobuf/protocol \
-  --proto_path=protobuf/frontend/ \
+  --proto_path=protobuf/frontend \
   --proto_path=protobuf/proxy \
-  --proto_path=protobuf/example/shoppingcart/persistence protobuf/example/shoppingcart/persistence/domain.proto
+  --proto_path=protobuf/example/shoppingcart/persistence domain.proto
 
 # TCK presence sample
 protoc --go_out=plugins=grpc:. \
   --proto_path=protobuf/protocol/ \
   --proto_path=protobuf/frontend/ \
   --proto_path=protobuf/proxy/ \
-  --proto_path=tck/presence/ \
-  tck/presence/presence.proto
+  --proto_path=tck/presence/ presence.proto
 
 # TCK
 protoc --go_out=plugins=grpc,paths=source_relative:./tck/proto/crdt \
   --proto_path=protobuf/protocol \
   --proto_path=protobuf/frontend \
   --proto_path=protobuf/proxy \
-  --proto_path=protobuf/tck \
-  protobuf/tck/tck_crdt.proto
+  --proto_path=protobuf/tck tck_crdt.proto

@@ -23,6 +23,7 @@ import (
 
 	"github.com/cloudstateio/go-support/cloudstate/crdt"
 	"github.com/cloudstateio/go-support/cloudstate/discovery"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/cloudstateio/go-support/cloudstate/eventsourced"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"google.golang.org/grpc"
@@ -44,9 +45,9 @@ func New(c protocol.Config) (*CloudState, error) {
 		eventSourcedServer:    eventsourced.NewServer(),
 		crdtServer:            crdt.NewServer(),
 	}
-	protocol.RegisterEntityDiscoveryServer(cs.grpcServer, cs.entityDiscoveryServer)
-	protocol.RegisterEventSourcedServer(cs.grpcServer, cs.eventSourcedServer)
-	protocol.RegisterCrdtServer(cs.grpcServer, cs.crdtServer)
+	RegisterEntityDiscoveryServer(cs.grpcServer, cs.entityDiscoveryServer)
+	entity.RegisterEventSourcedServer(cs.grpcServer, cs.eventSourcedServer)
+	entity.RegisterCrdtServer(cs.grpcServer, cs.crdtServer)
 	return cs, nil
 }
 
