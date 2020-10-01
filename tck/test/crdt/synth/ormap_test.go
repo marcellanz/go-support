@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/cloudstateio/go-support/tck/proto/crdt"
 )
 
@@ -37,13 +37,13 @@ func TestCRDTORMap(t *testing.T) {
 		p := newProxy(ctx, s)
 		defer p.teardown()
 
-		p.init(&protocol.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
 		t.Run("Get", func(t *testing.T) {
 			tr := tester{t}
 			switch m := p.command(entityId, command,
 				ormapRequest(&crdt.Get{}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				tr.expectedNil(m.Reply.GetStateAction())
 				tr.expectedNil(m.Reply.GetSideEffects())
 				tr.expectedNotNil(m.Reply.GetClientAction())
@@ -61,7 +61,7 @@ func TestCRDTORMap(t *testing.T) {
 					},
 				}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				tr.expectedNotNil(m.Reply.GetStateAction().GetCreate())
 				tr.expectedNotNil(m.Reply.GetClientAction())
 			default:
@@ -75,7 +75,7 @@ func TestCRDTORMap(t *testing.T) {
 					},
 				}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				tr.expectedNotNil(m.Reply.GetClientAction())
 
 				var r crdt.ORMapResponse
@@ -99,7 +99,7 @@ func TestCRDTORMap(t *testing.T) {
 			switch m := p.command(entityId, command,
 				ormapRequest(&crdt.Delete{}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				tr.expectedNotNil(m.Reply.GetStateAction().GetDelete())
 			default:
 				tr.unexpected(m)
@@ -112,12 +112,12 @@ func TestCRDTORMap(t *testing.T) {
 		command := "ProcessORMap"
 		p := newProxy(ctx, s)
 		defer p.teardown()
-		p.init(&protocol.CrdtInit{ServiceName: serviceName, EntityId: entityId})
-		p.state(&protocol.ORMapState{
-			Entries: []*protocol.ORMapEntry{
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		p.state(&entity.ORMapState{
+			Entries: []*entity.ORMapEntry{
 				{
 					Key:   encoding.String("one"),
-					Value: &protocol.CrdtState{State: &protocol.CrdtState_Flag{Flag: &protocol.FlagState{Value: false}}},
+					Value: &entity.CrdtState{State: &entity.CrdtState_Flag{Flag: &entity.FlagState{Value: false}}},
 				},
 			},
 		})
@@ -129,7 +129,7 @@ func TestCRDTORMap(t *testing.T) {
 				},
 			}),
 		).Message.(type) {
-		case *protocol.CrdtStreamOut_Reply:
+		case *entity.CrdtStreamOut_Reply:
 			tr.expectedNotNil(m.Reply.GetStateAction().GetCreate())
 		default:
 			tr.unexpected(m)

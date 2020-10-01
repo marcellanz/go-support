@@ -45,7 +45,7 @@ func New(c protocol.Config) (*CloudState, error) {
 		eventSourcedServer:    eventsourced.NewServer(),
 		crdtServer:            crdt.NewServer(),
 	}
-	RegisterEntityDiscoveryServer(cs.grpcServer, cs.entityDiscoveryServer)
+	protocol.RegisterEntityDiscoveryServer(cs.grpcServer, cs.entityDiscoveryServer)
 	entity.RegisterEventSourcedServer(cs.grpcServer, cs.eventSourcedServer)
 	entity.RegisterCrdtServer(cs.grpcServer, cs.crdtServer)
 	return cs, nil

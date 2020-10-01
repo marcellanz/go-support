@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/golang/protobuf/proto"
 )
@@ -28,7 +29,7 @@ import (
 const recvTimeout = 1
 
 type proxy struct {
-	h       protocol.Crdt_HandleClient
+	h       entity.Crdt_HandleClient
 	t       *testing.T
 	seq     int64
 	recvC   chan resp
@@ -37,7 +38,7 @@ type proxy struct {
 
 func newProxy(ctx context.Context, s *server) *proxy {
 	s.t.Helper()
-	h, err := protocol.NewCrdtClient(s.conn).Handle(ctx)
+	h, err := entity.NewCrdtClient(s.conn).Handle(ctx)
 	if err != nil {
 		s.t.Fatal(err)
 	}
@@ -61,7 +62,7 @@ func newProxy(ctx context.Context, s *server) *proxy {
 	return p
 }
 
-func (p *proxy) Send(in *protocol.CrdtStreamIn) error {
+func (p *proxy) Send(in *entity.CrdtStreamIn) error {
 	return p.h.Send(in)
 }
 
@@ -75,23 +76,23 @@ type command struct {
 }
 
 type state struct {
-	s *protocol.CrdtState
+	s *entity.CrdtState
 }
 
 type delta struct {
-	d *protocol.CrdtDelta
+	d *entity.CrdtDelta
 }
 
 type delete struct {
-	d *protocol.CrdtDelete
+	d *entity.CrdtDelete
 }
 
 type resp struct {
-	out *protocol.CrdtStreamOut
+	out *entity.CrdtStreamOut
 	err error
 }
 
-func (p *proxy) Recv() (*protocol.CrdtStreamOut, error) {
+func (p *proxy) Recv() (*entity.CrdtStreamOut, error) {
 	select {
 	case m := <-p.recvC:
 		return m.out, m.err
@@ -101,9 +102,9 @@ func (p *proxy) Recv() (*protocol.CrdtStreamOut, error) {
 	}
 }
 
-func (p *proxy) init(i *protocol.CrdtInit) {
-	err := p.h.Send(&protocol.CrdtStreamIn{
-		Message: &protocol.CrdtStreamIn_Init{Init: i},
+func (p *proxy) init(i *entity.CrdtInit) {
+	err := p.h.Send(&entity.CrdtStreamIn{
+		Message: &entity.CrdtStreamIn_Init{Init: i},
 	})
 	if err != nil {
 		p.t.Fatal(err)
@@ -112,33 +113,33 @@ func (p *proxy) init(i *protocol.CrdtInit) {
 
 func (p *proxy) state(m proto.Message) {
 	switch s := m.(type) {
-	case *protocol.PNCounterState:
+	case *entity.PNCounterState:
 		p.sendState(state{
-			&protocol.CrdtState{State: &protocol.CrdtState_Pncounter{
+			&entity.CrdtState{State: &entity.CrdtState_Pncounter{
 				Pncounter: s,
 			}},
 		})
-	case *protocol.GCounterState:
+	case *entity.GCounterState:
 		p.sendState(state{
-			&protocol.CrdtState{State: &protocol.CrdtState_Gcounter{
+			&entity.CrdtState{State: &entity.CrdtState_Gcounter{
 				Gcounter: s,
 			}},
 		})
-	case *protocol.FlagState:
+	case *entity.FlagState:
 		p.sendState(state{
-			&protocol.CrdtState{State: &protocol.CrdtState_Flag{
+			&entity.CrdtState{State: &entity.CrdtState_Flag{
 				Flag: s,
 			}},
 		})
-	case *protocol.VoteState:
+	case *entity.VoteState:
 		p.sendState(state{
-			&protocol.CrdtState{State: &protocol.CrdtState_Vote{
+			&entity.CrdtState{State: &entity.CrdtState_Vote{
 				Vote: s,
 			}},
 		})
-	case *protocol.ORMapState:
+	case *entity.ORMapState:
 		p.sendState(state{
-			&protocol.CrdtState{State: &protocol.CrdtState_Ormap{
+			&entity.CrdtState{State: &entity.CrdtState_Ormap{
 				Ormap: s,
 			}},
 		})
@@ -153,7 +154,7 @@ func (p *proxy) sendState(st state) {
 	}
 }
 
-func (p *proxy) sendRecvState(st state) (*protocol.CrdtStreamOut, error) {
+func (p *proxy) sendRecvState(st state) (*entity.CrdtStreamOut, error) {
 	if err := p.h.Send(stateMsg(st.s)); err != nil {
 		return nil, err
 	}
@@ -162,30 +163,30 @@ func (p *proxy) sendRecvState(st state) (*protocol.CrdtStreamOut, error) {
 
 func (p *proxy) delta(m proto.Message) {
 	switch d := m.(type) {
-	case *protocol.PNCounterDelta:
+	case *entity.PNCounterDelta:
 		p.sendDelta(delta{
-			&protocol.CrdtDelta{Delta: &protocol.CrdtDelta_Pncounter{
+			&entity.CrdtDelta{Delta: &entity.CrdtDelta_Pncounter{
 				Pncounter: d,
 			}}},
 		)
-	case *protocol.GCounterDelta:
+	case *entity.GCounterDelta:
 		p.sendDelta(delta{
-			d: &protocol.CrdtDelta{
-				Delta: &protocol.CrdtDelta_Gcounter{
+			d: &entity.CrdtDelta{
+				Delta: &entity.CrdtDelta_Gcounter{
 					Gcounter: d,
 				}}},
 		)
-	case *protocol.FlagDelta:
+	case *entity.FlagDelta:
 		p.sendDelta(delta{
-			d: &protocol.CrdtDelta{
-				Delta: &protocol.CrdtDelta_Flag{
+			d: &entity.CrdtDelta{
+				Delta: &entity.CrdtDelta_Flag{
 					Flag: d,
 				}}},
 		)
-	case *protocol.VoteDelta:
+	case *entity.VoteDelta:
 		p.sendDelta(delta{
-			d: &protocol.CrdtDelta{
-				Delta: &protocol.CrdtDelta_Vote{
+			d: &entity.CrdtDelta{
+				Delta: &entity.CrdtDelta_Vote{
 					Vote: d,
 				}}},
 		)
@@ -208,21 +209,21 @@ func (p *proxy) sendDelete(d delete) {
 	}
 }
 
-func (p *proxy) sendRecvDelta(d delta) (*protocol.CrdtStreamOut, error) {
+func (p *proxy) sendRecvDelta(d delta) (*entity.CrdtStreamOut, error) {
 	if err := p.h.Send(deltaMsg(d.d)); err != nil {
 		return nil, err
 	}
 	return p.Recv()
 }
 
-func (p *proxy) command(entityId string, name string, m proto.Message) *protocol.CrdtStreamOut {
+func (p *proxy) command(entityId string, name string, m proto.Message) *entity.CrdtStreamOut {
 	return p.sendCmdRecvReply(command{
 		&protocol.Command{EntityId: entityId, Name: name},
 		m,
 	})
 }
 
-func (p *proxy) sendCmdRecvReply(cmd command) *protocol.CrdtStreamOut {
+func (p *proxy) sendCmdRecvReply(cmd command) *entity.CrdtStreamOut {
 	p.t.Helper()
 	if cmd.c.Id == 0 {
 		cmd.c.Id = p.seq
@@ -245,14 +246,14 @@ func (p *proxy) sendCmdRecvReply(cmd command) *protocol.CrdtStreamOut {
 		p.t.Fatal("nothing received")
 	}
 	switch msg.Message.(type) {
-	case *protocol.CrdtStreamOut_Failure:
+	case *entity.CrdtStreamOut_Failure:
 	default:
 		p.checkCommandId(msg)
 	}
 	return msg
 }
 
-func (p *proxy) sendCmdRecvErr(cmd command) (*protocol.CrdtStreamOut, error) {
+func (p *proxy) sendCmdRecvErr(cmd command) (*entity.CrdtStreamOut, error) {
 	p.t.Helper()
 	if cmd.c.Id == 0 {
 		cmd.c.Id = p.seq
@@ -275,40 +276,40 @@ func (p *proxy) sendCmdRecvErr(cmd command) (*protocol.CrdtStreamOut, error) {
 		p.t.Fatal("nothing received")
 	}
 	switch recv.Message.(type) {
-	case *protocol.CrdtStreamOut_Failure:
+	case *entity.CrdtStreamOut_Failure:
 	default:
 		p.checkCommandId(recv)
 	}
 	return recv, nil
 }
 
-func commandMsg(c *protocol.Command) *protocol.CrdtStreamIn {
-	return &protocol.CrdtStreamIn{
-		Message: &protocol.CrdtStreamIn_Command{
+func commandMsg(c *protocol.Command) *entity.CrdtStreamIn {
+	return &entity.CrdtStreamIn{
+		Message: &entity.CrdtStreamIn_Command{
 			Command: c,
 		},
 	}
 }
 
-func stateMsg(s *protocol.CrdtState) *protocol.CrdtStreamIn {
-	return &protocol.CrdtStreamIn{
-		Message: &protocol.CrdtStreamIn_State{
+func stateMsg(s *entity.CrdtState) *entity.CrdtStreamIn {
+	return &entity.CrdtStreamIn{
+		Message: &entity.CrdtStreamIn_State{
 			State: s,
 		},
 	}
 }
 
-func deltaMsg(d *protocol.CrdtDelta) *protocol.CrdtStreamIn {
-	return &protocol.CrdtStreamIn{
-		Message: &protocol.CrdtStreamIn_Changed{
+func deltaMsg(d *entity.CrdtDelta) *entity.CrdtStreamIn {
+	return &entity.CrdtStreamIn{
+		Message: &entity.CrdtStreamIn_Changed{
 			Changed: d,
 		},
 	}
 }
 
-func deleteMsg(d *protocol.CrdtDelete) *protocol.CrdtStreamIn {
-	return &protocol.CrdtStreamIn{
-		Message: &protocol.CrdtStreamIn_Deleted{
+func deleteMsg(d *entity.CrdtDelete) *entity.CrdtStreamIn {
+	return &entity.CrdtStreamIn{
+		Message: &entity.CrdtStreamIn_Deleted{
 			Deleted: d,
 		},
 	}
@@ -317,21 +318,21 @@ func deleteMsg(d *protocol.CrdtDelete) *protocol.CrdtStreamIn {
 func (p *proxy) checkCommandId(msg interface{}) {
 	p.t.Helper()
 	switch m := msg.(type) {
-	case *protocol.CrdtStreamOut:
+	case *entity.CrdtStreamOut:
 		switch out := m.Message.(type) {
-		case *protocol.CrdtStreamOut_Reply:
+		case *entity.CrdtStreamOut_Reply:
 			if got, want := out.Reply.CommandId, p.seq; got != want {
 				p.t.Fatalf("command = %v; wanted: %d, for message:%+v", got, want, out)
 			}
-		case *protocol.CrdtStreamOut_Failure:
+		case *entity.CrdtStreamOut_Failure:
 			if got, want := out.Failure.CommandId, p.seq; got != want {
 				p.t.Fatalf("command = %v; wanted: %d, for message:%+v", got, want, out)
 			}
-		case *protocol.CrdtStreamOut_StreamedMessage:
+		case *entity.CrdtStreamOut_StreamedMessage:
 			if got, want := out.StreamedMessage.CommandId, p.seq; got != want {
 				p.t.Fatalf("command = %v; wanted: %d, for message:%+v", got, want, out)
 			}
-		case *protocol.CrdtStreamOut_StreamCancelledResponse:
+		case *entity.CrdtStreamOut_StreamCancelledResponse:
 			if got, want := out.StreamCancelledResponse.CommandId, p.seq; got != want {
 				p.t.Fatalf("command = %v; wanted: %d, for message:%+v", got, want, out)
 			}

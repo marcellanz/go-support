@@ -18,7 +18,7 @@ package crdt
 import (
 	"testing"
 
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 )
 
 func TestVote(t *testing.T) {
@@ -36,9 +36,9 @@ func TestVote(t *testing.T) {
 	})
 	t.Run("should reflect a state update", func(t *testing.T) {
 		v := NewVote()
-		err := v.applyState(encDecState(&protocol.CrdtState{
-			State: &protocol.CrdtState_Vote{
-				Vote: &protocol.VoteState{
+		err := v.applyState(encDecState(&entity.CrdtState{
+			State: &entity.CrdtState_Vote{
+				Vote: &entity.VoteState{
 					TotalVoters: 5,
 					VotesFor:    3,
 					SelfVote:    true,
@@ -59,9 +59,9 @@ func TestVote(t *testing.T) {
 	})
 	t.Run("should reflect a delta update", func(t *testing.T) {
 		v := NewVote()
-		if err := v.applyState(encDecState(&protocol.CrdtState{
-			State: &protocol.CrdtState_Vote{
-				Vote: &protocol.VoteState{
+		if err := v.applyState(encDecState(&entity.CrdtState{
+			State: &entity.CrdtState_Vote{
+				Vote: &entity.VoteState{
 					TotalVoters: 5,
 					VotesFor:    3,
 					SelfVote:    false,
@@ -69,9 +69,9 @@ func TestVote(t *testing.T) {
 		})); err != nil {
 			t.Fatal(err)
 		}
-		if err := v.applyDelta(encDecDelta(&protocol.CrdtDelta{
-			Delta: &protocol.CrdtDelta_Vote{
-				Vote: &protocol.VoteDelta{
+		if err := v.applyDelta(encDecDelta(&entity.CrdtDelta{
+			Delta: &entity.CrdtDelta_Vote{
+				Vote: &entity.VoteDelta{
 					TotalVoters: 4,
 					VotesFor:    2,
 				}},
@@ -154,22 +154,22 @@ func TestVote(t *testing.T) {
 		}
 	})
 
-	voteState := func(vs *protocol.VoteState) *protocol.CrdtState {
-		return encDecState(&protocol.CrdtState{
-			State: &protocol.CrdtState_Vote{Vote: vs},
+	voteState := func(vs *entity.VoteState) *entity.CrdtState {
+		return encDecState(&entity.CrdtState{
+			State: &entity.CrdtState_Vote{Vote: vs},
 		})
 	}
 	t.Run("should correctly calculate a majority vote", func(t *testing.T) {
 		var tests = []struct {
-			vs  *protocol.VoteState
+			vs  *entity.VoteState
 			maj bool
 		}{
-			{&protocol.VoteState{TotalVoters: 5, VotesFor: 3, SelfVote: true}, true},
-			{&protocol.VoteState{TotalVoters: 5, VotesFor: 2, SelfVote: true}, false},
-			{&protocol.VoteState{TotalVoters: 6, VotesFor: 3, SelfVote: true}, false},
-			{&protocol.VoteState{TotalVoters: 6, VotesFor: 4, SelfVote: true}, true},
-			{&protocol.VoteState{TotalVoters: 1, VotesFor: 0, SelfVote: false}, false},
-			{&protocol.VoteState{TotalVoters: 1, VotesFor: 1, SelfVote: true}, true},
+			{&entity.VoteState{TotalVoters: 5, VotesFor: 3, SelfVote: true}, true},
+			{&entity.VoteState{TotalVoters: 5, VotesFor: 2, SelfVote: true}, false},
+			{&entity.VoteState{TotalVoters: 6, VotesFor: 3, SelfVote: true}, false},
+			{&entity.VoteState{TotalVoters: 6, VotesFor: 4, SelfVote: true}, true},
+			{&entity.VoteState{TotalVoters: 1, VotesFor: 0, SelfVote: false}, false},
+			{&entity.VoteState{TotalVoters: 1, VotesFor: 1, SelfVote: true}, true},
 		}
 		v := NewVote()
 		for _, test := range tests {
@@ -183,14 +183,14 @@ func TestVote(t *testing.T) {
 	})
 	t.Run("should correctly calculate an at least one vote", func(t *testing.T) {
 		var tests = []struct {
-			vs      *protocol.VoteState
+			vs      *entity.VoteState
 			atLeast bool
 		}{
-			{&protocol.VoteState{TotalVoters: 1, VotesFor: 0, SelfVote: false}, false},
-			{&protocol.VoteState{TotalVoters: 5, VotesFor: 0, SelfVote: false}, false},
-			{&protocol.VoteState{TotalVoters: 1, VotesFor: 1, SelfVote: true}, true},
-			{&protocol.VoteState{TotalVoters: 5, VotesFor: 1, SelfVote: true}, true},
-			{&protocol.VoteState{TotalVoters: 5, VotesFor: 3, SelfVote: true}, true},
+			{&entity.VoteState{TotalVoters: 1, VotesFor: 0, SelfVote: false}, false},
+			{&entity.VoteState{TotalVoters: 5, VotesFor: 0, SelfVote: false}, false},
+			{&entity.VoteState{TotalVoters: 1, VotesFor: 1, SelfVote: true}, true},
+			{&entity.VoteState{TotalVoters: 5, VotesFor: 1, SelfVote: true}, true},
+			{&entity.VoteState{TotalVoters: 5, VotesFor: 3, SelfVote: true}, true},
 		}
 		v := NewVote()
 		for _, test := range tests {
@@ -204,14 +204,14 @@ func TestVote(t *testing.T) {
 	})
 	t.Run("should correctly calculate an all votes", func(t *testing.T) {
 		var tests = []struct {
-			vs  *protocol.VoteState
+			vs  *entity.VoteState
 			all bool
 		}{
-			{&protocol.VoteState{TotalVoters: 1, VotesFor: 0, SelfVote: false}, false},
-			{&protocol.VoteState{TotalVoters: 5, VotesFor: 0, SelfVote: false}, false},
-			{&protocol.VoteState{TotalVoters: 1, VotesFor: 1, SelfVote: true}, true},
-			{&protocol.VoteState{TotalVoters: 5, VotesFor: 3, SelfVote: true}, false},
-			{&protocol.VoteState{TotalVoters: 5, VotesFor: 5, SelfVote: true}, true},
+			{&entity.VoteState{TotalVoters: 1, VotesFor: 0, SelfVote: false}, false},
+			{&entity.VoteState{TotalVoters: 5, VotesFor: 0, SelfVote: false}, false},
+			{&entity.VoteState{TotalVoters: 1, VotesFor: 1, SelfVote: true}, true},
+			{&entity.VoteState{TotalVoters: 5, VotesFor: 3, SelfVote: true}, false},
+			{&entity.VoteState{TotalVoters: 5, VotesFor: 5, SelfVote: true}, true},
 		}
 		v := NewVote()
 		for _, test := range tests {

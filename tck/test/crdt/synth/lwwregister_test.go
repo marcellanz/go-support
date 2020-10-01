@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/cloudstateio/go-support/tck/proto/crdt"
 	"github.com/golang/protobuf/ptypes/any"
 )
@@ -43,7 +43,7 @@ func TestCRDTLWWRegister(t *testing.T) {
 		p := newProxy(ctx, s)
 		defer p.teardown()
 
-		p.init(&protocol.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
 		t.Run("LWWRegisterSet emits client action and create state action", func(t *testing.T) {
 			tr := tester{t}
 			one, err := encoding.Struct(pair{"one", 1})
@@ -56,7 +56,7 @@ func TestCRDTLWWRegister(t *testing.T) {
 				},
 			}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				// action reply
 				tr.expectedNil(m.Reply.GetSideEffects())
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
@@ -72,7 +72,7 @@ func TestCRDTLWWRegister(t *testing.T) {
 				tr.expectedNil(m.Reply.GetStateAction().GetUpdate())
 				tr.expectedNil(m.Reply.GetStateAction().GetDelete())
 				var p pair
-				tr.expectedTrue(m.Reply.GetStateAction().GetCreate().GetLwwregister().GetClock() == protocol.CrdtClock_DEFAULT)
+				tr.expectedTrue(m.Reply.GetStateAction().GetCreate().GetLwwregister().GetClock() == entity.CrdtClock_DEFAULT)
 				tr.toStruct(m.Reply.GetStateAction().GetCreate().GetLwwregister().GetValue(), &p)
 				tr.expectedTrue(reflect.DeepEqual(p, pair{"one", 1}))
 			default:
@@ -93,7 +93,7 @@ func TestCRDTLWWRegister(t *testing.T) {
 				CustomClockValue: 7,
 			}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				// action reply
 				tr.expectedNil(m.Reply.GetSideEffects())
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
@@ -111,7 +111,7 @@ func TestCRDTLWWRegister(t *testing.T) {
 				var p pair
 				tr.toStruct(m.Reply.GetStateAction().GetUpdate().GetLwwregister().GetValue(), &p)
 				tr.expectedTrue(reflect.DeepEqual(p, pair{"two", 2}))
-				tr.expectedTrue(m.Reply.GetStateAction().GetUpdate().GetLwwregister().GetClock() == protocol.CrdtClock_CUSTOM)
+				tr.expectedTrue(m.Reply.GetStateAction().GetUpdate().GetLwwregister().GetClock() == entity.CrdtClock_CUSTOM)
 				tr.expectedTrue(m.Reply.GetStateAction().GetUpdate().GetLwwregister().GetCustomClockValue() == 7)
 			default:
 				tr.unexpected(m)
@@ -120,7 +120,7 @@ func TestCRDTLWWRegister(t *testing.T) {
 		t.Run("Delete emits client action and create state action", func(t *testing.T) {
 			tr := tester{t}
 			switch m := p.command(entityId, command, lwwRegisterRequest(&crdt.Delete{})).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				// action reply
 				tr.expectedNil(m.Reply.GetSideEffects())
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())

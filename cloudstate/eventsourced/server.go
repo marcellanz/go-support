@@ -22,6 +22,7 @@ import (
 	"log"
 	"sync"
 
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -77,7 +78,7 @@ func (s *Server) Register(e *Entity) error {
 // if provided by the error. If an error is a protocol failure or any other error, a
 // EventSourcedStreamOut_Failure is sent. A protocol failure might provide a command id to
 // be included.
-func (s *Server) Handle(stream protocol.EventSourced_HandleServer) error {
+func (s *Server) Handle(stream entity.EventSourced_HandleServer) error {
 	defer func() {
 		if r := recover(); r != nil {
 			// on a panic we try to tell the proxy and panic again.
@@ -101,7 +102,7 @@ func (s *Server) Handle(stream protocol.EventSourced_HandleServer) error {
 	return nil
 }
 
-func (s *Server) handle(stream protocol.EventSourced_HandleServer) error {
+func (s *Server) handle(stream entity.EventSourced_HandleServer) error {
 	first, err := stream.Recv()
 	switch err {
 	case nil:
@@ -112,7 +113,7 @@ func (s *Server) handle(stream protocol.EventSourced_HandleServer) error {
 	}
 	runner := &runner{stream: stream}
 	switch m := first.GetMessage().(type) {
-	case *protocol.EventSourcedStreamIn_Init:
+	case *entity.EventSourcedStreamIn_Init:
 		if err := s.handleInit(m.Init, runner); err != nil {
 			return err
 		}
@@ -135,7 +136,7 @@ func (s *Server) handle(stream protocol.EventSourced_HandleServer) error {
 			return err
 		}
 		switch m := msg.GetMessage().(type) {
-		case *protocol.EventSourcedStreamIn_Command:
+		case *entity.EventSourcedStreamIn_Command:
 			err := runner.handleCommand(m.Command)
 			if err == nil {
 				continue
@@ -147,11 +148,11 @@ func (s *Server) handle(stream protocol.EventSourced_HandleServer) error {
 				}
 			}
 			return err
-		case *protocol.EventSourcedStreamIn_Event:
+		case *entity.EventSourcedStreamIn_Event:
 			if err := runner.handleEvent(m.Event); err != nil {
 				return err
 			}
-		case *protocol.EventSourcedStreamIn_Init:
+		case *entity.EventSourcedStreamIn_Init:
 			return errors.New("duplicate init message for the same entity")
 		case nil:
 			return errors.New("empty message received")
@@ -161,7 +162,7 @@ func (s *Server) handle(stream protocol.EventSourced_HandleServer) error {
 	}
 }
 
-func (s *Server) handleInit(init *protocol.EventSourcedInit, r *runner) error {
+func (s *Server) handleInit(init *entity.EventSourcedInit, r *runner) error {
 	serviceName := ServiceName(init.GetServiceName())
 	s.mu.RLock()
 	entity, exists := s.entities[serviceName]

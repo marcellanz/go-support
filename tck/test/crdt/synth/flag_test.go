@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/cloudstateio/go-support/tck/proto/crdt"
 )
 
@@ -36,13 +36,13 @@ func TestCRDTFlag(t *testing.T) {
 		p := newProxy(ctx, s)
 		defer p.teardown()
 
-		p.init(&protocol.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
 		t.Run("Get emits client action", func(t *testing.T) {
 			tr := tester{t}
 			switch m := p.command(entityId, command,
 				flagRequest(&crdt.Get{}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				tr.expectedNotNil(m.Reply.GetClientAction())
 				tr.expectedNil(m.Reply.GetSideEffects())
 				tr.expectedNil(m.Reply.GetStateAction())
@@ -60,7 +60,7 @@ func TestCRDTFlag(t *testing.T) {
 			switch m := p.command(entityId, command,
 				flagRequest(&crdt.FlagEnable{}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				// action reply
 				tr.expectedNil(m.Reply.GetSideEffects())
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
@@ -81,7 +81,7 @@ func TestCRDTFlag(t *testing.T) {
 			switch m := p.command(entityId, command,
 				flagRequest(&crdt.Delete{}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				// action reply
 				tr.expectedNil(m.Reply.GetSideEffects())
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
@@ -101,12 +101,12 @@ func TestCRDTFlag(t *testing.T) {
 			defer p.teardown()
 
 			entityId = "flag-2"
-			p.init(&protocol.CrdtInit{ServiceName: serviceName, EntityId: entityId})
-			p.state(&protocol.FlagState{Value: true})
+			p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+			p.state(&entity.FlagState{Value: true})
 			switch m := p.command(entityId, command,
 				flagRequest(&crdt.Get{}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				// action reply
 				tr.expectedNil(m.Reply.GetSideEffects())
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
@@ -128,12 +128,12 @@ func TestCRDTFlag(t *testing.T) {
 			defer p.teardown()
 
 			entityId = "flag-3"
-			p.init(&protocol.CrdtInit{ServiceName: serviceName, EntityId: entityId})
-			p.delta(&protocol.FlagDelta{Value: true})
+			p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+			p.delta(&entity.FlagDelta{Value: true})
 			switch m := p.command(entityId, command,
 				flagRequest(&crdt.Get{}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				// action reply
 				tr.expectedNil(m.Reply.GetSideEffects())
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())

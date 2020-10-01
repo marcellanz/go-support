@@ -18,23 +18,23 @@ package crdt
 import (
 	"testing"
 
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 )
 
 func TestFlag(t *testing.T) {
-	delta := func(value bool) *protocol.CrdtDelta {
-		return &protocol.CrdtDelta{
-			Delta: &protocol.CrdtDelta_Flag{
-				Flag: &protocol.FlagDelta{
+	delta := func(value bool) *entity.CrdtDelta {
+		return &entity.CrdtDelta{
+			Delta: &entity.CrdtDelta_Flag{
+				Flag: &entity.FlagDelta{
 					Value: value,
 				},
 			},
 		}
 	}
-	state := func(value bool) *protocol.CrdtState {
-		return &protocol.CrdtState{
-			State: &protocol.CrdtState_Flag{
-				Flag: &protocol.FlagState{
+	state := func(value bool) *entity.CrdtState {
+		return &entity.CrdtState{
+			State: &entity.CrdtState_Flag{
+				Flag: &entity.FlagState{
 					Value: value,
 				},
 			},
@@ -106,9 +106,9 @@ func TestFlagAdditional(t *testing.T) {
 	})
 	t.Run("apply invalid delta", func(t *testing.T) {
 		f := NewFlag()
-		if err := f.applyDelta(&protocol.CrdtDelta{
-			Delta: &protocol.CrdtDelta_Gcounter{
-				Gcounter: &protocol.GCounterDelta{
+		if err := f.applyDelta(&entity.CrdtDelta{
+			Delta: &entity.CrdtDelta_Gcounter{
+				Gcounter: &entity.GCounterDelta{
 					Increment: 11,
 				},
 			},
@@ -118,9 +118,9 @@ func TestFlagAdditional(t *testing.T) {
 	})
 	t.Run("apply invalid state", func(t *testing.T) {
 		f := NewFlag()
-		if err := f.applyState(&protocol.CrdtState{
-			State: &protocol.CrdtState_Gcounter{
-				Gcounter: &protocol.GCounterState{
+		if err := f.applyState(&entity.CrdtState{
+			State: &entity.CrdtState_Gcounter{
+				Gcounter: &entity.GCounterState{
 					Value: 11,
 				},
 			},

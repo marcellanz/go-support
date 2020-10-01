@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 )
 
 func TestLWWRegister(t *testing.T) {
@@ -70,9 +70,9 @@ func TestLWWRegister(t *testing.T) {
 			t.Fatal(err)
 		}
 		if err := r.applyState(encDecState(
-			&protocol.CrdtState{
-				State: &protocol.CrdtState_Lwwregister{
-					Lwwregister: &protocol.LWWRegisterState{
+			&entity.CrdtState{
+				State: &entity.CrdtState_Lwwregister{
+					Lwwregister: &entity.LWWRegisterState{
 						Value: foo,
 					},
 				},
@@ -176,9 +176,9 @@ func TestLWWRegister(t *testing.T) {
 			t.Fatal(err)
 		}
 		if err := r.applyDelta(encDecDelta(
-			&protocol.CrdtDelta{
-				Delta: &protocol.CrdtDelta_Lwwregister{
-					Lwwregister: &protocol.LWWRegisterDelta{
+			&entity.CrdtDelta{
+				Delta: &entity.CrdtDelta_Lwwregister{
+					Lwwregister: &entity.LWWRegisterDelta{
 						Value: bar,
 					},
 				},

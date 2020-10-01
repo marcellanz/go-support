@@ -18,7 +18,7 @@ package crdt
 import (
 	"fmt"
 
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 )
 
 // A Flag is a boolean value that starts as false, and can be set to true.
@@ -45,10 +45,10 @@ func (f *Flag) Enable() {
 	}
 }
 
-func (f Flag) Delta() *protocol.CrdtDelta {
-	return &protocol.CrdtDelta{
-		Delta: &protocol.CrdtDelta_Flag{
-			Flag: &protocol.FlagDelta{
+func (f Flag) Delta() *entity.CrdtDelta {
+	return &entity.CrdtDelta{
+		Delta: &entity.CrdtDelta_Flag{
+			Flag: &entity.FlagDelta{
 				Value: f.delta,
 			},
 		},
@@ -63,7 +63,7 @@ func (f *Flag) resetDelta() {
 	f.delta = false
 }
 
-func (f *Flag) applyDelta(delta *protocol.CrdtDelta) error {
+func (f *Flag) applyDelta(delta *entity.CrdtDelta) error {
 	d := delta.GetFlag()
 	if d == nil {
 		return fmt.Errorf("unable to apply delta %+v to Flag", delta)
@@ -72,17 +72,17 @@ func (f *Flag) applyDelta(delta *protocol.CrdtDelta) error {
 	return nil
 }
 
-func (f Flag) State() *protocol.CrdtState {
-	return &protocol.CrdtState{
-		State: &protocol.CrdtState_Flag{
-			Flag: &protocol.FlagState{
+func (f Flag) State() *entity.CrdtState {
+	return &entity.CrdtState{
+		State: &entity.CrdtState_Flag{
+			Flag: &entity.FlagState{
 				Value: f.value,
 			},
 		},
 	}
 }
 
-func (f *Flag) applyState(state *protocol.CrdtState) error {
+func (f *Flag) applyState(state *entity.CrdtState) error {
 	s := state.GetFlag()
 	if s == nil {
 		return fmt.Errorf("unable to apply state %+v to Flag", state)

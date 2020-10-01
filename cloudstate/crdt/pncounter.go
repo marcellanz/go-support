@@ -18,7 +18,7 @@ package crdt
 import (
 	"fmt"
 
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 )
 
 // PNCounter, or Positive-Negative Counter, is a counter that can both be incremented
@@ -50,10 +50,10 @@ func (c *PNCounter) Decrement(i int64) {
 	c.delta -= i
 }
 
-func (c *PNCounter) State() *protocol.CrdtState {
-	return &protocol.CrdtState{
-		State: &protocol.CrdtState_Pncounter{
-			Pncounter: &protocol.PNCounterState{
+func (c *PNCounter) State() *entity.CrdtState {
+	return &entity.CrdtState{
+		State: &entity.CrdtState_Pncounter{
+			Pncounter: &entity.PNCounterState{
 				Value: c.value,
 			},
 		},
@@ -64,13 +64,13 @@ func (c *PNCounter) HasDelta() bool {
 	return c.delta != 0
 }
 
-func (c *PNCounter) Delta() *protocol.CrdtDelta {
+func (c *PNCounter) Delta() *entity.CrdtDelta {
 	if c.delta == 0 {
 		return nil
 	}
-	return &protocol.CrdtDelta{
-		Delta: &protocol.CrdtDelta_Pncounter{
-			Pncounter: &protocol.PNCounterDelta{
+	return &entity.CrdtDelta{
+		Delta: &entity.CrdtDelta_Pncounter{
+			Pncounter: &entity.PNCounterDelta{
 				Change: c.delta,
 			},
 		},
@@ -81,7 +81,7 @@ func (c *PNCounter) resetDelta() {
 	c.delta = 0
 }
 
-func (c *PNCounter) applyState(state *protocol.CrdtState) error {
+func (c *PNCounter) applyState(state *entity.CrdtState) error {
 	s := state.GetPncounter()
 	if s == nil {
 		return fmt.Errorf("unable to apply state %v to PNCounter", state)
@@ -90,7 +90,7 @@ func (c *PNCounter) applyState(state *protocol.CrdtState) error {
 	return nil
 }
 
-func (c *PNCounter) applyDelta(delta *protocol.CrdtDelta) error {
+func (c *PNCounter) applyDelta(delta *entity.CrdtDelta) error {
 	d := delta.GetPncounter()
 	if d == nil {
 		return fmt.Errorf("unable to apply delta %v to PNCounter", delta)

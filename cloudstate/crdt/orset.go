@@ -18,7 +18,7 @@ package crdt
 import (
 	"fmt"
 
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/golang/protobuf/ptypes/any"
 )
 
@@ -114,17 +114,17 @@ func (s ORSet) Removed() []*any.Any {
 	return val
 }
 
-func (s *ORSet) State() *protocol.CrdtState {
-	return &protocol.CrdtState{
-		State: &protocol.CrdtState_Orset{
-			Orset: &protocol.ORSetState{
+func (s *ORSet) State() *entity.CrdtState {
+	return &entity.CrdtState{
+		State: &entity.CrdtState_Orset{
+			Orset: &entity.ORSetState{
 				Items: s.Value(),
 			},
 		},
 	}
 }
 
-func (s *ORSet) applyState(state *protocol.CrdtState) error {
+func (s *ORSet) applyState(state *entity.CrdtState) error {
 	set := state.GetOrset()
 	if set == nil {
 		return fmt.Errorf("unable to delta state %v to ORSet", state)
@@ -138,10 +138,10 @@ func (s *ORSet) applyState(state *protocol.CrdtState) error {
 	return nil
 }
 
-func (s *ORSet) Delta() *protocol.CrdtDelta {
-	return &protocol.CrdtDelta{
-		Delta: &protocol.CrdtDelta_Orset{
-			Orset: &protocol.ORSetDelta{
+func (s *ORSet) Delta() *entity.CrdtDelta {
+	return &entity.CrdtDelta{
+		Delta: &entity.CrdtDelta_Orset{
+			Orset: &entity.ORSetDelta{
 				Added:   s.Added(),
 				Removed: s.Removed(),
 				Cleared: s.cleared,
@@ -160,7 +160,7 @@ func (s *ORSet) resetDelta() {
 	s.removed = make(map[uint64]*any.Any)
 }
 
-func (s *ORSet) applyDelta(delta *protocol.CrdtDelta) error {
+func (s *ORSet) applyDelta(delta *entity.CrdtDelta) error {
 	d := delta.GetOrset()
 	if d == nil {
 		return fmt.Errorf("unable to delta %v to ORSet", delta)

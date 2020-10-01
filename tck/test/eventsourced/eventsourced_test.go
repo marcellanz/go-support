@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/cloudstateio/go-support/tck/shoppingcart"
 	domain "github.com/cloudstateio/go-support/tck/shoppingcart/persistence"
@@ -66,8 +67,8 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 			m: &shoppingcart.GetShoppingCart{UserId: "user1"},
 		})
 		switch m := r.Message.(type) {
-		case *protocol.EventSourcedStreamOut_Failure:
-		case *protocol.EventSourcedStreamOut_Reply:
+		case *entity.EventSourcedStreamOut_Failure:
+		case *entity.EventSourcedStreamOut_Reply:
 			t.Fatal("a message should not be allowed to be received without a init message sent before")
 		default:
 			t.Fatalf("unexpected message: %+v", m)
@@ -76,7 +77,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 
 	t.Run("calling GetShoppingCart with an init message should succeed", func(t *testing.T) {
 		p := newProxy(ctx, s)
-		p.sendInit(&protocol.EventSourcedInit{
+		p.sendInit(&entity.EventSourcedInit{
 			ServiceName: s.serviceName,
 			EntityId:    "e2",
 		})
@@ -85,9 +86,9 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 			m: &shoppingcart.GetShoppingCart{UserId: "user2"},
 		})
 		switch m := r.Message.(type) {
-		case *protocol.EventSourcedStreamOut_Reply:
+		case *entity.EventSourcedStreamOut_Reply:
 			p.checkCommandId(m)
-		case *protocol.EventSourcedStreamOut_Failure:
+		case *entity.EventSourcedStreamOut_Failure:
 			t.Fatalf("expected reply but got: %+v", m.Failure)
 		default:
 			t.Fatalf("unexpected message: %+v", m)
@@ -96,7 +97,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 
 	t.Run("after added line items, the cart should return the same lines added", func(t *testing.T) {
 		p := newProxy(ctx, s)
-		p.sendInit(&protocol.EventSourcedInit{
+		p.sendInit(&entity.EventSourcedInit{
 			ServiceName: s.serviceName,
 			EntityId:    "e3",
 		})
@@ -109,7 +110,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 			m: addLineItem,
 		})
 		switch m := r.Message.(type) {
-		case *protocol.EventSourcedStreamOut_Reply:
+		case *entity.EventSourcedStreamOut_Reply:
 			p.checkCommandId(m)
 			t.Run("the reply should have events", func(t *testing.T) {
 				events := m.Reply.GetEvents()
@@ -155,7 +156,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 					t.Fatalf("itemAdded.Item.Quantity = %d; want; %d", got, want)
 				}
 			})
-		case *protocol.EventSourcedStreamOut_Failure:
+		case *entity.EventSourcedStreamOut_Failure:
 			p.checkCommandId(m)
 			t.Fatalf("expected reply but got: %+v", m.Failure)
 		default:
@@ -167,7 +168,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 			m: &shoppingcart.GetShoppingCart{UserId: "user1"},
 		})
 		switch m := r.Message.(type) {
-		case *protocol.EventSourcedStreamOut_Reply:
+		case *entity.EventSourcedStreamOut_Reply:
 			p.checkCommandId(m)
 			payload := m.Reply.GetClientAction().GetReply().GetPayload()
 			cart := &shoppingcart.Cart{}
@@ -187,7 +188,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 			if got, want := li.ProductId, ai.ProductId; got != want {
 				t.Fatalf("ProductId = %s; want: %s", got, want)
 			}
-		case *protocol.EventSourcedStreamOut_Failure:
+		case *entity.EventSourcedStreamOut_Failure:
 			t.Fatalf("expected reply but got: %+v", m.Failure)
 		default:
 			t.Fatalf("unexpected message: %+v", m)
@@ -196,7 +197,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 
 	t.Run("the entity should have consistent state after a context failure", func(t *testing.T) {
 		p := newProxy(ctx, s)
-		p.sendInit(&protocol.EventSourcedInit{
+		p.sendInit(&entity.EventSourcedInit{
 			ServiceName: s.serviceName,
 			EntityId:    "e3",
 		})
@@ -207,9 +208,9 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 			m: addLineItem,
 		})
 		switch m := r.Message.(type) {
-		case *protocol.EventSourcedStreamOut_Reply:
+		case *entity.EventSourcedStreamOut_Reply:
 			p.checkCommandId(m)
-		case *protocol.EventSourcedStreamOut_Failure:
+		case *entity.EventSourcedStreamOut_Failure:
 			p.checkCommandId(m)
 			t.Fatalf("expected reply but got: %+v", m.Failure)
 		default:
@@ -222,10 +223,10 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 			m: &shoppingcart.AddLineItem{UserId: "user1", ProductId: "e-bike-1", Name: "FAIL", Quantity: 4},
 		})
 		switch m := r.Message.(type) {
-		case *protocol.EventSourcedStreamOut_Reply:
+		case *entity.EventSourcedStreamOut_Reply:
 			p.checkCommandId(m)
 			t.Fatalf("expected failure but got: %+v", m.Reply)
-		case *protocol.EventSourcedStreamOut_Failure:
+		case *entity.EventSourcedStreamOut_Failure:
 			p.checkCommandId(m)
 		default:
 			t.Fatalf("unexpected message: %+v", m)
@@ -262,10 +263,10 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		p.sendInit(&protocol.EventSourcedInit{
+		p.sendInit(&entity.EventSourcedInit{
 			ServiceName: s.serviceName,
 			EntityId:    "e9",
-			Snapshot: &protocol.EventSourcedSnapshot{
+			Snapshot: &entity.EventSourcedSnapshot{
 				SnapshotSequence: 0,
 				Snapshot:         any,
 			},
@@ -278,9 +279,9 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 			m: &shoppingcart.GetShoppingCart{UserId: "user1"},
 		})
 		switch m := r.Message.(type) {
-		case *protocol.EventSourcedStreamOut_Failure:
+		case *entity.EventSourcedStreamOut_Failure:
 			t.Fatalf("expected reply but got: %+v", m.Failure)
-		case *protocol.EventSourcedStreamOut_Reply:
+		case *entity.EventSourcedStreamOut_Reply:
 			p.checkCommandId(m)
 			reply := &domain.Cart{}
 			err := encoding.UnmarshalAny(m.Reply.GetClientAction().GetReply().GetPayload(), reply)
@@ -311,7 +312,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 	t.Run("an initialised entity with an event sent should return its applied state", func(t *testing.T) {
 		p := newProxy(ctx, s)
 		// init
-		p.sendInit(&protocol.EventSourcedInit{
+		p.sendInit(&entity.EventSourcedInit{
 			ServiceName: s.serviceName,
 			EntityId:    "e20",
 		})
@@ -321,13 +322,13 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		p.sendEvent(&protocol.EventSourcedEvent{Sequence: 0, Payload: event})
+		p.sendEvent(&entity.EventSourcedEvent{Sequence: 0, Payload: event})
 		r := p.sendRecvCmd(command{
 			&protocol.Command{EntityId: "e20", Name: "GetShoppingCart"},
 			&shoppingcart.GetShoppingCart{UserId: "user1"},
 		})
 		switch m := r.Message.(type) {
-		case *protocol.EventSourcedStreamOut_Reply:
+		case *entity.EventSourcedStreamOut_Reply:
 			p.checkCommandId(m)
 			cart := &shoppingcart.Cart{}
 			if err := encoding.UnmarshalAny(m.Reply.GetClientAction().GetReply().GetPayload(), cart); err != nil {
@@ -346,7 +347,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 			if got, want := li.ProductId, lineItem.ProductId; got != want {
 				t.Fatalf("ProductId = %s; want: %s", got, want)
 			}
-		case *protocol.EventSourcedStreamOut_Failure:
+		case *entity.EventSourcedStreamOut_Failure:
 			t.Fatalf("expected reply but got: %+v", m.Failure)
 		default:
 			t.Fatalf("unexpected message: %+v", m)
@@ -358,7 +359,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 		p := newProxy(ctx, s)
 		entityId := "e23"
 		userId := "user1"
-		p.sendInit(&protocol.EventSourcedInit{
+		p.sendInit(&entity.EventSourcedInit{
 			ServiceName: s.serviceName,
 			EntityId:    entityId,
 		})
@@ -380,7 +381,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 		for i, cmd := range add {
 			r := p.sendRecvCmd(cmd)
 			switch m := r.Message.(type) {
-			case *protocol.EventSourcedStreamOut_Reply:
+			case *entity.EventSourcedStreamOut_Reply:
 				p.checkCommandId(m)
 				if i < 2 && m.Reply.ClientAction.GetFailure() != nil {
 					t.Fatalf("unexpected ClientAction failure: %+v", m)
@@ -388,7 +389,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 				if i == 2 && m.Reply.ClientAction.GetFailure() == nil {
 					t.Fatalf("expected ClientAction failure: %+v", m)
 				}
-			case *protocol.EventSourcedStreamOut_Failure:
+			case *entity.EventSourcedStreamOut_Failure:
 				p.checkCommandId(m)
 				t.Fatalf("expected reply but got: %+v", m.Failure)
 			default:
@@ -401,7 +402,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 			&shoppingcart.GetShoppingCart{UserId: userId},
 		})
 		switch m := r.Message.(type) {
-		case *protocol.EventSourcedStreamOut_Reply:
+		case *entity.EventSourcedStreamOut_Reply:
 			p.checkCommandId(m)
 			cart := &shoppingcart.Cart{}
 			if err := encoding.UnmarshalAny(m.Reply.GetClientAction().GetReply().GetPayload(), cart); err != nil {
@@ -415,17 +416,17 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 					t.Fatal("cart is in an inconsistent state after an emit-fail sequence")
 				}
 			}
-			//li := cart.Items[0]
-			//if got, want := li.Quantity, lineItem.Quantity; got != want {
+			// li := cart.Items[0]
+			// if got, want := li.Quantity, lineItem.Quantity; got != want {
 			//	t.Fatalf("Quantity = %d; want: %d", got, want)
-			//}
-			//if got, want := li.Name, lineItem.Name; got != want {
+			// }
+			// if got, want := li.Name, lineItem.Name; got != want {
 			//	t.Fatalf("Name = %s; want: %s", got, want)
-			//}
-			//if got, want := li.ProductId, lineItem.ProductId; got != want {
+			// }
+			// if got, want := li.ProductId, lineItem.ProductId; got != want {
 			//	t.Fatalf("ProductId = %s; want: %s", got, want)
-			//}
-		case *protocol.EventSourcedStreamOut_Failure:
+			// }
+		case *entity.EventSourcedStreamOut_Failure:
 			t.Fatalf("expected reply but got: %+v", m.Failure)
 		default:
 			t.Fatalf("unexpected message: %+v", m)
@@ -435,7 +436,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 	t.Run("removing a non existent item should fail", func(t *testing.T) {
 		p := newProxy(ctx, s)
 		entityId := "e24"
-		p.sendInit(&protocol.EventSourcedInit{ServiceName: s.serviceName, EntityId: entityId})
+		p.sendInit(&entity.EventSourcedInit{ServiceName: s.serviceName, EntityId: entityId})
 		// add line item
 		add := []command{
 			{
@@ -458,7 +459,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 		for i, cmd := range add {
 			r := p.sendRecvCmd(cmd)
 			switch m := r.Message.(type) {
-			case *protocol.EventSourcedStreamOut_Reply:
+			case *entity.EventSourcedStreamOut_Reply:
 				p.checkCommandId(m)
 				if i <= 2 && m.Reply.ClientAction.GetFailure() != nil {
 					t.Fatalf("unexpected ClientAction failure: %+v", m)
@@ -466,7 +467,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 				if i == 3 && m.Reply.ClientAction.GetFailure() == nil {
 					t.Fatalf("expected ClientAction failure: %+v", m)
 				}
-			case *protocol.EventSourcedStreamOut_Failure:
+			case *entity.EventSourcedStreamOut_Failure:
 				p.checkCommandId(m)
 				t.Fatalf("expected reply but got: %+v", m.Failure)
 			default:
@@ -478,7 +479,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 	t.Run("adding and removing line items should result in a consistent state", func(t *testing.T) {
 		p := newProxy(ctx, s)
 		entityId := "e22"
-		p.sendInit(&protocol.EventSourcedInit{ServiceName: s.serviceName, EntityId: entityId})
+		p.sendInit(&entity.EventSourcedInit{ServiceName: s.serviceName, EntityId: entityId})
 		// add line item
 		add := []command{
 			{
@@ -501,12 +502,12 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 		for _, cmd := range add {
 			r := p.sendRecvCmd(cmd)
 			switch m := r.Message.(type) {
-			case *protocol.EventSourcedStreamOut_Reply:
+			case *entity.EventSourcedStreamOut_Reply:
 				p.checkCommandId(m)
 				if m.Reply.ClientAction.GetFailure() != nil {
 					t.Fatalf("unexpected ClientAction failure: %+v", m)
 				}
-			case *protocol.EventSourcedStreamOut_Failure:
+			case *entity.EventSourcedStreamOut_Failure:
 				p.checkCommandId(m)
 				t.Fatalf("expected reply but got: %+v", m.Failure)
 			default:
@@ -522,7 +523,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 			&shoppingcart.GetShoppingCart{UserId: "user1"},
 		})
 		switch m := r.Message.(type) {
-		case *protocol.EventSourcedStreamOut_Reply:
+		case *entity.EventSourcedStreamOut_Reply:
 			p.checkCommandId(m)
 			payload := m.Reply.GetClientAction().GetReply().GetPayload()
 			cart := &shoppingcart.Cart{}
@@ -541,7 +542,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 			if got, want := eBike3Count, int32(7); got != want {
 				t.Fatalf("eBike3Count = %d; want: %d ", got, want)
 			}
-		case *protocol.EventSourcedStreamOut_Failure:
+		case *entity.EventSourcedStreamOut_Failure:
 			t.Fatalf("expected reply but got: %+v", m.Failure)
 		default:
 			t.Fatalf("unexpected message: %+v", m)
@@ -564,12 +565,12 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 		for _, cmd := range remove {
 			r := p.sendRecvCmd(cmd)
 			switch m := r.Message.(type) {
-			case *protocol.EventSourcedStreamOut_Reply:
+			case *entity.EventSourcedStreamOut_Reply:
 				p.checkCommandId(m)
 				if m.Reply.ClientAction.GetFailure() != nil {
 					t.Fatalf("unexpected ClientAction failure: %+v", m)
 				}
-			case *protocol.EventSourcedStreamOut_Failure:
+			case *entity.EventSourcedStreamOut_Failure:
 				p.checkCommandId(m)
 				t.Fatalf("expected reply but got: %+v", m.Failure)
 			default:
@@ -582,7 +583,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 			&shoppingcart.GetShoppingCart{UserId: "user1"},
 		})
 		switch m := r.Message.(type) {
-		case *protocol.EventSourcedStreamOut_Reply:
+		case *entity.EventSourcedStreamOut_Reply:
 			p.checkCommandId(m)
 			payload := m.Reply.GetClientAction().GetReply().GetPayload()
 			cart := &shoppingcart.Cart{}
@@ -592,7 +593,7 @@ func TestEventsourcingShoppingCart(t *testing.T) {
 			if got, want := len(cart.Items), 0; got != want {
 				t.Fatalf("len(cart.Items) = %d; want: %d ", got, want)
 			}
-		case *protocol.EventSourcedStreamOut_Failure:
+		case *entity.EventSourcedStreamOut_Failure:
 			t.Fatalf("expected reply but got: %+v", m.Failure)
 		default:
 			t.Fatalf("unexpected message: %+v", m)

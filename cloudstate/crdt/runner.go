@@ -19,11 +19,12 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 )
 
 type runner struct {
-	stream  protocol.Crdt_HandleServer
+	stream  entity.Crdt_HandleServer
 	context *Context
 }
 
@@ -31,7 +32,7 @@ type runner struct {
 // does not have a current value, either because the commandContextFor function didn't send one and the user function hasn't
 // updated the value itself in response to a command, or because the value was deleted, this must be sent before
 // any deltas.
-func (r *runner) handleState(state *protocol.CrdtState) error {
+func (r *runner) handleState(state *entity.CrdtState) error {
 	if r.context.crdt == nil {
 		r.context.crdt = newFor(state)
 	}
@@ -45,7 +46,7 @@ func (r *runner) handleState(state *protocol.CrdtState) error {
 
 // A delta to be applied to the current value. It may be sent at any time as long as the user function already has
 // value.
-func (r *runner) handleDelta(delta *protocol.CrdtDelta) error {
+func (r *runner) handleDelta(delta *entity.CrdtDelta) error {
 	if r.context.crdt == nil {
 		return fmt.Errorf("received delta for crdt before it was created: %v", r.context.Entity)
 	}
@@ -64,7 +65,7 @@ func (r *runner) handleCancellation(cancelled *protocol.StreamCancelled) error {
 	// the cancelled stream is not allowed to handle changes, so we remove it.
 	delete(r.context.streamedCtx, id)
 	if ctx.cancel == nil {
-		return r.sendCancelledMessage(&protocol.CrdtStreamCancelledResponse{
+		return r.sendCancelledMessage(&entity.CrdtStreamCancelledResponse{
 			CommandId: id.Value(),
 		})
 	}
@@ -73,7 +74,7 @@ func (r *runner) handleCancellation(cancelled *protocol.StreamCancelled) error {
 		return err
 	}
 	stateAction := ctx.stateAction()
-	err := r.sendCancelledMessage(&protocol.CrdtStreamCancelledResponse{
+	err := r.sendCancelledMessage(&entity.CrdtStreamCancelledResponse{
 		CommandId:   id.Value(),
 		StateAction: stateAction,
 		SideEffects: ctx.sideEffects,
@@ -125,13 +126,13 @@ func (r *runner) handleCommand(cmd *protocol.Command) (streamError error) {
 		return err
 	}
 	if ctx.failed != nil {
-		return r.sendCrdtReply(&protocol.CrdtReply{
+		return r.sendCrdtReply(&entity.CrdtReply{
 			CommandId:    ctx.CommandId.Value(),
 			ClientAction: clientAction, // this is a ClientAction_Failure
 		})
 	}
 	stateAction := ctx.stateAction()
-	err = r.sendCrdtReply(&protocol.CrdtReply{
+	err = r.sendCrdtReply(&entity.CrdtReply{
 		CommandId:    ctx.CommandId.Value(),
 		ClientAction: clientAction,
 		SideEffects:  ctx.sideEffects,
@@ -181,7 +182,7 @@ func (r *runner) handleChange() error {
 		}
 		if ctx.failed != nil {
 			delete(ctx.streamedCtx, ctx.CommandId)
-			if err := r.sendStreamedMessage(&protocol.CrdtStreamedMessage{
+			if err := r.sendStreamedMessage(&entity.CrdtStreamedMessage{
 				CommandId:    ctx.CommandId.Value(),
 				ClientAction: clientAction,
 			}); err != nil {
@@ -193,7 +194,7 @@ func (r *runner) handleChange() error {
 			if ctx.ended {
 				delete(ctx.streamedCtx, ctx.CommandId)
 			}
-			msg := &protocol.CrdtStreamedMessage{
+			msg := &entity.CrdtStreamedMessage{
 				CommandId:    ctx.CommandId.Value(),
 				ClientAction: clientAction,
 				SideEffects:  ctx.sideEffects,
@@ -209,25 +210,25 @@ func (r *runner) handleChange() error {
 	return nil
 }
 
-func (r *runner) sendStreamedMessage(msg *protocol.CrdtStreamedMessage) error {
-	return r.stream.Send(&protocol.CrdtStreamOut{
-		Message: &protocol.CrdtStreamOut_StreamedMessage{
+func (r *runner) sendStreamedMessage(msg *entity.CrdtStreamedMessage) error {
+	return r.stream.Send(&entity.CrdtStreamOut{
+		Message: &entity.CrdtStreamOut_StreamedMessage{
 			StreamedMessage: msg,
 		},
 	})
 }
 
-func (r *runner) sendCancelledMessage(msg *protocol.CrdtStreamCancelledResponse) error {
-	return r.stream.Send(&protocol.CrdtStreamOut{
-		Message: &protocol.CrdtStreamOut_StreamCancelledResponse{
+func (r *runner) sendCancelledMessage(msg *entity.CrdtStreamCancelledResponse) error {
+	return r.stream.Send(&entity.CrdtStreamOut{
+		Message: &entity.CrdtStreamOut_StreamCancelledResponse{
 			StreamCancelledResponse: msg,
 		},
 	})
 }
 
-func (r *runner) sendCrdtReply(reply *protocol.CrdtReply) error {
-	return r.stream.Send(&protocol.CrdtStreamOut{
-		Message: &protocol.CrdtStreamOut_Reply{
+func (r *runner) sendCrdtReply(reply *entity.CrdtReply) error {
+	return r.stream.Send(&entity.CrdtStreamOut{
+		Message: &entity.CrdtStreamOut_Reply{
 			Reply: reply,
 		},
 	})

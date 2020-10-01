@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/cloudstateio/go-support/tck/proto/crdt"
 )
 
@@ -42,7 +42,7 @@ func TestCRDTORSet(t *testing.T) {
 		p := newProxy(ctx, s)
 		defer p.teardown()
 
-		p.init(&protocol.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
 		t.Run("ORSetAdd emits client action and create state action", func(t *testing.T) {
 			tr := tester{t}
 			one, err := encoding.Struct(pair{"one", 1})
@@ -53,7 +53,7 @@ func TestCRDTORSet(t *testing.T) {
 				Value: &crdt.AnySupportType_AnyValue{AnyValue: one}},
 			}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				// action reply
 				tr.expectedNil(m.Reply.GetSideEffects())
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
@@ -88,7 +88,7 @@ func TestCRDTORSet(t *testing.T) {
 				Value: &crdt.AnySupportType_AnyValue{AnyValue: one}},
 			}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				// action reply
 				tr.expectedNil(m.Reply.GetSideEffects())
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
@@ -124,7 +124,7 @@ func TestCRDTORSet(t *testing.T) {
 			switch m := p.command(
 				entityId, command, orsetRequest(&crdt.Delete{}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				tr.expectedNil(m.Reply.GetSideEffects())
 				var r crdt.ORSetResponse
 				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)

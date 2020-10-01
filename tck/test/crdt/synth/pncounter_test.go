@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/cloudstateio/go-support/tck/proto/crdt"
 )
 
@@ -36,14 +36,14 @@ func TestCRDTPNCounter(t *testing.T) {
 		command := "ProcessPNCounter"
 		p := newProxy(ctx, s)
 		defer p.teardown()
-		p.init(&protocol.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
 
 		t.Run("incrementing a PNCounter should emit client action and create-state action", func(t *testing.T) {
 			tr := tester{t}
 			switch m := p.command(
 				entityId, command, pncounterRequest(&crdt.PNCounterIncrement{Key: entityId, Value: 7}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				var r crdt.PNCounterResponse
 				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
 				tr.expectedInt64(r.GetValue().GetValue(), 7)
@@ -57,7 +57,7 @@ func TestCRDTPNCounter(t *testing.T) {
 			switch m := p.command(
 				entityId, command, pncounterRequest(&crdt.PNCounterIncrement{Key: entityId, Value: 7}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				var r crdt.PNCounterResponse
 				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
 				tr.expectedInt64(r.GetValue().GetValue(), 14)
@@ -71,7 +71,7 @@ func TestCRDTPNCounter(t *testing.T) {
 			switch m := p.command(
 				entityId, command, pncounterRequest(&crdt.PNCounterDecrement{Key: entityId, Value: 28}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				var r crdt.PNCounterResponse
 				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
 				tr.expectedInt64(r.GetValue().GetValue(), -14)
@@ -82,11 +82,11 @@ func TestCRDTPNCounter(t *testing.T) {
 		})
 		t.Run("the counter should apply new state and return its value", func(t *testing.T) {
 			tr := tester{t}
-			p.state(&protocol.PNCounterState{Value: 49})
+			p.state(&entity.PNCounterState{Value: 49})
 			switch m := p.command(
 				entityId, command, pncounterRequest(&crdt.Get{Key: entityId}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				var r crdt.PNCounterResponse
 				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
 				tr.expectedInt64(r.GetValue().GetValue(), 49)
@@ -97,11 +97,11 @@ func TestCRDTPNCounter(t *testing.T) {
 		})
 		t.Run("the counter should apply a delta and return its value", func(t *testing.T) {
 			tr := tester{t}
-			p.delta(&protocol.PNCounterDelta{Change: -56})
+			p.delta(&entity.PNCounterDelta{Change: -56})
 			switch m := p.command(
 				entityId, command, pncounterRequest(&crdt.Get{Key: entityId}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				var r crdt.PNCounterResponse
 				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
 				tr.expectedInt64(r.GetValue().GetValue(), -7)

@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/golang/protobuf/ptypes/any"
 )
 
@@ -27,9 +27,9 @@ func TestORSet(t *testing.T) {
 	t.Run("should reflect a state update", func(t *testing.T) {
 		s := NewORSet()
 		err := s.applyState(
-			&protocol.CrdtState{
-				State: &protocol.CrdtState_Orset{
-					Orset: &protocol.ORSetState{
+			&entity.CrdtState{
+				State: &entity.CrdtState_Orset{
+					Orset: &entity.ORSetState{
 						Items: append(make([]*any.Any, 0), encoding.String("one"), encoding.String("two")),
 					},
 				},
@@ -234,9 +234,9 @@ func TestORSet(t *testing.T) {
 		s := NewORSet()
 		s.Add(encoding.String("one"))
 		s.resetDelta()
-		if err := s.applyDelta(encDecDelta(&protocol.CrdtDelta{
-			Delta: &protocol.CrdtDelta_Orset{
-				Orset: &protocol.ORSetDelta{
+		if err := s.applyDelta(encDecDelta(&entity.CrdtDelta{
+			Delta: &entity.CrdtDelta_Orset{
+				Orset: &entity.ORSetDelta{
 					Added: append(make([]*any.Any, 0), encoding.String("two")),
 				},
 			},
@@ -260,9 +260,9 @@ func TestORSet(t *testing.T) {
 		s := NewORSet()
 		s.Add(encoding.String("one"))
 		s.Add(encoding.String("two"))
-		if err := s.applyDelta(&protocol.CrdtDelta{
-			Delta: &protocol.CrdtDelta_Orset{
-				Orset: &protocol.ORSetDelta{
+		if err := s.applyDelta(&entity.CrdtDelta{
+			Delta: &entity.CrdtDelta_Orset{
+				Orset: &entity.ORSetDelta{
 					Removed: append(make([]*any.Any, 0), encoding.String("two")),
 				},
 			},
@@ -283,9 +283,9 @@ func TestORSet(t *testing.T) {
 		s.Add(encoding.String("one"))
 		s.Add(encoding.String("two"))
 		s.resetDelta()
-		if err := s.applyDelta(encDecDelta(&protocol.CrdtDelta{
-			Delta: &protocol.CrdtDelta_Orset{
-				Orset: &protocol.ORSetDelta{
+		if err := s.applyDelta(encDecDelta(&entity.CrdtDelta{
+			Delta: &entity.CrdtDelta_Orset{
+				Orset: &entity.ORSetDelta{
 					Cleared: true,
 				},
 			},
@@ -335,9 +335,9 @@ func TestORSet(t *testing.T) {
 func TestORSetAdditional(t *testing.T) {
 	t.Run("apply invalid delta", func(t *testing.T) {
 		s := NewORSet()
-		if err := s.applyDelta(&protocol.CrdtDelta{
-			Delta: &protocol.CrdtDelta_Flag{
-				Flag: &protocol.FlagDelta{
+		if err := s.applyDelta(&entity.CrdtDelta{
+			Delta: &entity.CrdtDelta_Flag{
+				Flag: &entity.FlagDelta{
 					Value: false,
 				},
 			},
@@ -347,9 +347,9 @@ func TestORSetAdditional(t *testing.T) {
 	})
 	t.Run("apply invalid state", func(t *testing.T) {
 		s := NewORSet()
-		if err := s.applyState(&protocol.CrdtState{
-			State: &protocol.CrdtState_Flag{
-				Flag: &protocol.FlagState{
+		if err := s.applyState(&entity.CrdtState{
+			State: &entity.CrdtState_Flag{
+				Flag: &entity.FlagState{
 					Value: false,
 				},
 			},

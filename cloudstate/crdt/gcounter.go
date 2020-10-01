@@ -18,7 +18,7 @@ package crdt
 import (
 	"fmt"
 
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 )
 
 // GCounter, or Grow-only Counter, is a counter that can only be incremented.
@@ -48,10 +48,10 @@ func (c *GCounter) Increment(i uint64) {
 	c.delta += i
 }
 
-func (c *GCounter) State() *protocol.CrdtState {
-	return &protocol.CrdtState{
-		State: &protocol.CrdtState_Gcounter{
-			Gcounter: &protocol.GCounterState{
+func (c *GCounter) State() *entity.CrdtState {
+	return &entity.CrdtState{
+		State: &entity.CrdtState_Gcounter{
+			Gcounter: &entity.GCounterState{
 				Value: c.value,
 			},
 		},
@@ -62,13 +62,13 @@ func (c GCounter) HasDelta() bool {
 	return c.delta > 0
 }
 
-func (c *GCounter) Delta() *protocol.CrdtDelta {
+func (c *GCounter) Delta() *entity.CrdtDelta {
 	if c.delta == 0 {
 		return nil
 	}
-	return &protocol.CrdtDelta{
-		Delta: &protocol.CrdtDelta_Gcounter{
-			Gcounter: &protocol.GCounterDelta{
+	return &entity.CrdtDelta{
+		Delta: &entity.CrdtDelta_Gcounter{
+			Gcounter: &entity.GCounterDelta{
 				Increment: c.delta,
 			},
 		},
@@ -79,7 +79,7 @@ func (c *GCounter) resetDelta() {
 	c.delta = 0
 }
 
-func (c *GCounter) applyState(state *protocol.CrdtState) error {
+func (c *GCounter) applyState(state *entity.CrdtState) error {
 	s := state.GetGcounter()
 	if s == nil {
 		return fmt.Errorf("unable to apply state %v to GCounter", state)
@@ -88,7 +88,7 @@ func (c *GCounter) applyState(state *protocol.CrdtState) error {
 	return nil
 }
 
-func (c *GCounter) applyDelta(delta *protocol.CrdtDelta) error {
+func (c *GCounter) applyDelta(delta *entity.CrdtDelta) error {
 	d := delta.GetGcounter()
 	if d == nil {
 		return fmt.Errorf("unable to apply delta %v to GCounter", delta)

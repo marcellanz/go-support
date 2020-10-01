@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/any"
@@ -29,7 +30,7 @@ import (
 
 // runner attaches a context to a stream and runs it.
 type runner struct {
-	stream  protocol.EventSourced_HandleServer
+	stream  entity.EventSourced_HandleServer
 	context *Context
 }
 
@@ -103,7 +104,7 @@ func (r *runner) handleCommand(cmd *protocol.Command) error {
 			Err:     fmt.Errorf("marshalling of the snapshot failed: %w", err),
 		}
 	}
-	return r.sendEventSourcedReply(&protocol.EventSourcedReply{
+	return r.sendEventSourcedReply(&entity.EventSourcedReply{
 		CommandId: cmd.GetId(),
 		ClientAction: &protocol.ClientAction{
 			Action: &protocol.ClientAction_Reply{
@@ -117,7 +118,7 @@ func (r *runner) handleCommand(cmd *protocol.Command) error {
 	})
 }
 
-func (r *runner) handleInitSnapshot(snapshot *protocol.EventSourcedSnapshot) error {
+func (r *runner) handleInitSnapshot(snapshot *entity.EventSourcedSnapshot) error {
 	val, err := r.unmarshalSnapshot(snapshot)
 	if val == nil || err != nil {
 		return fmt.Errorf("handling snapshot failed with: %w", err)
@@ -155,7 +156,7 @@ func (r *runner) handleSnapshot() (*any.Any, error) {
 	return snapshot, nil
 }
 
-func (r *runner) handleEvent(event *protocol.EventSourcedEvent) error {
+func (r *runner) handleEvent(event *entity.EventSourcedEvent) error {
 	// TODO: here's the point where events can be protobufs, serialized as json or other formats
 	msgName := strings.TrimPrefix(event.Payload.GetTypeUrl(), encoding.ProtoAnyBase+"/")
 	messageType := proto.MessageType(msgName)
@@ -184,10 +185,10 @@ func (r *runner) applyEvent(event interface{}) error {
 	if err != nil {
 		return err
 	}
-	return r.handleEvent(&protocol.EventSourcedEvent{Payload: payload})
+	return r.handleEvent(&entity.EventSourcedEvent{Payload: payload})
 }
 
-func (*runner) unmarshalSnapshot(s *protocol.EventSourcedSnapshot) (interface{}, error) {
+func (*runner) unmarshalSnapshot(s *entity.EventSourcedSnapshot) (interface{}, error) {
 	// see: https://developers.google.com/protocol-buffers/docs/reference/csharp/class/google/protobuf/well-known-types/any#typeurl
 	typeUrl := s.Snapshot.GetTypeUrl()
 	if !strings.Contains(typeUrl, "://") {
@@ -218,16 +219,16 @@ func (*runner) unmarshalSnapshot(s *protocol.EventSourcedSnapshot) (interface{},
 	return nil, fmt.Errorf("no snapshot unmarshaller found for: %v", typeURL.String())
 }
 
-func (r *runner) sendEventSourcedReply(rep *protocol.EventSourcedReply) error {
-	return r.stream.Send(&protocol.EventSourcedStreamOut{
-		Message: &protocol.EventSourcedStreamOut_Reply{
+func (r *runner) sendEventSourcedReply(rep *entity.EventSourcedReply) error {
+	return r.stream.Send(&entity.EventSourcedStreamOut{
+		Message: &entity.EventSourcedStreamOut_Reply{
 			Reply: rep,
 		},
 	})
 }
 
 func (r *runner) sendClientActionFailure(f *protocol.Failure) error {
-	return r.sendEventSourcedReply(&protocol.EventSourcedReply{
+	return r.sendEventSourcedReply(&entity.EventSourcedReply{
 		CommandId: f.CommandId,
 		ClientAction: &protocol.ClientAction{
 			Action: &protocol.ClientAction_Failure{

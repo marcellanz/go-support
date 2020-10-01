@@ -18,7 +18,7 @@ package crdt
 import (
 	"fmt"
 
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/golang/protobuf/ptypes/any"
 )
 
@@ -67,8 +67,8 @@ func (m *ORMap) Size() int {
 	return len(m.value)
 }
 
-func (m *ORMap) Values() []*protocol.CrdtState {
-	values := make([]*protocol.CrdtState, 0, len(m.value))
+func (m *ORMap) Values() []*entity.CrdtState {
+	values := make([]*entity.CrdtState, 0, len(m.value))
 	for i, v := range m.value {
 		values[i] = v.value.State()
 	}
@@ -146,21 +146,21 @@ func (m *ORMap) HasDelta() bool {
 	return false
 }
 
-func (m *ORMap) Delta() *protocol.CrdtDelta {
+func (m *ORMap) Delta() *entity.CrdtDelta {
 	if !m.HasDelta() {
 		return nil
 	}
-	updated := make([]*protocol.ORMapEntryDelta, 0)
-	added := make([]*protocol.ORMapEntry, 0)
+	updated := make([]*entity.ORMapEntryDelta, 0)
+	added := make([]*entity.ORMapEntry, 0)
 	for _, v := range m.value {
 		if _, has := m.delta.added[m.hashAny(v.key)]; has {
-			added = append(added, &protocol.ORMapEntry{
+			added = append(added, &entity.ORMapEntry{
 				Key:   v.key,
 				Value: v.value.State(),
 			})
 		} else {
 			if v.value.HasDelta() {
-				updated = append(updated, &protocol.ORMapEntryDelta{
+				updated = append(updated, &entity.ORMapEntryDelta{
 					Key:   v.key,
 					Delta: v.value.Delta(),
 				})
@@ -171,9 +171,9 @@ func (m *ORMap) Delta() *protocol.CrdtDelta {
 	for _, e := range m.delta.removed {
 		removed = append(removed, e)
 	}
-	return &protocol.CrdtDelta{
-		Delta: &protocol.CrdtDelta_Ormap{
-			Ormap: &protocol.ORMapDelta{
+	return &entity.CrdtDelta{
+		Delta: &entity.CrdtDelta_Ormap{
+			Ormap: &entity.ORMapDelta{
 				Cleared: m.delta.cleared,
 				Removed: removed,
 				Updated: updated,
@@ -183,7 +183,7 @@ func (m *ORMap) Delta() *protocol.CrdtDelta {
 	}
 }
 
-func (m *ORMap) applyDelta(delta *protocol.CrdtDelta) error {
+func (m *ORMap) applyDelta(delta *entity.CrdtDelta) error {
 	d := delta.GetOrmap()
 	if d == nil {
 		return fmt.Errorf("unable to apply delta %v to the ORMap", delta)
@@ -201,7 +201,7 @@ func (m *ORMap) applyDelta(delta *protocol.CrdtDelta) error {
 			continue
 		}
 		switch a.GetValue().GetState().(type) {
-		case *protocol.CrdtState_Gcounter:
+		case *entity.CrdtState_Gcounter:
 			crdt := NewGCounter()
 			if err := crdt.applyState(a.GetValue()); err != nil {
 				return err
@@ -231,24 +231,24 @@ func (m *ORMap) resetDelta() {
 	m.delta.removed = make(map[uint64]*any.Any)
 }
 
-func (m *ORMap) State() *protocol.CrdtState {
-	entries := make([]*protocol.ORMapEntry, 0, len(m.value))
+func (m *ORMap) State() *entity.CrdtState {
+	entries := make([]*entity.ORMapEntry, 0, len(m.value))
 	for _, v := range m.value {
-		entries = append(entries, &protocol.ORMapEntry{
+		entries = append(entries, &entity.ORMapEntry{
 			Key:   v.key,
 			Value: v.value.State(),
 		})
 	}
-	return &protocol.CrdtState{
-		State: &protocol.CrdtState_Ormap{
-			Ormap: &protocol.ORMapState{
+	return &entity.CrdtState{
+		State: &entity.CrdtState_Ormap{
+			Ormap: &entity.ORMapState{
 				Entries: entries,
 			},
 		},
 	}
 }
 
-func (m *ORMap) applyState(state *protocol.CrdtState) error {
+func (m *ORMap) applyState(state *entity.CrdtState) error {
 	s := state.GetOrmap()
 	if s == nil {
 		return fmt.Errorf("unable to apply state %v to the ORMap", state)

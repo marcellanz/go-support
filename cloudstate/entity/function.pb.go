@@ -24,7 +24,7 @@ package entity
 
 import (
 	context "context"
-	cloudstate "github.com/cloudstateio/go-support/cloudstate"
+	protocol "github.com/cloudstateio/go-support/cloudstate/protocol"
 	proto "github.com/golang/protobuf/proto"
 	any "github.com/golang/protobuf/ptypes/any"
 	grpc "google.golang.org/grpc"
@@ -67,7 +67,7 @@ type FunctionCommand struct {
 	// The command payload.
 	Payload *any.Any `protobuf:"bytes,4,opt,name=payload,proto3" json:"payload,omitempty"`
 	// Metadata
-	Metadata *cloudstate.Metadata `protobuf:"bytes,5,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	Metadata *protocol.Metadata `protobuf:"bytes,5,opt,name=metadata,proto3" json:"metadata,omitempty"`
 }
 
 func (x *FunctionCommand) Reset() {
@@ -123,7 +123,7 @@ func (x *FunctionCommand) GetPayload() *any.Any {
 	return nil
 }
 
-func (x *FunctionCommand) GetMetadata() *cloudstate.Metadata {
+func (x *FunctionCommand) GetMetadata() *protocol.Metadata {
 	if x != nil {
 		return x.Metadata
 	}
@@ -140,7 +140,7 @@ type FunctionReply struct {
 	//	*FunctionReply_Reply
 	//	*FunctionReply_Forward
 	Response    isFunctionReply_Response `protobuf_oneof:"response"`
-	SideEffects []*cloudstate.SideEffect `protobuf:"bytes,4,rep,name=side_effects,json=sideEffects,proto3" json:"side_effects,omitempty"`
+	SideEffects []*protocol.SideEffect   `protobuf:"bytes,4,rep,name=side_effects,json=sideEffects,proto3" json:"side_effects,omitempty"`
 }
 
 func (x *FunctionReply) Reset() {
@@ -182,28 +182,28 @@ func (m *FunctionReply) GetResponse() isFunctionReply_Response {
 	return nil
 }
 
-func (x *FunctionReply) GetFailure() *cloudstate.Failure {
+func (x *FunctionReply) GetFailure() *protocol.Failure {
 	if x, ok := x.GetResponse().(*FunctionReply_Failure); ok {
 		return x.Failure
 	}
 	return nil
 }
 
-func (x *FunctionReply) GetReply() *cloudstate.Reply {
+func (x *FunctionReply) GetReply() *protocol.Reply {
 	if x, ok := x.GetResponse().(*FunctionReply_Reply); ok {
 		return x.Reply
 	}
 	return nil
 }
 
-func (x *FunctionReply) GetForward() *cloudstate.Forward {
+func (x *FunctionReply) GetForward() *protocol.Forward {
 	if x, ok := x.GetResponse().(*FunctionReply_Forward); ok {
 		return x.Forward
 	}
 	return nil
 }
 
-func (x *FunctionReply) GetSideEffects() []*cloudstate.SideEffect {
+func (x *FunctionReply) GetSideEffects() []*protocol.SideEffect {
 	if x != nil {
 		return x.SideEffects
 	}
@@ -215,15 +215,15 @@ type isFunctionReply_Response interface {
 }
 
 type FunctionReply_Failure struct {
-	Failure *cloudstate.Failure `protobuf:"bytes,1,opt,name=failure,proto3,oneof"`
+	Failure *protocol.Failure `protobuf:"bytes,1,opt,name=failure,proto3,oneof"`
 }
 
 type FunctionReply_Reply struct {
-	Reply *cloudstate.Reply `protobuf:"bytes,2,opt,name=reply,proto3,oneof"`
+	Reply *protocol.Reply `protobuf:"bytes,2,opt,name=reply,proto3,oneof"`
 }
 
 type FunctionReply_Forward struct {
-	Forward *cloudstate.Forward `protobuf:"bytes,3,opt,name=forward,proto3,oneof"`
+	Forward *protocol.Forward `protobuf:"bytes,3,opt,name=forward,proto3,oneof"`
 }
 
 func (*FunctionReply_Failure) isFunctionReply_Response() {}
@@ -314,14 +314,14 @@ func file_function_proto_rawDescGZIP() []byte {
 
 var file_function_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_function_proto_goTypes = []interface{}{
-	(*FunctionCommand)(nil),       // 0: cloudstate.function.FunctionCommand
-	(*FunctionReply)(nil),         // 1: cloudstate.function.FunctionReply
-	(*any.Any)(nil),               // 2: google.protobuf.Any
-	(*cloudstate.Metadata)(nil),   // 3: cloudstate.Metadata
-	(*cloudstate.Failure)(nil),    // 4: cloudstate.Failure
-	(*cloudstate.Reply)(nil),      // 5: cloudstate.Reply
-	(*cloudstate.Forward)(nil),    // 6: cloudstate.Forward
-	(*cloudstate.SideEffect)(nil), // 7: cloudstate.SideEffect
+	(*FunctionCommand)(nil),     // 0: cloudstate.function.FunctionCommand
+	(*FunctionReply)(nil),       // 1: cloudstate.function.FunctionReply
+	(*any.Any)(nil),             // 2: google.protobuf.Any
+	(*protocol.Metadata)(nil),   // 3: cloudstate.Metadata
+	(*protocol.Failure)(nil),    // 4: cloudstate.Failure
+	(*protocol.Reply)(nil),      // 5: cloudstate.Reply
+	(*protocol.Forward)(nil),    // 6: cloudstate.Forward
+	(*protocol.SideEffect)(nil), // 7: cloudstate.SideEffect
 }
 var file_function_proto_depIdxs = []int32{
 	2,  // 0: cloudstate.function.FunctionCommand.payload:type_name -> google.protobuf.Any

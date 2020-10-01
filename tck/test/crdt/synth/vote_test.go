@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/cloudstateio/go-support/tck/proto/crdt"
 )
 
@@ -36,13 +36,13 @@ func TestCRDTVote(t *testing.T) {
 		p := newProxy(ctx, s)
 		defer p.teardown()
 
-		p.init(&protocol.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
 		t.Run("Get emits client action", func(t *testing.T) {
 			tr := tester{t}
 			switch m := p.command(entityId, command,
 				voteRequest(&crdt.Get{}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				// action reply
 				tr.expectedNil(m.Reply.GetSideEffects())
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
@@ -59,7 +59,7 @@ func TestCRDTVote(t *testing.T) {
 			switch m := p.command(entityId, command,
 				voteRequest(&crdt.VoteVote{Value: true}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				// action reply
 				tr.expectedNil(m.Reply.GetSideEffects())
 				tr.expectedNil(m.Reply.GetClientAction().GetFailure())
@@ -80,7 +80,7 @@ func TestCRDTVote(t *testing.T) {
 			switch m := p.command(entityId, command,
 				voteRequest(&crdt.VoteVote{Value: false}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				// action reply
 				tr.expectedNil(m.Reply.GetSideEffects())
 				var r crdt.VoteResponse
@@ -99,7 +99,7 @@ func TestCRDTVote(t *testing.T) {
 		})
 		t.Run("VoteState", func(t *testing.T) {
 			tr := tester{t}
-			p.state(&protocol.VoteState{
+			p.state(&entity.VoteState{
 				TotalVoters: 6,
 				VotesFor:    3,
 				SelfVote:    true,
@@ -107,7 +107,7 @@ func TestCRDTVote(t *testing.T) {
 			switch m := p.command(entityId, command,
 				voteRequest(&crdt.Get{}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				// action reply
 				tr.expectedNil(m.Reply.GetSideEffects())
 				tr.expectedNil(m.Reply.GetStateAction())
@@ -129,11 +129,11 @@ func TestCRDTVote(t *testing.T) {
 		defer p.teardown()
 		tr := tester{t}
 
-		p.init(&protocol.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
 		p.command(entityId, command,
 			voteRequest(&crdt.VoteVote{Value: true}),
 		)
-		p.delta(&protocol.VoteDelta{
+		p.delta(&entity.VoteDelta{
 			TotalVoters: 7,
 			VotesFor:    3,
 			SelfVote:    false,
@@ -141,7 +141,7 @@ func TestCRDTVote(t *testing.T) {
 		switch m := p.command(entityId, command,
 			voteRequest(&crdt.Get{}),
 		).Message.(type) {
-		case *protocol.CrdtStreamOut_Reply:
+		case *entity.CrdtStreamOut_Reply:
 			// action reply
 			tr.expectedNil(m.Reply.GetSideEffects())
 			tr.expectedNil(m.Reply.GetStateAction())

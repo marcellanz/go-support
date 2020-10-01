@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
@@ -183,10 +183,10 @@ func (t TestEventSourcedHandleServer) Context() context.Context {
 	return context.Background()
 }
 
-func (t TestEventSourcedHandleServer) Send(*protocol.EventSourcedStreamOut) error {
+func (t TestEventSourcedHandleServer) Send(out *entity.EventSourcedStreamOut) error {
 	return nil
 }
-func (t TestEventSourcedHandleServer) Recv() (*protocol.EventSourcedStreamIn, error) {
+func (t TestEventSourcedHandleServer) Recv() (*entity.EventSourcedStreamIn, error) {
 	return nil, nil
 }
 
@@ -225,10 +225,10 @@ func TestSnapshot(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 	r := &runner{stream: TestEventSourcedHandleServer{}}
-	err = handler.handleInit(&protocol.EventSourcedInit{
+	err = handler.handleInit(&entity.EventSourcedInit{
 		ServiceName: "TestEventSourcedServer-Service",
 		EntityId:    "entity-0",
-		Snapshot: &protocol.EventSourcedSnapshot{
+		Snapshot: &entity.EventSourcedSnapshot{
 			SnapshotSequence: 0,
 			Snapshot:         primitive,
 		},

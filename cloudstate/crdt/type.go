@@ -15,14 +15,14 @@
 
 package crdt
 
-import "github.com/cloudstateio/go-support/cloudstate/protocol"
+import "github.com/cloudstateio/go-support/cloudstate/entity"
 
 type CRDT interface {
-	State() *protocol.CrdtState
-	Delta() *protocol.CrdtDelta
+	State() *entity.CrdtState
+	Delta() *entity.CrdtDelta
 	HasDelta() bool
 
-	applyState(*protocol.CrdtState) error
-	applyDelta(*protocol.CrdtDelta) error
+	applyState(*entity.CrdtState) error
+	applyDelta(*entity.CrdtDelta) error
 	resetDelta()
 }

@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/any"
@@ -203,7 +204,7 @@ func (c *CommandContext) clientActionFor(reply *any.Any) (*protocol.ClientAction
 	return nil, nil
 }
 
-func (c *CommandContext) stateAction() *protocol.CrdtStateAction {
+func (c *CommandContext) stateAction() *entity.CrdtStateAction {
 	if c.created && c.crdt.HasDelta() {
 		c.created = false
 		if c.deleted {
@@ -211,8 +212,8 @@ func (c *CommandContext) stateAction() *protocol.CrdtStateAction {
 			return nil
 		}
 		c.crdt.resetDelta()
-		return &protocol.CrdtStateAction{
-			Action: &protocol.CrdtStateAction_Create{Create: c.crdt.State()},
+		return &entity.CrdtStateAction{
+			Action: &entity.CrdtStateAction_Create{Create: c.crdt.State()},
 		}
 	}
 	if c.created && c.deleted {
@@ -222,15 +223,15 @@ func (c *CommandContext) stateAction() *protocol.CrdtStateAction {
 	}
 	if c.deleted {
 		c.crdt = nil
-		return &protocol.CrdtStateAction{
-			Action: &protocol.CrdtStateAction_Delete{Delete: &protocol.CrdtDelete{}},
+		return &entity.CrdtStateAction{
+			Action: &entity.CrdtStateAction_Delete{Delete: &entity.CrdtDelete{}},
 		}
 	}
 	if c.crdt.HasDelta() {
 		delta := c.crdt.Delta()
 		c.crdt.resetDelta()
-		return &protocol.CrdtStateAction{
-			Action: &protocol.CrdtStateAction_Update{Update: delta},
+		return &entity.CrdtStateAction{
+			Action: &entity.CrdtStateAction_Update{Update: delta},
 		}
 	}
 	return nil

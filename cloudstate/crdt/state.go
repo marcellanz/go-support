@@ -16,26 +16,26 @@
 package crdt
 
 import (
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 )
 
-func newFor(state *protocol.CrdtState) CRDT {
+func newFor(state *entity.CrdtState) CRDT {
 	switch state.GetState().(type) {
-	case *protocol.CrdtState_Flag:
+	case *entity.CrdtState_Flag:
 		return NewFlag()
-	case *protocol.CrdtState_Gcounter:
+	case *entity.CrdtState_Gcounter:
 		return NewGCounter()
-	case *protocol.CrdtState_Gset:
+	case *entity.CrdtState_Gset:
 		return NewGSet()
-	case *protocol.CrdtState_Lwwregister:
+	case *entity.CrdtState_Lwwregister:
 		return NewLWWRegister(nil)
-	case *protocol.CrdtState_Ormap:
+	case *entity.CrdtState_Ormap:
 		return NewORMap()
-	case *protocol.CrdtState_Orset:
+	case *entity.CrdtState_Orset:
 		return NewORSet()
-	case *protocol.CrdtState_Pncounter:
+	case *entity.CrdtState_Pncounter:
 		return NewPNCounter()
-	case *protocol.CrdtState_Vote:
+	case *entity.CrdtState_Vote:
 		return NewVote()
 	default:
 		return nil

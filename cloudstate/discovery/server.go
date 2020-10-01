@@ -74,7 +74,7 @@ func (s *EntityDiscoveryServer) Discover(_ context.Context, pi *protocol.ProxyIn
 	)
 	log.Printf("Responding with: %v\n", s.entitySpec.GetServiceInfo())
 	// TODO: s.entitySpec can be written potentially but should not after we started to run the server.
-	// Check how to enforce that after CloudState.Run has started.
+	// Check how to enforce that after protocol.Run has started.
 	return s.entitySpec, nil
 }
 

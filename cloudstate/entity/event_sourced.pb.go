@@ -24,7 +24,7 @@ package entity
 
 import (
 	context "context"
-	cloudstate "github.com/cloudstateio/go-support/cloudstate"
+	protocol "github.com/cloudstateio/go-support/cloudstate/protocol"
 	proto "github.com/golang/protobuf/proto"
 	any "github.com/golang/protobuf/ptypes/any"
 	grpc "google.golang.org/grpc"
@@ -239,9 +239,9 @@ type EventSourcedReply struct {
 	// The id of the command being replied to. Must match the input command.
 	CommandId int64 `protobuf:"varint,1,opt,name=command_id,json=commandId,proto3" json:"command_id,omitempty"`
 	// The action to take
-	ClientAction *cloudstate.ClientAction `protobuf:"bytes,2,opt,name=client_action,json=clientAction,proto3" json:"client_action,omitempty"`
+	ClientAction *protocol.ClientAction `protobuf:"bytes,2,opt,name=client_action,json=clientAction,proto3" json:"client_action,omitempty"`
 	// Any side effects to perform
-	SideEffects []*cloudstate.SideEffect `protobuf:"bytes,3,rep,name=side_effects,json=sideEffects,proto3" json:"side_effects,omitempty"`
+	SideEffects []*protocol.SideEffect `protobuf:"bytes,3,rep,name=side_effects,json=sideEffects,proto3" json:"side_effects,omitempty"`
 	// A list of events to persist - these will be persisted before the reply
 	// is sent.
 	Events []*any.Any `protobuf:"bytes,4,rep,name=events,proto3" json:"events,omitempty"`
@@ -290,14 +290,14 @@ func (x *EventSourcedReply) GetCommandId() int64 {
 	return 0
 }
 
-func (x *EventSourcedReply) GetClientAction() *cloudstate.ClientAction {
+func (x *EventSourcedReply) GetClientAction() *protocol.ClientAction {
 	if x != nil {
 		return x.ClientAction
 	}
 	return nil
 }
 
-func (x *EventSourcedReply) GetSideEffects() []*cloudstate.SideEffect {
+func (x *EventSourcedReply) GetSideEffects() []*protocol.SideEffect {
 	if x != nil {
 		return x.SideEffects
 	}
@@ -384,7 +384,7 @@ func (x *EventSourcedStreamIn) GetEvent() *EventSourcedEvent {
 	return nil
 }
 
-func (x *EventSourcedStreamIn) GetCommand() *cloudstate.Command {
+func (x *EventSourcedStreamIn) GetCommand() *protocol.Command {
 	if x, ok := x.GetMessage().(*EventSourcedStreamIn_Command); ok {
 		return x.Command
 	}
@@ -404,7 +404,7 @@ type EventSourcedStreamIn_Event struct {
 }
 
 type EventSourcedStreamIn_Command struct {
-	Command *cloudstate.Command `protobuf:"bytes,3,opt,name=command,proto3,oneof"`
+	Command *protocol.Command `protobuf:"bytes,3,opt,name=command,proto3,oneof"`
 }
 
 func (*EventSourcedStreamIn_Init) isEventSourcedStreamIn_Message() {}
@@ -471,7 +471,7 @@ func (x *EventSourcedStreamOut) GetReply() *EventSourcedReply {
 	return nil
 }
 
-func (x *EventSourcedStreamOut) GetFailure() *cloudstate.Failure {
+func (x *EventSourcedStreamOut) GetFailure() *protocol.Failure {
 	if x, ok := x.GetMessage().(*EventSourcedStreamOut_Failure); ok {
 		return x.Failure
 	}
@@ -487,7 +487,7 @@ type EventSourcedStreamOut_Reply struct {
 }
 
 type EventSourcedStreamOut_Failure struct {
-	Failure *cloudstate.Failure `protobuf:"bytes,2,opt,name=failure,proto3,oneof"`
+	Failure *protocol.Failure `protobuf:"bytes,2,opt,name=failure,proto3,oneof"`
 }
 
 func (*EventSourcedStreamOut_Reply) isEventSourcedStreamOut_Message() {}
@@ -597,17 +597,17 @@ func file_event_sourced_proto_rawDescGZIP() []byte {
 
 var file_event_sourced_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_event_sourced_proto_goTypes = []interface{}{
-	(*EventSourcedInit)(nil),        // 0: cloudstate.eventsourced.EventSourcedInit
-	(*EventSourcedSnapshot)(nil),    // 1: cloudstate.eventsourced.EventSourcedSnapshot
-	(*EventSourcedEvent)(nil),       // 2: cloudstate.eventsourced.EventSourcedEvent
-	(*EventSourcedReply)(nil),       // 3: cloudstate.eventsourced.EventSourcedReply
-	(*EventSourcedStreamIn)(nil),    // 4: cloudstate.eventsourced.EventSourcedStreamIn
-	(*EventSourcedStreamOut)(nil),   // 5: cloudstate.eventsourced.EventSourcedStreamOut
-	(*any.Any)(nil),                 // 6: google.protobuf.Any
-	(*cloudstate.ClientAction)(nil), // 7: cloudstate.ClientAction
-	(*cloudstate.SideEffect)(nil),   // 8: cloudstate.SideEffect
-	(*cloudstate.Command)(nil),      // 9: cloudstate.Command
-	(*cloudstate.Failure)(nil),      // 10: cloudstate.Failure
+	(*EventSourcedInit)(nil),      // 0: cloudstate.eventsourced.EventSourcedInit
+	(*EventSourcedSnapshot)(nil),  // 1: cloudstate.eventsourced.EventSourcedSnapshot
+	(*EventSourcedEvent)(nil),     // 2: cloudstate.eventsourced.EventSourcedEvent
+	(*EventSourcedReply)(nil),     // 3: cloudstate.eventsourced.EventSourcedReply
+	(*EventSourcedStreamIn)(nil),  // 4: cloudstate.eventsourced.EventSourcedStreamIn
+	(*EventSourcedStreamOut)(nil), // 5: cloudstate.eventsourced.EventSourcedStreamOut
+	(*any.Any)(nil),               // 6: google.protobuf.Any
+	(*protocol.ClientAction)(nil), // 7: cloudstate.ClientAction
+	(*protocol.SideEffect)(nil),   // 8: cloudstate.SideEffect
+	(*protocol.Command)(nil),      // 9: cloudstate.Command
+	(*protocol.Failure)(nil),      // 10: cloudstate.Failure
 }
 var file_event_sourced_proto_depIdxs = []int32{
 	1,  // 0: cloudstate.eventsourced.EventSourcedInit.snapshot:type_name -> cloudstate.eventsourced.EventSourcedSnapshot

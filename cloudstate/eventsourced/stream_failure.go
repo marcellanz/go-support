@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 )
 
@@ -36,7 +37,7 @@ import (
 // - https://github.com/cloudstateio/cloudstate/issues/375#issuecomment-671108797
 //
 // Any error coming not from context.fail, closes the stream, independently if it's a protocol error or an entity error.
-func sendProtocolFailure(e error, s protocol.EventSourced_HandleServer) error {
+func sendProtocolFailure(e error, s entity.EventSourced_HandleServer) error {
 	var commandId int64 = 0
 	var desc = e.Error()
 	var se protocol.ServerError
@@ -49,8 +50,8 @@ func sendProtocolFailure(e error, s protocol.EventSourced_HandleServer) error {
 			}
 		}
 	}
-	err := s.Send(&protocol.EventSourcedStreamOut{
-		Message: &protocol.EventSourcedStreamOut_Failure{
+	err := s.Send(&entity.EventSourcedStreamOut{
+		Message: &entity.EventSourcedStreamOut_Failure{
 			Failure: &protocol.Failure{
 				CommandId:   commandId,
 				Description: desc,

@@ -19,24 +19,24 @@ import (
 	"testing"
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/golang/protobuf/ptypes/any"
 )
 
 func TestGset(t *testing.T) {
-	state := func(x []*any.Any) *protocol.CrdtState {
-		return &protocol.CrdtState{
-			State: &protocol.CrdtState_Gset{
-				Gset: &protocol.GSetState{
+	state := func(x []*any.Any) *entity.CrdtState {
+		return &entity.CrdtState{
+			State: &entity.CrdtState_Gset{
+				Gset: &entity.GSetState{
 					Items: x,
 				},
 			},
 		}
 	}
-	delta := func(x []*any.Any) *protocol.CrdtDelta {
-		return &protocol.CrdtDelta{
-			Delta: &protocol.CrdtDelta_Gset{
-				Gset: &protocol.GSetDelta{
+	delta := func(x []*any.Any) *entity.CrdtDelta {
+		return &entity.CrdtDelta{
+			Delta: &entity.CrdtDelta_Gset{
+				Gset: &entity.GSetDelta{
 					Added: x,
 				},
 			},
@@ -254,9 +254,9 @@ func TestGset(t *testing.T) {
 func TestGSetAdditional(t *testing.T) {
 	t.Run("apply invalid delta", func(t *testing.T) {
 		s := NewGSet()
-		if err := s.applyDelta(&protocol.CrdtDelta{
-			Delta: &protocol.CrdtDelta_Flag{
-				Flag: &protocol.FlagDelta{
+		if err := s.applyDelta(&entity.CrdtDelta{
+			Delta: &entity.CrdtDelta_Flag{
+				Flag: &entity.FlagDelta{
 					Value: false,
 				},
 			},
@@ -266,9 +266,9 @@ func TestGSetAdditional(t *testing.T) {
 	})
 	t.Run("apply invalid state", func(t *testing.T) {
 		s := NewGSet()
-		if err := s.applyState(&protocol.CrdtState{
-			State: &protocol.CrdtState_Flag{
-				Flag: &protocol.FlagState{
+		if err := s.applyState(&entity.CrdtState{
+			State: &entity.CrdtState_Flag{
+				Flag: &entity.FlagState{
 					Value: false,
 				},
 			},

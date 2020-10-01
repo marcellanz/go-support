@@ -18,7 +18,7 @@ package crdt
 import (
 	"fmt"
 
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/golang/protobuf/ptypes/any"
 )
 
@@ -54,10 +54,10 @@ func (s *GSet) Add(a *any.Any) {
 	s.added[h] = a
 }
 
-func (s GSet) State() *protocol.CrdtState {
-	return &protocol.CrdtState{
-		State: &protocol.CrdtState_Gset{
-			Gset: &protocol.GSetState{
+func (s GSet) State() *entity.CrdtState {
+	return &entity.CrdtState{
+		State: &entity.CrdtState_Gset{
+			Gset: &entity.GSetState{
 				Items: s.Value(),
 			},
 		},
@@ -85,13 +85,13 @@ func (s GSet) Added() []*any.Any {
 	return val
 }
 
-func (s GSet) Delta() *protocol.CrdtDelta {
+func (s GSet) Delta() *entity.CrdtDelta {
 	if len(s.added) == 0 {
 		return nil
 	}
-	return &protocol.CrdtDelta{
-		Delta: &protocol.CrdtDelta_Gset{
-			Gset: &protocol.GSetDelta{
+	return &entity.CrdtDelta{
+		Delta: &entity.CrdtDelta_Gset{
+			Gset: &entity.GSetDelta{
 				Added: s.Added(),
 			},
 		},
@@ -102,7 +102,7 @@ func (s *GSet) resetDelta() {
 	s.added = make(map[uint64]*any.Any)
 }
 
-func (s *GSet) applyState(state *protocol.CrdtState) error {
+func (s *GSet) applyState(state *entity.CrdtState) error {
 	gss := state.GetGset()
 	if gss == nil {
 		return fmt.Errorf("unable to apply state %+v to GSet", state)
@@ -114,7 +114,7 @@ func (s *GSet) applyState(state *protocol.CrdtState) error {
 	return nil
 }
 
-func (s *GSet) applyDelta(delta *protocol.CrdtDelta) error {
+func (s *GSet) applyDelta(delta *entity.CrdtDelta) error {
 	gsd := delta.GetGset()
 	if gsd == nil {
 		return fmt.Errorf("unable to apply state %+v to GSet", delta)

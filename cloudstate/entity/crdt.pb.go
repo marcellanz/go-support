@@ -24,7 +24,7 @@ package entity
 
 import (
 	context "context"
-	cloudstate "github.com/cloudstateio/go-support/cloudstate"
+	protocol "github.com/cloudstateio/go-support/cloudstate/protocol"
 	proto "github.com/golang/protobuf/proto"
 	any "github.com/golang/protobuf/ptypes/any"
 	grpc "google.golang.org/grpc"
@@ -237,14 +237,14 @@ func (x *CrdtStreamIn) GetDeleted() *CrdtDelete {
 	return nil
 }
 
-func (x *CrdtStreamIn) GetCommand() *cloudstate.Command {
+func (x *CrdtStreamIn) GetCommand() *protocol.Command {
 	if x, ok := x.GetMessage().(*CrdtStreamIn_Command); ok {
 		return x.Command
 	}
 	return nil
 }
 
-func (x *CrdtStreamIn) GetStreamCancelled() *cloudstate.StreamCancelled {
+func (x *CrdtStreamIn) GetStreamCancelled() *protocol.StreamCancelled {
 	if x, ok := x.GetMessage().(*CrdtStreamIn_StreamCancelled); ok {
 		return x.StreamCancelled
 	}
@@ -282,12 +282,12 @@ type CrdtStreamIn_Deleted struct {
 
 type CrdtStreamIn_Command struct {
 	// A command, may be sent at any time.
-	Command *cloudstate.Command `protobuf:"bytes,5,opt,name=command,proto3,oneof"`
+	Command *protocol.Command `protobuf:"bytes,5,opt,name=command,proto3,oneof"`
 }
 
 type CrdtStreamIn_StreamCancelled struct {
 	// A stream has been cancelled.
-	StreamCancelled *cloudstate.StreamCancelled `protobuf:"bytes,6,opt,name=stream_cancelled,json=streamCancelled,proto3,oneof"`
+	StreamCancelled *protocol.StreamCancelled `protobuf:"bytes,6,opt,name=stream_cancelled,json=streamCancelled,proto3,oneof"`
 }
 
 func (*CrdtStreamIn_Init) isCrdtStreamIn_Message() {}
@@ -376,7 +376,7 @@ func (x *CrdtStreamOut) GetStreamCancelledResponse() *CrdtStreamCancelledRespons
 	return nil
 }
 
-func (x *CrdtStreamOut) GetFailure() *cloudstate.Failure {
+func (x *CrdtStreamOut) GetFailure() *protocol.Failure {
 	if x, ok := x.GetMessage().(*CrdtStreamOut_Failure); ok {
 		return x.Failure
 	}
@@ -404,7 +404,7 @@ type CrdtStreamOut_StreamCancelledResponse struct {
 
 type CrdtStreamOut_Failure struct {
 	// A failure. Either sent in response to a command, or sent if some other error occurs.
-	Failure *cloudstate.Failure `protobuf:"bytes,4,opt,name=failure,proto3,oneof"`
+	Failure *protocol.Failure `protobuf:"bytes,4,opt,name=failure,proto3,oneof"`
 }
 
 func (*CrdtStreamOut_Reply) isCrdtStreamOut_Message() {}
@@ -1875,10 +1875,10 @@ type CrdtReply struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	CommandId    int64                    `protobuf:"varint,1,opt,name=command_id,json=commandId,proto3" json:"command_id,omitempty"`
-	ClientAction *cloudstate.ClientAction `protobuf:"bytes,2,opt,name=client_action,json=clientAction,proto3" json:"client_action,omitempty"`
-	SideEffects  []*cloudstate.SideEffect `protobuf:"bytes,4,rep,name=side_effects,json=sideEffects,proto3" json:"side_effects,omitempty"`
-	StateAction  *CrdtStateAction         `protobuf:"bytes,5,opt,name=state_action,json=stateAction,proto3" json:"state_action,omitempty"`
+	CommandId    int64                  `protobuf:"varint,1,opt,name=command_id,json=commandId,proto3" json:"command_id,omitempty"`
+	ClientAction *protocol.ClientAction `protobuf:"bytes,2,opt,name=client_action,json=clientAction,proto3" json:"client_action,omitempty"`
+	SideEffects  []*protocol.SideEffect `protobuf:"bytes,4,rep,name=side_effects,json=sideEffects,proto3" json:"side_effects,omitempty"`
+	StateAction  *CrdtStateAction       `protobuf:"bytes,5,opt,name=state_action,json=stateAction,proto3" json:"state_action,omitempty"`
 	// If the request was streamed, setting this to true indicates that the command should
 	// be handled as a stream. Subsequently, the user function may send CrdtStreamedMessage,
 	// and a CrdtStreamCancelled message will be sent if the stream is cancelled (though
@@ -1925,14 +1925,14 @@ func (x *CrdtReply) GetCommandId() int64 {
 	return 0
 }
 
-func (x *CrdtReply) GetClientAction() *cloudstate.ClientAction {
+func (x *CrdtReply) GetClientAction() *protocol.ClientAction {
 	if x != nil {
 		return x.ClientAction
 	}
 	return nil
 }
 
-func (x *CrdtReply) GetSideEffects() []*cloudstate.SideEffect {
+func (x *CrdtReply) GetSideEffects() []*protocol.SideEffect {
 	if x != nil {
 		return x.SideEffects
 	}
@@ -2061,9 +2061,9 @@ type CrdtStreamedMessage struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	CommandId    int64                    `protobuf:"varint,1,opt,name=command_id,json=commandId,proto3" json:"command_id,omitempty"`
-	ClientAction *cloudstate.ClientAction `protobuf:"bytes,2,opt,name=client_action,json=clientAction,proto3" json:"client_action,omitempty"`
-	SideEffects  []*cloudstate.SideEffect `protobuf:"bytes,3,rep,name=side_effects,json=sideEffects,proto3" json:"side_effects,omitempty"`
+	CommandId    int64                  `protobuf:"varint,1,opt,name=command_id,json=commandId,proto3" json:"command_id,omitempty"`
+	ClientAction *protocol.ClientAction `protobuf:"bytes,2,opt,name=client_action,json=clientAction,proto3" json:"client_action,omitempty"`
+	SideEffects  []*protocol.SideEffect `protobuf:"bytes,3,rep,name=side_effects,json=sideEffects,proto3" json:"side_effects,omitempty"`
 	// Indicates the stream should end, no messages may be sent for this command after this.
 	EndStream bool `protobuf:"varint,4,opt,name=end_stream,json=endStream,proto3" json:"end_stream,omitempty"`
 }
@@ -2107,14 +2107,14 @@ func (x *CrdtStreamedMessage) GetCommandId() int64 {
 	return 0
 }
 
-func (x *CrdtStreamedMessage) GetClientAction() *cloudstate.ClientAction {
+func (x *CrdtStreamedMessage) GetClientAction() *protocol.ClientAction {
 	if x != nil {
 		return x.ClientAction
 	}
 	return nil
 }
 
-func (x *CrdtStreamedMessage) GetSideEffects() []*cloudstate.SideEffect {
+func (x *CrdtStreamedMessage) GetSideEffects() []*protocol.SideEffect {
 	if x != nil {
 		return x.SideEffects
 	}
@@ -2133,9 +2133,9 @@ type CrdtStreamCancelledResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	CommandId   int64                    `protobuf:"varint,1,opt,name=command_id,json=commandId,proto3" json:"command_id,omitempty"`
-	SideEffects []*cloudstate.SideEffect `protobuf:"bytes,2,rep,name=side_effects,json=sideEffects,proto3" json:"side_effects,omitempty"`
-	StateAction *CrdtStateAction         `protobuf:"bytes,3,opt,name=state_action,json=stateAction,proto3" json:"state_action,omitempty"`
+	CommandId   int64                  `protobuf:"varint,1,opt,name=command_id,json=commandId,proto3" json:"command_id,omitempty"`
+	SideEffects []*protocol.SideEffect `protobuf:"bytes,2,rep,name=side_effects,json=sideEffects,proto3" json:"side_effects,omitempty"`
+	StateAction *CrdtStateAction       `protobuf:"bytes,3,opt,name=state_action,json=stateAction,proto3" json:"state_action,omitempty"`
 }
 
 func (x *CrdtStreamCancelledResponse) Reset() {
@@ -2177,7 +2177,7 @@ func (x *CrdtStreamCancelledResponse) GetCommandId() int64 {
 	return 0
 }
 
-func (x *CrdtStreamCancelledResponse) GetSideEffects() []*cloudstate.SideEffect {
+func (x *CrdtStreamCancelledResponse) GetSideEffects() []*protocol.SideEffect {
 	if x != nil {
 		return x.SideEffects
 	}
@@ -2534,12 +2534,12 @@ var file_crdt_proto_goTypes = []interface{}{
 	(*CrdtStateAction)(nil),             // 27: cloudstate.crdt.CrdtStateAction
 	(*CrdtStreamedMessage)(nil),         // 28: cloudstate.crdt.CrdtStreamedMessage
 	(*CrdtStreamCancelledResponse)(nil), // 29: cloudstate.crdt.CrdtStreamCancelledResponse
-	(*cloudstate.Command)(nil),          // 30: cloudstate.Command
-	(*cloudstate.StreamCancelled)(nil),  // 31: cloudstate.StreamCancelled
-	(*cloudstate.Failure)(nil),          // 32: cloudstate.Failure
+	(*protocol.Command)(nil),            // 30: cloudstate.Command
+	(*protocol.StreamCancelled)(nil),    // 31: cloudstate.StreamCancelled
+	(*protocol.Failure)(nil),            // 32: cloudstate.Failure
 	(*any.Any)(nil),                     // 33: google.protobuf.Any
-	(*cloudstate.ClientAction)(nil),     // 34: cloudstate.ClientAction
-	(*cloudstate.SideEffect)(nil),       // 35: cloudstate.SideEffect
+	(*protocol.ClientAction)(nil),       // 34: cloudstate.ClientAction
+	(*protocol.SideEffect)(nil),         // 35: cloudstate.SideEffect
 }
 var file_crdt_proto_depIdxs = []int32{
 	24, // 0: cloudstate.crdt.CrdtStreamIn.init:type_name -> cloudstate.crdt.CrdtInit

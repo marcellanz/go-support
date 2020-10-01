@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/golang/protobuf/ptypes/any"
 )
 
@@ -40,17 +40,17 @@ func TestORMap(t *testing.T) {
 	t.Run("should reflect a state update", func(t *testing.T) {
 		m := NewORMap()
 		if err := m.applyState(encDecState(
-			&protocol.CrdtState{
-				State: &protocol.CrdtState_Ormap{
-					Ormap: &protocol.ORMapState{
-						Entries: append(make([]*protocol.ORMapEntry, 0),
-							&protocol.ORMapEntry{
+			&entity.CrdtState{
+				State: &entity.CrdtState_Ormap{
+					Ormap: &entity.ORMapState{
+						Entries: append(make([]*entity.ORMapEntry, 0),
+							&entity.ORMapEntry{
 								Key: encoding.String("one"),
 								Value: (&GCounter{
 									value: 5,
 								}).State(),
 							},
-							&protocol.ORMapEntry{
+							&entity.ORMapEntry{
 								Key: encoding.String("two"),
 								Value: (&GCounter{
 									value: 7,
@@ -347,13 +347,13 @@ func TestORMap(t *testing.T) {
 		m := NewORMap()
 		m.SetGCounter(encoding.String("one"), NewGCounter())
 		m.resetDelta()
-		err := m.applyDelta(encDecDelta(&protocol.CrdtDelta{
-			Delta: &protocol.CrdtDelta_Ormap{Ormap: &protocol.ORMapDelta{
-				Added: append(make([]*protocol.ORMapEntry, 0), &protocol.ORMapEntry{
+		err := m.applyDelta(encDecDelta(&entity.CrdtDelta{
+			Delta: &entity.CrdtDelta_Ormap{Ormap: &entity.ORMapDelta{
+				Added: append(make([]*entity.ORMapEntry, 0), &entity.ORMapEntry{
 					Key: encoding.String("two"),
-					Value: &protocol.CrdtState{
-						State: &protocol.CrdtState_Gcounter{
-							Gcounter: &protocol.GCounterState{
+					Value: &entity.CrdtState{
+						State: &entity.CrdtState_Gcounter{
+							Gcounter: &entity.GCounterState{
 								Value: 4,
 							},
 						},
@@ -390,9 +390,9 @@ func TestORMap(t *testing.T) {
 		m.SetGCounter(encoding.String("one"), NewGCounter())
 		m.SetGCounter(encoding.String("two"), NewGCounter())
 		m.resetDelta()
-		err := m.applyDelta(encDecDelta(&protocol.CrdtDelta{
-			Delta: &protocol.CrdtDelta_Ormap{
-				Ormap: &protocol.ORMapDelta{
+		err := m.applyDelta(encDecDelta(&entity.CrdtDelta{
+			Delta: &entity.CrdtDelta_Ormap{
+				Ormap: &entity.ORMapDelta{
 					Removed: append(make([]*any.Any, 0), encoding.String("two")),
 				}},
 		}))
@@ -418,9 +418,9 @@ func TestORMap(t *testing.T) {
 		m.SetGCounter(encoding.String("one"), NewGCounter())
 		m.SetGCounter(encoding.String("two"), NewGCounter())
 		m.resetDelta()
-		err := m.applyDelta(encDecDelta(&protocol.CrdtDelta{
-			Delta: &protocol.CrdtDelta_Ormap{
-				Ormap: &protocol.ORMapDelta{
+		err := m.applyDelta(encDecDelta(&entity.CrdtDelta{
+			Delta: &entity.CrdtDelta_Ormap{
+				Ormap: &entity.ORMapDelta{
 					Cleared: true,
 				}},
 		}))
@@ -504,9 +504,9 @@ func TestORMap(t *testing.T) {
 func TestORMapAdditional(t *testing.T) {
 	t.Run("apply invalid delta", func(t *testing.T) {
 		s := NewORMap()
-		if err := s.applyDelta(&protocol.CrdtDelta{
-			Delta: &protocol.CrdtDelta_Flag{
-				Flag: &protocol.FlagDelta{
+		if err := s.applyDelta(&entity.CrdtDelta{
+			Delta: &entity.CrdtDelta_Flag{
+				Flag: &entity.FlagDelta{
 					Value: false,
 				},
 			},
@@ -516,9 +516,9 @@ func TestORMapAdditional(t *testing.T) {
 	})
 	t.Run("apply invalid state", func(t *testing.T) {
 		s := NewORMap()
-		if err := s.applyState(&protocol.CrdtState{
-			State: &protocol.CrdtState_Flag{
-				Flag: &protocol.FlagState{
+		if err := s.applyState(&entity.CrdtState{
+			State: &entity.CrdtState_Flag{
+				Flag: &entity.FlagState{
 					Value: false,
 				},
 			},

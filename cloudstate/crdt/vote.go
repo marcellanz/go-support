@@ -18,7 +18,7 @@ package crdt
 import (
 	"fmt"
 
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 )
 
 // A Vote is a CRDT which allows nodes to vote on a condition. It’s similar
@@ -91,12 +91,12 @@ func (v *Vote) HasDelta() bool {
 	return v.selfVoteChanged
 }
 
-func (v *Vote) Delta() *protocol.CrdtDelta {
+func (v *Vote) Delta() *entity.CrdtDelta {
 	if !v.selfVoteChanged {
 		return nil
 	}
-	return &protocol.CrdtDelta{
-		Delta: &protocol.CrdtDelta_Vote{Vote: &protocol.VoteDelta{
+	return &entity.CrdtDelta{
+		Delta: &entity.CrdtDelta_Vote{Vote: &entity.VoteDelta{
 			SelfVote:    v.selfVote,
 			VotesFor:    int32(v.votesFor), // TODO, we never overflow, yes?
 			TotalVoters: int32(v.voters),
@@ -108,9 +108,9 @@ func (v *Vote) resetDelta() {
 	v.selfVoteChanged = false
 }
 
-func (v *Vote) State() *protocol.CrdtState {
-	return &protocol.CrdtState{
-		State: &protocol.CrdtState_Vote{Vote: &protocol.VoteState{
+func (v *Vote) State() *entity.CrdtState {
+	return &entity.CrdtState{
+		State: &entity.CrdtState_Vote{Vote: &entity.VoteState{
 			VotesFor:    v.votesFor,
 			TotalVoters: v.voters,
 			SelfVote:    v.selfVote,
@@ -118,7 +118,7 @@ func (v *Vote) State() *protocol.CrdtState {
 	}
 }
 
-func (v *Vote) applyDelta(delta *protocol.CrdtDelta) error {
+func (v *Vote) applyDelta(delta *entity.CrdtDelta) error {
 	d := delta.GetVote()
 	if d == nil {
 		return fmt.Errorf("unable to apply delta %+v to the Vote", delta)
@@ -128,7 +128,7 @@ func (v *Vote) applyDelta(delta *protocol.CrdtDelta) error {
 	return nil
 }
 
-func (v *Vote) applyState(state *protocol.CrdtState) error {
+func (v *Vote) applyState(state *entity.CrdtState) error {
 	s := state.GetVote()
 	if s == nil {
 		return fmt.Errorf("unable to apply state %+v to the Vote", state)

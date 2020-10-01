@@ -18,23 +18,23 @@ package crdt
 import (
 	"testing"
 
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 )
 
 func TestGCounter(t *testing.T) {
-	delta := func(incr uint64) *protocol.CrdtDelta {
-		return &protocol.CrdtDelta{
-			Delta: &protocol.CrdtDelta_Gcounter{
-				Gcounter: &protocol.GCounterDelta{
+	delta := func(incr uint64) *entity.CrdtDelta {
+		return &entity.CrdtDelta{
+			Delta: &entity.CrdtDelta_Gcounter{
+				Gcounter: &entity.GCounterDelta{
 					Increment: incr,
 				},
 			},
 		}
 	}
-	state := func(val uint64) *protocol.CrdtState {
-		return &protocol.CrdtState{
-			State: &protocol.CrdtState_Gcounter{
-				Gcounter: &protocol.GCounterState{
+	state := func(val uint64) *entity.CrdtState {
+		return &entity.CrdtState{
+			State: &entity.CrdtState_Gcounter{
+				Gcounter: &entity.GCounterState{
 					Value: val,
 				},
 			},
@@ -128,9 +128,9 @@ func TestGCounterAdditional(t *testing.T) {
 
 	t.Run("should catch illegal delta applied", func(t *testing.T) {
 		c := NewGCounter()
-		err := c.applyDelta(&protocol.CrdtDelta{
-			Delta: &protocol.CrdtDelta_Pncounter{
-				Pncounter: &protocol.PNCounterDelta{
+		err := c.applyDelta(&entity.CrdtDelta{
+			Delta: &entity.CrdtDelta_Pncounter{
+				Pncounter: &entity.PNCounterDelta{
 					Change: 11,
 				},
 			},
@@ -142,9 +142,9 @@ func TestGCounterAdditional(t *testing.T) {
 
 	t.Run("should catch illegal state applied", func(t *testing.T) {
 		c := NewGCounter()
-		err := c.applyState(&protocol.CrdtState{
-			State: &protocol.CrdtState_Pncounter{
-				Pncounter: &protocol.PNCounterState{
+		err := c.applyState(&entity.CrdtState{
+			State: &entity.CrdtState_Pncounter{
+				Pncounter: &entity.PNCounterState{
 					Value: 11,
 				},
 			},

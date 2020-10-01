@@ -22,7 +22,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -64,7 +64,7 @@ func (s *Server) Register(e *Entity) error {
 // user function to replace its entire value.
 // The user function must respond with one reply per command in. They do not necessarily have to be sent in the same
 // order that the commands were sent, the command ID is used to correlate commands to replies.
-func (s *Server) Handle(stream protocol.Crdt_HandleServer) error {
+func (s *Server) Handle(stream entity.Crdt_HandleServer) error {
 	defer func() {
 		if r := recover(); r != nil {
 			_ = sendFailure(fmt.Errorf("CrdtServer.Handle panic-ked with: %v", r), stream)
@@ -94,14 +94,14 @@ func (s *Server) Handle(stream protocol.Crdt_HandleServer) error {
 // io.EOF returned will close the stream gracefully, other errors will be sent
 // to the proxy as a failure and a nil error value restarts the stream to be
 // reused.
-func (s *Server) handle(stream protocol.Crdt_HandleServer) error {
+func (s *Server) handle(stream entity.Crdt_HandleServer) error {
 	first, err := stream.Recv()
 	if err != nil {
 		return err
 	}
 	r := &runner{stream: stream}
 	switch m := first.GetMessage().(type) {
-	case *protocol.CrdtStreamIn_Init:
+	case *entity.CrdtStreamIn_Init:
 		// first, always a CrdtInit message must be received.
 		if err = s.handleInit(m.Init, r); err != nil {
 			return fmt.Errorf("handling of CrdtInit failed with: %w", err)
@@ -126,36 +126,36 @@ func (s *Server) handle(stream protocol.Crdt_HandleServer) error {
 			return err
 		}
 		switch m := msg.GetMessage().(type) {
-		case *protocol.CrdtStreamIn_State:
+		case *entity.CrdtStreamIn_State:
 			if err := r.handleState(m.State); err != nil {
 				return err
 			}
 			if err := r.handleChange(); err != nil {
 				return err
 			}
-		case *protocol.CrdtStreamIn_Changed:
+		case *entity.CrdtStreamIn_Changed:
 			if err := r.handleDelta(m.Changed); err != nil {
 				return err
 			}
 			if err := r.handleChange(); err != nil {
 				return err
 			}
-		case *protocol.CrdtStreamIn_Deleted:
+		case *entity.CrdtStreamIn_Deleted:
 			// Delete the entity. May be sent at any time. The user function should clear its value when it receives this.
 			// A proxy may decide to terminate the stream after sending this.
 			r.context.Delete()
-		case *protocol.CrdtStreamIn_Command:
+		case *entity.CrdtStreamIn_Command:
 			// A command, may be sent at any time.
 			// The CRDT is allowed to be changed.
 			if err := r.handleCommand(m.Command); err != nil {
 				return err
 			}
-		case *protocol.CrdtStreamIn_StreamCancelled:
+		case *entity.CrdtStreamIn_StreamCancelled:
 			// The CRDT is allowed to be changed.
 			if err := r.handleCancellation(m.StreamCancelled); err != nil {
 				return err
 			}
-		case *protocol.CrdtStreamIn_Init:
+		case *entity.CrdtStreamIn_Init:
 			if EntityId(m.Init.EntityId) == r.context.EntityId {
 				return errors.New("duplicate init message for the same entity")
 			}
@@ -168,7 +168,7 @@ func (s *Server) handle(stream protocol.Crdt_HandleServer) error {
 	}
 }
 
-func (s *Server) handleInit(init *protocol.CrdtInit, r *runner) error {
+func (s *Server) handleInit(init *entity.CrdtInit, r *runner) error {
 	if init.GetServiceName() == "" || init.GetEntityId() == "" {
 		return fmt.Errorf("no service name or entity id was defined for init: %+v", init)
 	}

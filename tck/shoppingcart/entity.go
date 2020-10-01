@@ -10,13 +10,13 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 )
 
-// A CloudState event sourced entity.
+// A Cloudstate event sourced entity.
 type ShoppingCart struct {
 	// our domain object
 	cart []*domain.LineItem
 }
 
-// newShoppingCart returns a new and initialized instance of the ShoppingCart entity.
+// NewShoppingCart returns a new and initialized instance of the ShoppingCart entity.
 func NewShoppingCart(eventsourced.EntityId) eventsourced.EntityHandler {
 	return &ShoppingCart{
 		cart: make([]*domain.LineItem, 0),
@@ -30,13 +30,13 @@ func (sc *ShoppingCart) ItemAdded(added *domain.ItemAdded) error { // TODO: enab
 	}
 	if item, _ := sc.find(added.Item.ProductId); item != nil {
 		item.Quantity += added.Item.Quantity
-	} else {
-		sc.cart = append(sc.cart, &domain.LineItem{
-			ProductId: added.Item.ProductId,
-			Name:      added.Item.Name,
-			Quantity:  added.Item.Quantity,
-		})
+		return nil
 	}
+	sc.cart = append(sc.cart, &domain.LineItem{
+		ProductId: added.Item.ProductId,
+		Name:      added.Item.Name,
+		Quantity:  added.Item.Quantity,
+	})
 	return nil
 }
 
@@ -96,6 +96,7 @@ func (sc *ShoppingCart) GetCart(*eventsourced.Context, *GetShoppingCart) (*Cart,
 	return cart, nil
 }
 
+// HandleCommand is the entities command handler implemented by the shopping cart.
 func (sc *ShoppingCart) HandleCommand(ctx *eventsourced.Context, name string, cmd proto.Message) (proto.Message, error) {
 	switch c := cmd.(type) {
 	case *GetShoppingCart:
@@ -109,18 +110,22 @@ func (sc *ShoppingCart) HandleCommand(ctx *eventsourced.Context, name string, cm
 	}
 }
 
+// Snapshot returns the current state of the shopping cart.
 func (sc *ShoppingCart) Snapshot(*eventsourced.Context) (snapshot interface{}, err error) {
 	return &domain.Cart{
 		Items: append(make([]*domain.LineItem, 0, len(sc.cart)), sc.cart...),
 	}, nil
 }
 
+// HandleSnapshot applies given snapshot to be the current state.
 func (sc *ShoppingCart) HandleSnapshot(ctx *eventsourced.Context, snapshot interface{}) error {
 	switch value := snapshot.(type) {
 	case *domain.Cart: // missed because of non-pointer type!!!
 		sc.cart = append(sc.cart[:0], value.Items...)
+		return nil
+	default:
+		return fmt.Errorf("unknown snapshot type: %v", value)
 	}
-	return nil
 }
 
 // find finds a product in the shopping cart by productId and returns it as a LineItem.
@@ -134,15 +139,13 @@ func (sc *ShoppingCart) find(productId string) (item *domain.LineItem, index int
 }
 
 // remove removes a product from the shopping cart.
-//
-// A ok flag is returned to indicate that the product was present and removed.
+// An ok flag is returned to indicate that the product was present and removed.
 func (sc *ShoppingCart) remove(productId string) (ok bool) {
 	if item, i := sc.find(productId); item != nil {
 		// remove and re-slice
 		copy(sc.cart[i:], sc.cart[i+1:])
 		sc.cart = sc.cart[:len(sc.cart)-1]
 		return true
-	} else {
-		return false
 	}
+	return false
 }

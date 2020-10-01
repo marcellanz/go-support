@@ -16,12 +16,13 @@
 package crdt
 
 import (
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 )
 
-func sendFailure(e error, stream protocol.Crdt_HandleServer) error {
-	return stream.Send(&protocol.CrdtStreamOut{
-		Message: &protocol.CrdtStreamOut_Failure{
+func sendFailure(e error, stream entity.Crdt_HandleServer) error {
+	return stream.Send(&entity.CrdtStreamOut{
+		Message: &entity.CrdtStreamOut_Failure{
 			Failure: &protocol.Failure{
 				Description: e.Error(),
 			},

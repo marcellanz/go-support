@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/golang/protobuf/proto"
 )
@@ -15,14 +16,14 @@ type command struct {
 }
 
 type proxy struct {
-	h   protocol.EventSourced_HandleClient
+	h   entity.EventSourced_HandleClient
 	t   *testing.T
 	seq int64
 }
 
 func newProxy(ctx context.Context, s *server) *proxy {
 	s.t.Helper()
-	h, err := protocol.NewEventSourcedClient(s.conn).Handle(ctx)
+	h, err := entity.NewEventSourcedClient(s.conn).Handle(ctx)
 	if err != nil {
 		s.t.Fatal(err)
 	}
@@ -32,11 +33,11 @@ func newProxy(ctx context.Context, s *server) *proxy {
 func (p *proxy) checkCommandId(m interface{}) {
 	p.t.Helper()
 	switch m := m.(type) {
-	case *protocol.EventSourcedStreamOut_Reply:
+	case *entity.EventSourcedStreamOut_Reply:
 		if got, want := m.Reply.CommandId, p.seq; got != want {
 			p.t.Fatalf("got command id: %d; want: %d", got, want)
 		}
-	case *protocol.EventSourcedStreamOut_Failure:
+	case *entity.EventSourcedStreamOut_Failure:
 		if got, want := m.Failure.CommandId, p.seq; got != want {
 			p.t.Fatalf("got command id: %d; want: %d", got, want)
 		}
@@ -45,7 +46,7 @@ func (p *proxy) checkCommandId(m interface{}) {
 	}
 }
 
-func (p *proxy) sendRecvCmd(cmd command) *protocol.EventSourcedStreamOut {
+func (p *proxy) sendRecvCmd(cmd command) *entity.EventSourcedStreamOut {
 	p.t.Helper()
 	if cmd.c.Id == 0 {
 		p.seq++
@@ -67,7 +68,7 @@ func (p *proxy) sendRecvCmd(cmd command) *protocol.EventSourcedStreamOut {
 	return recv
 }
 
-func (p *proxy) sendRecvCmdErr(cmd command) (*protocol.EventSourcedStreamOut, error) {
+func (p *proxy) sendRecvCmdErr(cmd command) (*entity.EventSourcedStreamOut, error) {
 	p.t.Helper()
 	if cmd.c.Id == 0 {
 		p.seq++
@@ -85,39 +86,39 @@ func (p *proxy) sendRecvCmdErr(cmd command) (*protocol.EventSourcedStreamOut, er
 	return p.h.Recv()
 }
 
-func (p *proxy) sendInit(init *protocol.EventSourcedInit) {
+func (p *proxy) sendInit(init *entity.EventSourcedInit) {
 	p.t.Helper()
 	if err := p.h.Send(initMsg(init)); err != nil {
 		p.t.Fatal(err)
 	}
 }
 
-func (p *proxy) sendEvent(e *protocol.EventSourcedEvent) {
+func (p *proxy) sendEvent(e *entity.EventSourcedEvent) {
 	err := p.h.Send(eventMsg(e))
 	if err != nil {
 		p.t.Fatal(err)
 	}
 }
 
-func eventMsg(e *protocol.EventSourcedEvent) *protocol.EventSourcedStreamIn {
-	return &protocol.EventSourcedStreamIn{
-		Message: &protocol.EventSourcedStreamIn_Event{
+func eventMsg(e *entity.EventSourcedEvent) *entity.EventSourcedStreamIn {
+	return &entity.EventSourcedStreamIn{
+		Message: &entity.EventSourcedStreamIn_Event{
 			Event: e,
 		},
 	}
 }
 
-func initMsg(i *protocol.EventSourcedInit) *protocol.EventSourcedStreamIn {
-	return &protocol.EventSourcedStreamIn{
-		Message: &protocol.EventSourcedStreamIn_Init{
+func initMsg(i *entity.EventSourcedInit) *entity.EventSourcedStreamIn {
+	return &entity.EventSourcedStreamIn{
+		Message: &entity.EventSourcedStreamIn_Init{
 			Init: i,
 		},
 	}
 }
 
-func commandMsg(c *protocol.Command) *protocol.EventSourcedStreamIn {
-	return &protocol.EventSourcedStreamIn{
-		Message: &protocol.EventSourcedStreamIn_Command{
+func commandMsg(c *protocol.Command) *entity.EventSourcedStreamIn {
+	return &entity.EventSourcedStreamIn{
+		Message: &entity.EventSourcedStreamIn_Command{
 			Command: c,
 		},
 	}

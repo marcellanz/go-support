@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/cloudstateio/go-support/tck/proto/crdt"
 )
 
@@ -39,7 +39,7 @@ func TestCRDTGSet(t *testing.T) {
 		command := "ProcessGSet"
 		p := newProxy(ctx, s)
 		defer p.teardown()
-		p.init(&protocol.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
 
 		type pair struct {
 			Left  string
@@ -57,7 +57,7 @@ func TestCRDTGSet(t *testing.T) {
 					Value: &crdt.AnySupportType{Value: &crdt.AnySupportType_AnyValue{AnyValue: one}},
 				}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				tr.expectedNil(m.Reply.GetStateAction().GetUpdate())
 				tr.expectedNil(m.Reply.GetStateAction().GetDelete())
 				// action reply
@@ -92,7 +92,7 @@ func TestCRDTGSet(t *testing.T) {
 					Value: &crdt.AnySupportType{Value: &crdt.AnySupportType_AnyValue{AnyValue: two}},
 				}),
 			).Message.(type) {
-			case *protocol.CrdtStreamOut_Reply:
+			case *entity.CrdtStreamOut_Reply:
 				tr.expectedNil(m.Reply.GetStateAction().GetCreate())
 				tr.expectedNil(m.Reply.GetStateAction().GetDelete())
 				// action reply
@@ -138,7 +138,7 @@ func TestCRDTGSet(t *testing.T) {
 		// 	// 			Value: &crdt.AnySupportType{Value: &crdt.AnySupportType_AnyValue{AnyValue: encoding.Struct(pr)}},
 		// 	// 		},
 		// 	// 	).Message.(type) {
-		// 	// 	case *protocol.CrdtStreamOut_Reply:
+		// 	// 	case *entity.CrdtStreamOut_Reply:
 		// 	// 		tr.expectedNotNil(m.Reply.GetStateAction().GetUpdate())
 		// 	// 	default:
 		// 	// 		tr.unexpected(m)
@@ -147,7 +147,7 @@ func TestCRDTGSet(t *testing.T) {
 		// 	// switch m := p.command(
 		// 	// 	entityId, "GetGSetSize", &crdt.Get{Key: entityId},
 		// 	// ).Message.(type) {
-		// 	// case *protocol.CrdtStreamOut_Reply:
+		// 	// case *entity.CrdtStreamOut_Reply:
 		// 	// 	var value crdt.GSetSize
 		// 	// 	tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &value)
 		// 	// 	tr.expectedInt64(value.Value, 3)
@@ -162,7 +162,7 @@ func TestCRDTGSet(t *testing.T) {
 		command := "ProcessGSet"
 		p := newProxy(ctx, s)
 		defer p.teardown()
-		p.init(&protocol.CrdtInit{
+		p.init(&entity.CrdtInit{
 			ServiceName: serviceName,
 			EntityId:    entityId,
 		})

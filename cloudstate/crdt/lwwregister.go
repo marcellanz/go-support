@@ -18,7 +18,7 @@ package crdt
 import (
 	"fmt"
 
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/golang/protobuf/ptypes/any"
 )
 
@@ -82,10 +82,10 @@ func (r *LWWRegister) SetWithClock(x *any.Any, c Clock, customClockValue int64) 
 	}
 }
 
-func (r *LWWRegister) Delta() *protocol.CrdtDelta {
-	return &protocol.CrdtDelta{
-		Delta: &protocol.CrdtDelta_Lwwregister{
-			Lwwregister: &protocol.LWWRegisterDelta{
+func (r *LWWRegister) Delta() *entity.CrdtDelta {
+	return &entity.CrdtDelta{
+		Delta: &entity.CrdtDelta_Lwwregister{
+			Lwwregister: &entity.LWWRegisterDelta{
 				Value:            r.delta.value,
 				Clock:            r.delta.clock.toCrdtClock(),
 				CustomClockValue: r.delta.customClockValue,
@@ -105,7 +105,7 @@ func (r *LWWRegister) resetDelta() {
 	r.customClockValue = 0
 }
 
-func (r *LWWRegister) applyDelta(delta *protocol.CrdtDelta) error {
+func (r *LWWRegister) applyDelta(delta *entity.CrdtDelta) error {
 	d := delta.GetLwwregister()
 	if d == nil {
 		return fmt.Errorf("unable to apply state %+v to LWWRegister", delta)
@@ -114,10 +114,10 @@ func (r *LWWRegister) applyDelta(delta *protocol.CrdtDelta) error {
 	return nil
 }
 
-func (r *LWWRegister) State() *protocol.CrdtState {
-	return &protocol.CrdtState{
-		State: &protocol.CrdtState_Lwwregister{
-			Lwwregister: &protocol.LWWRegisterState{
+func (r *LWWRegister) State() *entity.CrdtState {
+	return &entity.CrdtState{
+		State: &entity.CrdtState_Lwwregister{
+			Lwwregister: &entity.LWWRegisterState{
 				Value:            r.value,
 				Clock:            r.clock.toCrdtClock(),
 				CustomClockValue: r.customClockValue,
@@ -126,7 +126,7 @@ func (r *LWWRegister) State() *protocol.CrdtState {
 	}
 }
 
-func (r *LWWRegister) applyState(delta *protocol.CrdtState) error {
+func (r *LWWRegister) applyState(delta *entity.CrdtState) error {
 	d := delta.GetLwwregister()
 	if d == nil {
 		return fmt.Errorf("unable to apply delta %+v to LWWRegister", delta)

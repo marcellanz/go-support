@@ -15,7 +15,7 @@
 
 package crdt
 
-import "github.com/cloudstateio/go-support/cloudstate/protocol"
+import "github.com/cloudstateio/go-support/cloudstate/entity"
 
 type Clock uint64
 
@@ -53,32 +53,32 @@ const (
 	CustomAutoIncrement
 )
 
-func FromCrdtClock(clock protocol.CrdtClock) Clock {
+func FromCrdtClock(clock entity.CrdtClock) Clock {
 	switch clock {
-	case protocol.CrdtClock_DEFAULT:
+	case entity.CrdtClock_DEFAULT:
 		return Default
-	case protocol.CrdtClock_REVERSE:
+	case entity.CrdtClock_REVERSE:
 		return Reverse
-	case protocol.CrdtClock_CUSTOM:
+	case entity.CrdtClock_CUSTOM:
 		return Custom
-	case protocol.CrdtClock_CUSTOM_AUTO_INCREMENT:
+	case entity.CrdtClock_CUSTOM_AUTO_INCREMENT:
 		return CustomAutoIncrement
 	default:
 		return Default
 	}
 }
 
-func (c Clock) toCrdtClock() protocol.CrdtClock {
+func (c Clock) toCrdtClock() entity.CrdtClock {
 	switch c {
 	case Default:
-		return protocol.CrdtClock_DEFAULT
+		return entity.CrdtClock_DEFAULT
 	case Reverse:
-		return protocol.CrdtClock_REVERSE
+		return entity.CrdtClock_REVERSE
 	case Custom:
-		return protocol.CrdtClock_CUSTOM
+		return entity.CrdtClock_CUSTOM
 	case CustomAutoIncrement:
-		return protocol.CrdtClock_CUSTOM_AUTO_INCREMENT
+		return entity.CrdtClock_CUSTOM_AUTO_INCREMENT
 	default:
-		return protocol.CrdtClock_DEFAULT
+		return entity.CrdtClock_DEFAULT
 	}
 }

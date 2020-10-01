@@ -17,7 +17,7 @@ package crdt
 
 import (
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
-	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/any"
 )
@@ -38,26 +38,26 @@ func contains(in []*any.Any, all ...string) bool {
 	return false
 }
 
-func encDecState(s *protocol.CrdtState) *protocol.CrdtState {
+func encDecState(s *entity.CrdtState) *entity.CrdtState {
 	marshal, err := proto.Marshal(s)
 	if err != nil {
 		// we panic for convenience in test
 		panic(err)
 	}
-	out := &protocol.CrdtState{}
+	out := &entity.CrdtState{}
 	if err := proto.Unmarshal(marshal, out); err != nil {
 		panic(err)
 	}
 	return out
 }
 
-func encDecDelta(s *protocol.CrdtDelta) *protocol.CrdtDelta {
+func encDecDelta(s *entity.CrdtDelta) *entity.CrdtDelta {
 	marshal, err := proto.Marshal(s)
 	if err != nil {
 		// we panic for convenience in test
 		panic(err)
 	}
-	out := &protocol.CrdtDelta{}
+	out := &entity.CrdtDelta{}
 	if err := proto.Unmarshal(marshal, out); err != nil {
 		panic(err)
 	}

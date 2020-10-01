@@ -8,7 +8,7 @@ import "google/api/http.proto";
 
 package com.example.shoppingcart;
 
-option go_package = "shoppingcart";
+option go_package = ".;shoppingcart";
 
 message AddLineItem {
     string user_id = 1 [(.cloudstate.entity_key) = true];

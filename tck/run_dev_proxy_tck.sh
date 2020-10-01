@@ -17,7 +17,7 @@ trap finally EXIT
 set -x
 
 docker run -d --name "$PROXY" -p 9000:9000 -e USER_FUNCTION_HOST=host.docker.internal -e USER_FUNCTION_PORT=8090 "${PROXY_IMAGE}" || exit $?
-docker run --rm --name cloudstate-tck -p 8090:8090 -e TCK_HOST=0.0.0.0 -e TCK_PROXY_HOST=host.docker.internal -e TCK_FRONTEND_HOST=host.docker.internal "${TCK_IMAGE}"
+docker run --rm --name cloudstate-tck -p 8090:8090 -e TCK_HOST=0.0.0.0 -e TCK_PROXY_HOST=host.docker.internal -e TCK_SERVICE_HOST=host.docker.internal "${TCK_IMAGE}"
 tck_status=$?
 
 exit $tck_status
