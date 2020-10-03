@@ -3,6 +3,7 @@ package eventsourced
 import (
 	"errors"
 
+	"github.com/cloudstateio/go-support/cloudstate/encoding"
 	"github.com/cloudstateio/go-support/cloudstate/eventsourced"
 	tck "github.com/cloudstateio/go-support/tck/pb/eventsourced"
 	"github.com/golang/protobuf/proto"
@@ -24,7 +25,17 @@ func (m *TestModel) HandleCommand(ctx *eventsourced.Context, name string, cmd pr
 			case *tck.RequestAction_Emit:
 				ctx.Emit(&tck.Persisted{Value: a.Emit.GetValue()})
 			case *tck.RequestAction_Forward:
+				any, err := encoding.MarshalAny(&tck.Request{Id: a.Forward.Id})
+				if err != nil {
+					return nil, err
+				}
+				ctx.Forward("cloudstate.tck.model.EventSourcedTwo", "Call", any)
 			case *tck.RequestAction_Effect:
+				any, err := encoding.MarshalAny(&tck.Request{Id: a.Effect.Id})
+				if err != nil {
+					return nil, err
+				}
+				ctx.Effect("cloudstate.tck.model.EventSourcedTwo", "Call", any, a.Effect.Synchronous)
 			case *tck.RequestAction_Fail:
 				return &tck.Response{Message: m.state}, errors.New(a.Fail.GetMessage())
 			}

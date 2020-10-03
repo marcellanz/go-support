@@ -19,6 +19,7 @@ import (
 	"context"
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
+	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/golang/protobuf/ptypes/any"
 )
 
@@ -34,6 +35,9 @@ type Context struct {
 	shouldSnapshot bool
 	events         []interface{}
 	ctx            context.Context
+
+	forward     *protocol.Forward
+	sideEffects []*protocol.SideEffect
 }
 
 // Emit is called by a command handler.
@@ -49,6 +53,23 @@ func (c *Context) Emit(event interface{}) {
 	c.events = append(c.events, event)
 	c.eventSequence++
 	c.shouldSnapshot = c.shouldSnapshot || c.eventSequence >= c.EventSourcedEntity.SnapshotEvery
+}
+
+func (c *Context) Effect(serviceName string, command string, payload *any.Any, synchronous bool) {
+	c.sideEffects = append(c.sideEffects, &protocol.SideEffect{
+		ServiceName: serviceName,
+		CommandName: command,
+		Payload:     payload,
+		Synchronous: synchronous,
+	})
+}
+
+func (c *Context) Forward(serviceName string, command string, payload *any.Any) {
+	c.forward = &protocol.Forward{
+		ServiceName: serviceName,
+		CommandName: command,
+		Payload:     payload,
+	}
 }
 
 // StreamCtx returns the context.Context for the contexts' current running stream.

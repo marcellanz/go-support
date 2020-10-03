@@ -95,6 +95,19 @@ func (r *runner) handleCommand(cmd *protocol.Command) error {
 			Err:     fmt.Errorf("marshalling of the snapshot failed: %w", err),
 		}
 	}
+	if r.context.forward != nil {
+		return r.sendEventSourcedReply(&entity.EventSourcedReply{
+			CommandId: cmd.GetId(),
+			ClientAction: &protocol.ClientAction{
+				Action: &protocol.ClientAction_Forward{
+					Forward: r.context.forward,
+				},
+			},
+			Events:      events,
+			Snapshot:    snapshot,
+			SideEffects: r.context.sideEffects,
+		})
+	}
 	return r.sendEventSourcedReply(&entity.EventSourcedReply{
 		CommandId: cmd.GetId(),
 		ClientAction: &protocol.ClientAction{
@@ -104,8 +117,9 @@ func (r *runner) handleCommand(cmd *protocol.Command) error {
 				},
 			},
 		},
-		Events:   events,
-		Snapshot: snapshot,
+		Events:      events,
+		Snapshot:    snapshot,
+		SideEffects: r.context.sideEffects,
 	})
 }
 
