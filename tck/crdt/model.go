@@ -28,7 +28,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 )
 
-type CRDTModel struct {
+type TestModel struct {
 	id          crdt.EntityId
 	gCounter    *crdt.GCounter
 	pnCounter   *crdt.PNCounter
@@ -40,11 +40,11 @@ type CRDTModel struct {
 	orMap       *crdt.ORMap
 }
 
-func NewEntity(id crdt.EntityId) *CRDTModel {
-	return &CRDTModel{id: id}
+func NewEntity(id crdt.EntityId) *TestModel {
+	return &TestModel{id: id}
 }
 
-func (s *CRDTModel) Set(_ *crdt.Context, c crdt.CRDT) {
+func (s *TestModel) Set(_ *crdt.Context, c crdt.CRDT) {
 	switch v := c.(type) {
 	case *crdt.GCounter:
 		s.gCounter = v
@@ -65,7 +65,7 @@ func (s *CRDTModel) Set(_ *crdt.Context, c crdt.CRDT) {
 	}
 }
 
-func (s *CRDTModel) Default(c *crdt.Context) (crdt.CRDT, error) {
+func (s *TestModel) Default(c *crdt.Context) (crdt.CRDT, error) {
 	switch strings.Split(c.EntityId.String(), "-")[0] {
 	case "gcounter":
 		return crdt.NewGCounter(), nil
@@ -88,7 +88,7 @@ func (s *CRDTModel) Default(c *crdt.Context) (crdt.CRDT, error) {
 	}
 }
 
-func (s *CRDTModel) HandleCommand(cc *crdt.CommandContext, _ string, cmd proto.Message) (*any.Any, error) {
+func (s *TestModel) HandleCommand(cc *crdt.CommandContext, _ string, cmd proto.Message) (*any.Any, error) {
 	switch c := cmd.(type) {
 	case *tck.GCounterRequest:
 		for _, as := range c.GetActions() {
@@ -385,11 +385,11 @@ func orMapResponse(orMap *crdt.ORMap) *tck.ORMapResponse {
 	return r
 }
 
-// runRequest runs the given action request using a temporary CRDTModel
+// runRequest runs the given action request using a temporary TestModel
 // with the requests corresponding CRDT as its state.
 // runRequest adds the CRDT if not already present in the map.
-func (s *CRDTModel) runRequest(ctx *crdt.CommandContext, key *any.Any, req proto.Message) error {
-	m := &CRDTModel{}
+func (s *TestModel) runRequest(ctx *crdt.CommandContext, key *any.Any, req proto.Message) error {
+	m := &TestModel{}
 	if !s.orMap.HasKey(key) {
 		c, err := m.Default(ctx.Context)
 		if err != nil {

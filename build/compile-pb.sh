@@ -54,3 +54,12 @@ protoc --go_out=plugins=grpc,paths=source_relative:./tck/proto/crdt \
   --proto_path=protobuf/frontend/cloudstate \
   --proto_path=protobuf/proxy \
   --proto_path=protobuf/tck tck_crdt.proto
+
+# TCK Eventsourced
+protoc --go_out=plugins=grpc,paths=source_relative:./tck/pb/eventsourced \
+  --proto_path=protobuf/protocol \
+  --proto_path=protobuf/frontend \
+  --proto_path=protobuf/frontend/cloudstate \
+  --proto_path=protobuf/proxy \
+  --proto_path=protobuf/tck/cloudstate/tck/model \
+  --proto_path=protobuf/tck eventsourced.proto

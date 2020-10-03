@@ -79,15 +79,6 @@ func (r *runner) handleCommand(cmd *protocol.Command) error {
 			Err:     fmt.Errorf("marshalling of reply failed: %w", err),
 		}
 	}
-	// Apply the events.
-	for _, e := range r.context.events {
-		if err := r.context.Instance.HandleEvent(r.context, e); err != nil {
-			return protocol.ServerError{
-				Failure: &protocol.Failure{CommandId: cmd.GetId()},
-				Err:     err,
-			}
-		}
-	}
 	// Get the events emitted.
 	events, err := r.context.marshalEventsAny()
 	if err != nil {
@@ -136,7 +127,7 @@ func (r *runner) handleInitSnapshot(snapshot *entity.EventSourcedSnapshot) error
 }
 
 func (r *runner) handleSnapshot() (*any.Any, error) {
-	if !r.context.shouldSnapshot() {
+	if !r.context.shouldSnapshot {
 		return nil, nil
 	}
 	s, ok := r.context.Instance.(Snapshooter)

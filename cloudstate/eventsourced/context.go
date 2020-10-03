@@ -29,10 +29,11 @@ type Context struct {
 	// Instance is an instance of the registered entity.
 	Instance EntityHandler
 
-	failed        error
-	eventSequence int64
-	events        []interface{}
-	ctx           context.Context
+	failed         error
+	eventSequence  int64
+	shouldSnapshot bool
+	events         []interface{}
+	ctx            context.Context
 }
 
 // Emit is called by a command handler.
@@ -41,8 +42,13 @@ func (c *Context) Emit(event interface{}) {
 		// we can't fail sooner but won't handle events after one failed anymore.
 		return
 	}
+	if err := c.Instance.HandleEvent(c, event); err != nil {
+		c.fail(err)
+		return
+	}
 	c.events = append(c.events, event)
 	c.eventSequence++
+	c.shouldSnapshot = c.shouldSnapshot || c.eventSequence >= c.EventSourcedEntity.SnapshotEvery
 }
 
 // StreamCtx returns the context.Context for the contexts' current running stream.
@@ -54,11 +60,8 @@ func (c *Context) fail(err error) {
 	c.failed = err
 }
 
-func (c *Context) shouldSnapshot() bool {
-	return c.eventSequence >= c.EventSourcedEntity.SnapshotEvery
-}
-
 func (c *Context) resetSnapshotEvery() {
+	c.shouldSnapshot = false
 	c.eventSequence = 0
 }
 
