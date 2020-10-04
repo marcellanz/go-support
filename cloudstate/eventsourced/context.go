@@ -52,7 +52,7 @@ func (c *Context) Emit(event interface{}) {
 	}
 	c.events = append(c.events, event)
 	c.eventSequence++
-	c.shouldSnapshot = c.shouldSnapshot || c.eventSequence >= c.EventSourcedEntity.SnapshotEvery
+	c.shouldSnapshot = c.shouldSnapshot || (c.eventSequence%c.EventSourcedEntity.SnapshotEvery == 0)
 }
 
 func (c *Context) Effect(serviceName string, command string, payload *any.Any, synchronous bool) {
@@ -83,7 +83,6 @@ func (c *Context) fail(err error) {
 
 func (c *Context) resetSnapshotEvery() {
 	c.shouldSnapshot = false
-	c.eventSequence = 0
 }
 
 // marshalEventsAny marshals and the clears events emitted through the context.

@@ -202,6 +202,9 @@ message Failure {
 
     // A description of the error.
     string description = 2;
+
+    // Whether this failure should trigger an entity restart.
+    bool restart = 3;
 }
 
 message EntitySpec {
@@ -239,6 +242,12 @@ message ServiceInfo {
 
     // The version of the support library being used.
     string support_library_version = 5;
+
+    // Cloudstate protocol major version accepted by the support library.
+    int32 protocol_major_version = 6;
+
+    // Cloudstate protocol minor version accepted by the support library.
+    int32 protocol_minor_version = 7;
 }
 
 message Entity {
@@ -271,13 +280,11 @@ message ProxyInfo {
 service EntityDiscovery {
 
     // Discover what entities the user function wishes to serve.
-    rpc discover (ProxyInfo) returns (EntitySpec) {
-    }
+    rpc discover(ProxyInfo) returns (EntitySpec) {}
 
     // Report an error back to the user function. This will only be invoked to tell the user function
     // that it has done something wrong, eg, violated the protocol, tried to use an entity type that
     // isn't supported, or attempted to forward to an entity that doesn't exist, etc. These messages
     // should be logged clearly for debugging purposes.
-    rpc reportError (UserFunctionError) returns (google.protobuf.Empty) {
-    }
+    rpc reportError(UserFunctionError) returns (google.protobuf.Empty) {}
 }

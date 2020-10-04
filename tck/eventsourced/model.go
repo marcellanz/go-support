@@ -31,13 +31,13 @@ func (m *TestModel) HandleCommand(ctx *eventsourced.Context, name string, cmd pr
 				}
 				ctx.Forward("cloudstate.tck.model.EventSourcedTwo", "Call", any)
 			case *tck.RequestAction_Effect:
-				any, err := encoding.MarshalAny(&tck.Request{Id: a.Effect.Id})
+				req, err := encoding.MarshalAny(&tck.Request{Id: a.Effect.Id})
 				if err != nil {
 					return nil, err
 				}
-				ctx.Effect("cloudstate.tck.model.EventSourcedTwo", "Call", any, a.Effect.Synchronous)
+				ctx.Effect("cloudstate.tck.model.EventSourcedTwo", "Call", req, a.Effect.Synchronous)
 			case *tck.RequestAction_Fail:
-				return &tck.Response{Message: m.state}, errors.New(a.Fail.GetMessage())
+				return nil, errors.New(a.Fail.GetMessage())
 			}
 		}
 	}

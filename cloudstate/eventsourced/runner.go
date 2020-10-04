@@ -63,6 +63,7 @@ func (r *runner) handleCommand(cmd *protocol.Command) error {
 		return r.sendClientActionFailure(&protocol.Failure{
 			CommandId:   cmd.Id,
 			Description: errReturned.Error(),
+			Restart:     len(r.context.events) > 0,
 		})
 	}
 	// The context may have failed. As it is not defined per spec what state
@@ -181,6 +182,7 @@ func (r *runner) handleEvent(event *entity.EventSourcedEvent) error {
 	if err := r.context.Instance.HandleEvent(r.context, message); err != nil {
 		return err
 	}
+	r.context.eventSequence = event.Sequence
 	return r.context.failed
 }
 
