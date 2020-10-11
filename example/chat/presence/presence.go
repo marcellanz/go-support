@@ -83,7 +83,8 @@ func (p *Entity) disconnect() {
 func (p *Entity) Default(ctx *crdt.Context) (crdt.CRDT, error) {
 	return crdt.NewVote(), nil
 }
-func (p *Entity) Set(ctx *crdt.Context, state crdt.CRDT) {
+func (p *Entity) Set(ctx *crdt.Context, state crdt.CRDT) error {
 	p.state = state.(*crdt.Vote)
 	p.users = 0
+	return nil
 }

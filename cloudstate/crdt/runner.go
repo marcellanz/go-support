@@ -40,8 +40,7 @@ func (r *runner) handleState(state *entity.CrdtState) error {
 	if err := r.context.crdt.applyState(state); err != nil {
 		return err
 	}
-	r.context.Instance.Set(r.context, r.context.crdt)
-	return nil
+	return r.context.Instance.Set(r.context, r.context.crdt)
 }
 
 // A delta to be applied to the current value. It may be sent at any time as long as the user function already has

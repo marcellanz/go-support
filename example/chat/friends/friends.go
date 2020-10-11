@@ -61,6 +61,10 @@ func (e *Entity) Default(ctx *crdt.Context) (crdt.CRDT, error) {
 	return crdt.NewORSet(), nil
 }
 
-func (e *Entity) Set(ctx *crdt.Context, state crdt.CRDT) {
-	e.state = state.(*crdt.ORSet)
+func (e *Entity) Set(ctx *crdt.Context, state crdt.CRDT) error {
+	switch set := state.(type) {
+	case *crdt.ORSet:
+		e.state = set
+	}
+	return fmt.Errorf("unknown type: %v", state)
 }

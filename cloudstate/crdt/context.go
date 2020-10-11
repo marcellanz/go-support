@@ -78,8 +78,7 @@ func (c *Context) fail(err error) {
 func (c *Context) initDefault() error {
 	// with a handled state, the CRDT might already be set.
 	if c.crdt != nil {
-		c.Instance.Set(c, c.crdt)
-		return nil
+		return c.Instance.Set(c, c.crdt)
 	}
 	// with no state given, the entity instance can provide one.
 	var err error
@@ -90,7 +89,9 @@ func (c *Context) initDefault() error {
 		return errors.New("no default CRDT set by the entities default method")
 	}
 	// the entity gets the CRDT to be set.
-	c.Instance.Set(c, c.crdt)
+	if err := c.Instance.Set(c, c.crdt); err != nil {
+		return err
+	}
 	c.created = true
 	return nil
 }

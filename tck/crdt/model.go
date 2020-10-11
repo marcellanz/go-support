@@ -43,7 +43,7 @@ func NewEntity(id crdt.EntityId) *TestModel {
 	return &TestModel{id: id}
 }
 
-func (s *TestModel) Set(_ *crdt.Context, c crdt.CRDT) {
+func (s *TestModel) Set(_ *crdt.Context, c crdt.CRDT) error {
 	switch v := c.(type) {
 	case *crdt.GCounter:
 		s.gCounter = v
@@ -62,6 +62,7 @@ func (s *TestModel) Set(_ *crdt.Context, c crdt.CRDT) {
 	case *crdt.ORMap:
 		s.orMap = v
 	}
+	return nil
 }
 
 func (s *TestModel) Default(c *crdt.Context) (crdt.CRDT, error) {
