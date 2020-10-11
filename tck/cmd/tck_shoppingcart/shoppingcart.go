@@ -22,7 +22,7 @@ import (
 	"github.com/cloudstateio/go-support/cloudstate"
 	"github.com/cloudstateio/go-support/cloudstate/eventsourced"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
-	"github.com/cloudstateio/go-support/tck/shoppingcart"
+	shoppingcart2 "github.com/cloudstateio/go-support/example/shoppingcart"
 )
 
 // main creates a CloudState instance and registers the ShoppingCart
@@ -39,10 +39,10 @@ func main() {
 	err = server.RegisterEventSourced(&eventsourced.Entity{
 		ServiceName:   "com.example.shoppingcart.ShoppingCart",
 		PersistenceID: "ShoppingCart",
-		EntityFunc:    shoppingcart.NewShoppingCart,
+		EntityFunc:    shoppingcart2.NewShoppingCart,
 		SnapshotEvery: 1,
 	}, protocol.DescriptorConfig{
-		Service: "shoppingcart/shoppingcart.proto",
+		Service: "shoppingcart.proto",
 	}.AddDomainDescriptor("domain.proto"))
 
 	if err != nil {

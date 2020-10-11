@@ -24,7 +24,7 @@ import (
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
 	"github.com/cloudstateio/go-support/cloudstate/entity"
-	"github.com/cloudstateio/go-support/tck/proto/crdt"
+	"github.com/cloudstateio/go-support/tck/crdt"
 )
 
 func TestCRDTGSet(t *testing.T) {

@@ -21,8 +21,8 @@ import (
 	"github.com/cloudstateio/go-support/cloudstate"
 	"github.com/cloudstateio/go-support/cloudstate/eventsourced"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
-	eventsourced2 "github.com/cloudstateio/go-support/tck/eventsourced"
-	"github.com/cloudstateio/go-support/tck/shoppingcart"
+	"github.com/cloudstateio/go-support/example/shoppingcart"
+	tck "github.com/cloudstateio/go-support/tck/eventsourced"
 )
 
 func main() {
@@ -38,40 +38,39 @@ func main() {
 			ServiceName:   "cloudstate.tck.model.EventSourcedTckModel",
 			PersistenceID: "event-sourced-tck-model",
 			SnapshotEvery: 5,
-			EntityFunc:    eventsourced2.NewTestModel,
+			EntityFunc:    tck.NewTestModel,
 		}, protocol.DescriptorConfig{
 			Service: "eventsourced.proto",
 		},
 	)
 	if err != nil {
-		log.Fatalf("CloudState failed to register entity: %v", err)
+		log.Fatalf("Cloudstate failed to register entity: %v", err)
 	}
 	err = server.RegisterEventSourced(
 		&eventsourced.Entity{
 			ServiceName:   "cloudstate.tck.model.EventSourcedTwo",
 			PersistenceID: "EventSourcedTwo",
 			SnapshotEvery: 5,
-			EntityFunc:    eventsourced2.NewTestModelTwo,
+			EntityFunc:    tck.NewTestModelTwo,
 		}, protocol.DescriptorConfig{
 			Service: "eventsourced.proto",
 		},
 	)
 	if err != nil {
-		log.Fatalf("CloudState failed to register entity: %v", err)
+		log.Fatalf("Cloudstate failed to register entity: %v", err)
 	}
 	err = server.RegisterEventSourced(&eventsourced.Entity{
 		ServiceName:   "com.example.shoppingcart.ShoppingCart",
 		PersistenceID: "ShoppingCart",
 		EntityFunc:    shoppingcart.NewShoppingCart,
 	}, protocol.DescriptorConfig{
-		Service: "shoppingcart/shoppingcart.proto",
+		Service: "shoppingcart.proto",
 	}.AddDomainDescriptor("domain.proto"))
 	if err != nil {
 		log.Fatalf("CloudState failed to register entity: %v", err)
 	}
 	err = server.Run()
 	if err != nil {
-		log.Fatalf("CloudState failed to run: %v", err)
+		log.Fatalf("Cloudstate failed to run: %v", err)
 	}
-
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/cloudstateio/go-support/cloudstate"
 	"github.com/cloudstateio/go-support/cloudstate/eventsourced"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
-	"github.com/cloudstateio/go-support/tck/shoppingcart"
+	shoppingcart2 "github.com/cloudstateio/go-support/example/shoppingcart"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 )
@@ -42,10 +42,10 @@ func newServer(t *testing.T) *server {
 	err = server.RegisterEventSourced(&eventsourced.Entity{
 		ServiceName:   "com.example.shoppingcart.ShoppingCart",
 		PersistenceID: "ShoppingCart",
-		EntityFunc:    shoppingcart.NewShoppingCart,
+		EntityFunc:    shoppingcart2.NewShoppingCart,
 		SnapshotEvery: 1,
 	}, protocol.DescriptorConfig{
-		Service: "shoppingcart/shoppingcart.proto",
+		Service: "shoppingcart.proto",
 	}.AddDomainDescriptor("domain.proto"))
 	if err != nil {
 		s.t.Fatal(err)

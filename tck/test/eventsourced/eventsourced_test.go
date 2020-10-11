@@ -25,8 +25,8 @@ import (
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
 	"github.com/cloudstateio/go-support/cloudstate/entity"
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
-	"github.com/cloudstateio/go-support/tck/shoppingcart"
-	domain "github.com/cloudstateio/go-support/tck/shoppingcart/persistence"
+	"github.com/cloudstateio/go-support/example/shoppingcart"
+	domain "github.com/cloudstateio/go-support/example/shoppingcart/persistence"
 )
 
 const serviceName = "com.example.shoppingcart.ShoppingCart"
