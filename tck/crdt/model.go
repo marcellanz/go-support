@@ -88,18 +88,26 @@ func (s *TestModel) Default(c *crdt.Context) (crdt.CRDT, error) {
 	}
 }
 
-func (s *TestModel) HandleCommand(cc *crdt.CommandContext, _ string, cmd proto.Message) (*any.Any, error) {
+func (s *TestModel) HandleCommand(cc *crdt.CommandContext, name string, cmd proto.Message) (*any.Any, error) {
 	switch c := cmd.(type) {
 	case *GCounterRequest:
 		for _, as := range c.GetActions() {
 			switch a := as.Action.(type) {
 			case *GCounterRequestAction_Increment:
+				if cc.Streamed() {
+					cc.ChangeFunc(func(c *crdt.CommandContext) (*any.Any, error) {
+						return encoding.MarshalAny(&GCounterResponse{
+							Value: &GCounterValue{Value: s.gCounter.Value()}},
+						)
+					})
+				}
 				s.gCounter.Increment(a.Increment.GetValue())
-				v := &GCounterValue{Value: s.gCounter.Value()}
 				if with := a.Increment.FailWith; with != "" {
 					return nil, errors.New(with)
 				}
-				return encoding.MarshalAny(&GCounterResponse{Value: v})
+				return encoding.MarshalAny(&GCounterResponse{
+					Value: &GCounterValue{Value: s.gCounter.Value()}},
+				)
 			case *GCounterRequestAction_Get:
 				if with := a.Get.FailWith; with != "" {
 					return nil, errors.New(with)
@@ -397,7 +405,9 @@ func (s *TestModel) runRequest(ctx *crdt.CommandContext, key *any.Any, req proto
 		}
 		s.orMap.Set(key, c) // triggers a set delta
 	}
-	m.Set(ctx.Context, s.orMap.Get(key))
+	if err := m.Set(ctx.Context, s.orMap.Get(key)); err != nil {
+		return err
+	}
 	if _, err := m.HandleCommand(ctx, "", req); err != nil {
 		return err
 	}

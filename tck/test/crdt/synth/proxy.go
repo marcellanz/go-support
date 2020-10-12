@@ -223,6 +223,13 @@ func (p *proxy) command(entityId string, name string, m proto.Message) *entity.C
 	})
 }
 
+func (p *proxy) commandStreamed(entityId string, name string, m proto.Message) *entity.CrdtStreamOut {
+	return p.sendCmdRecvReply(command{
+		&protocol.Command{EntityId: entityId, Name: name, Streamed: true},
+		m,
+	})
+}
+
 func (p *proxy) sendCmdRecvReply(cmd command) *entity.CrdtStreamOut {
 	p.t.Helper()
 	if cmd.c.Id == 0 {

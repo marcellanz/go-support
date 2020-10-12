@@ -28,9 +28,6 @@ import (
 // element is removed, all the tags that that node currently observes are added
 // to the removal set, so as long as there haven’t been any new additions that
 // the node hasn’t seen when it removed the element, the element will be removed.
-// A naive implementation of this will accumulate tombstones as elements are removed,
-// however the Cloudstate reference implementation provides an implementation
-// that cleans up tombstones.
 type ORSet struct {
 	value   map[uint64]*any.Any
 	added   map[uint64]*any.Any
@@ -57,29 +54,33 @@ func (s *ORSet) Size() int {
 
 func (s *ORSet) Add(a *any.Any) {
 	h := s.hashAny(a)
-	if _, exists := s.value[h]; !exists {
-		if _, has := s.removed[h]; has {
-			delete(s.removed, h)
-		} else {
-			s.added[h] = a
-		}
-		s.value[h] = a
+	_, exists := s.value[h]
+	if exists {
+		return
 	}
+	if _, has := s.removed[h]; has {
+		delete(s.removed, h)
+	} else {
+		s.added[h] = a
+	}
+	s.value[h] = a
 }
 
 func (s *ORSet) Remove(a *any.Any) {
 	h := s.hashAny(a)
-	if _, exists := s.value[h]; exists {
-		if len(s.value) == 1 {
-			s.Clear()
-		} else {
-			delete(s.value, h)
-			if _, has := s.added[h]; has {
-				delete(s.added, h)
-			} else {
-				s.removed[h] = a
-			}
-		}
+	_, exists := s.value[h]
+	if !exists {
+		return
+	}
+	if len(s.value) == 1 {
+		s.Clear()
+		return
+	}
+	delete(s.value, h)
+	if _, has := s.added[h]; has {
+		delete(s.added, h)
+	} else {
+		s.removed[h] = a
 	}
 }
 
@@ -130,10 +131,12 @@ func (s *ORSet) applyState(state *entity.CrdtState) error {
 		return fmt.Errorf("unable to delta state %v to ORSet", state)
 	}
 	s.value = make(map[uint64]*any.Any)
-	if items := set.GetItems(); len(items) > 0 {
-		for _, a := range items {
-			s.value[s.hashAny(a)] = a
-		}
+	items := set.GetItems()
+	if len(items) == 0 {
+		return nil
+	}
+	for _, a := range items {
+		s.value[s.hashAny(a)] = a
 	}
 	return nil
 }

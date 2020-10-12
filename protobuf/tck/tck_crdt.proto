@@ -28,6 +28,7 @@ option go_package = "github.com/cloudstateio/go-support/tck/proto/crdt;crdt";
 
 service TckCrdt {
     rpc ProcessGCounter (GCounterRequest) returns (GCounterResponse);
+    rpc ProcessGCounterStreamed (GCounterRequest) returns (stream GCounterResponse);
     rpc ProcessPNCounter (PNCounterRequest) returns (PNCounterResponse);
     rpc ProcessGSet (GSetRequest) returns (GSetResponse);
     rpc ProcessORSet (ORSetRequest) returns (ORSetResponse);

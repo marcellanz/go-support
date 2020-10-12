@@ -26,9 +26,9 @@ import (
 // A GSet is a very simple CRDT, its merge function is defined by taking
 // the union of the two GSets being merged.
 type GSet struct {
-	value      map[uint64]*any.Any
-	added      map[uint64]*any.Any
-	*anyHasher // TODO: give it a name
+	value map[uint64]*any.Any
+	added map[uint64]*any.Any
+	*anyHasher
 }
 
 var _ CRDT = (*GSet)(nil)

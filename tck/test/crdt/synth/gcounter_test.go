@@ -155,6 +155,60 @@ func TestCRDTGCounter(t *testing.T) {
 		})
 	})
 
+	t.Run("GCounter Streamed", func(t *testing.T) {
+		command := "ProcessGCounterStreamed"
+		entityId := "gcounter-x-0"
+		p := newProxy(ctx, s)
+		defer p.teardown()
+		t.Run("sending CrdtInit should not fail", func(t *testing.T) {
+			tr := tester{t}
+			p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+			resp, err := p.Recv()
+			tr.expectedNil(err)
+			tr.expectedNil(resp)
+		})
+		t.Run("incrementing a GCounter should emit a client action and create state action", func(t *testing.T) {
+			tr := tester{t}
+			switch m := p.commandStreamed(
+				entityId, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityId, Value: 8}),
+			).Message.(type) {
+			case *entity.CrdtStreamOut_Reply:
+				r := crdt.GCounterResponse{}
+				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
+				tr.expectedUInt64(r.GetValue().GetValue(), 8)
+				tr.expectedUInt64(m.Reply.GetStateAction().GetCreate().GetGcounter().GetValue(), 8)
+			default:
+				tr.unexpected(m)
+			}
+		})
+		t.Run("incrementing a GCounter should emit a client action and create state action", func(t *testing.T) {
+			tr := tester{t}
+			prevCmdId := p.seq - 1
+			switch m := p.command(
+				entityId, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityId, Value: 8}),
+			).Message.(type) {
+			case *entity.CrdtStreamOut_Reply:
+				r := crdt.GCounterResponse{}
+				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
+				tr.expectedUInt64(r.GetValue().GetValue(), 16)
+				tr.expectedUInt64(m.Reply.GetStateAction().GetUpdate().GetGcounter().GetIncrement(), 8)
+			default:
+				tr.unexpected(m)
+			}
+			// validate streaming
+			recv, err := p.Recv()
+			if err != nil {
+				t.Fatal(err)
+			}
+			// there must be a response with the command id from the first command sent.
+			tr.expectedNotNil(recv)
+			tr.expectedInt64(recv.GetStreamedMessage().GetCommandId(), prevCmdId)
+			r := crdt.GCounterResponse{}
+			tr.toProto(recv.GetStreamedMessage().GetClientAction().GetReply().GetPayload(), &r)
+			tr.expectedUInt64(r.GetValue().GetValue(), 16)
+		})
+	})
+
 	t.Run("GCounter – CrdtDelete", func(t *testing.T) {
 		entityId := "gcounter-0"
 		tr := tester{t}

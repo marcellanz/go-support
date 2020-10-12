@@ -23,15 +23,18 @@ import (
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 )
 
+// runner runs a stream with the help of context.
 type runner struct {
 	stream  entity.Crdt_HandleServer
 	context *Context
 }
 
-// A CrdtState message is sent to indicate the user function should replace its current value with this value. If the user function
-// does not have a current value, either because the commandContextFor function didn't send one and the user function hasn't
-// updated the value itself in response to a command, or because the value was deleted, this must be sent before
-// any deltas.
+// handleState handles an incoming state message to be applied to the current state.
+// A entity.CrdtState message is sent to indicate the user function should replace its
+// current value with this value. If the user function does not have a current
+// value, either because the commandContextFor function didn't send one and the
+// user function hasn't updated the value itself in response to a command, or
+// because the value was deleted, this must be sent before any deltas.
 func (r *runner) handleState(state *entity.CrdtState) error {
 	if r.context.crdt == nil {
 		r.context.crdt = newFor(state)
@@ -43,8 +46,9 @@ func (r *runner) handleState(state *entity.CrdtState) error {
 	return r.context.Instance.Set(r.context, r.context.crdt)
 }
 
-// A delta to be applied to the current value. It may be sent at any time as long as the user function already has
-// value.
+// handleDelta handles an incoming delta message to be applied to the current state.
+// A delta to be applied to the current value. It may be sent at any time as long
+// as the user function already has value.
 func (r *runner) handleDelta(delta *entity.CrdtDelta) error {
 	if r.context.crdt == nil {
 		return fmt.Errorf("received delta for crdt before it was created: %v", r.context.Entity)
@@ -52,12 +56,12 @@ func (r *runner) handleDelta(delta *entity.CrdtDelta) error {
 	return r.context.crdt.applyDelta(delta)
 }
 
-// A stream has been cancelled.
-// A command handler may also register an onCancel callback to be notified when the stream
-// is cancelled. The cancellation callback handler may update the crdt. This is useful if the crdt
-// is being used to track connections, for example, when using Vote CRDTs to track a users online status.
-
-// handleCancellation TODO
+// handleCancellation handles an incoming cancellation message to be applied to
+// the current state. A stream has been cancelled. A command handler may also
+// register an onCancel callback to be notified when the stream is cancelled.
+// The cancellation callback handler may update the crdt. This is useful if
+// the crdt is being used to track connections, for example, when using Vote
+// CRDTs to track a users online status.
 func (r *runner) handleCancellation(cancelled *protocol.StreamCancelled) error {
 	id := CommandId(cancelled.GetId())
 	ctx := r.context.streamedCtx[id]
@@ -113,11 +117,11 @@ func (r *runner) handleCommand(cmd *protocol.Command) (streamError error) {
 	if err != nil {
 		ctx.fail(err)
 	}
-	// if the user function has failed, a client action failure will be sent
+	// If the user function has failed, a client action failure will be sent.
 	if ctx.failed != nil {
 		reply = nil
 	} else if err != nil {
-		// on any other error, we return and close the stream
+		// On any other error, we return and close the stream.
 		return err
 	}
 	clientAction, err := ctx.clientActionFor(reply)
@@ -136,17 +140,14 @@ func (r *runner) handleCommand(cmd *protocol.Command) (streamError error) {
 		ClientAction: clientAction,
 		SideEffects:  ctx.sideEffects,
 		StateAction:  stateAction,
-		Streamed:     ctx.Streamed(),
+		// TODO: does a user choose to have a command streamed?
+		//  marking the reply streamed while having a stream flag on the command seems superfluous.
+		Streamed: ctx.Streamed(),
 	})
 	if err != nil {
 		return err
 	}
 	ctx.clearSideEffect()
-	// after the command handling, and any stateActions should get handled by existing change handlers
-	// => that is the reason the scala impl copies them over later. TODO: explain in SPEC feedback
-	//
-	// so this makes sense, as we don't support client streaming RPC a command is handled
-	// once and once only.
 	if stateAction != nil {
 		if err := r.handleChange(); err != nil {
 			return err

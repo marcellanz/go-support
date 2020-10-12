@@ -30,18 +30,6 @@ import (
 var ErrCtxFailCalled = errors.New("context failed")
 var ErrStateChanged = errors.New("CRDT change not allowed")
 
-/**
- * register an on change callback for this command.
- *
- * <p>The callback will be invoked any time the CRDT changes. The callback may inspect the CRDT,
- * but any attempt to modify the CRDT will be ignored and the CRDT will crash.
- *
- * <p>If the callback returns a value, that value will be sent down the stream. Alternatively, the
- * callback may forward messages to other entities via the passed in {@link SubscriptionContext}.
- * The callback may also emit side effects to other entities via that context.
- *
- * @param subscriber The subscriber callback.
- */
 type ChangeFunc func(c *CommandContext) (*any.Any, error)
 type CancelFunc func(c *CommandContext) error
 
@@ -50,9 +38,8 @@ type CommandContext struct {
 	CommandId CommandId
 	change    ChangeFunc
 	cancel    CancelFunc
-	// ended means, we will send a streamed message
-	// where we mark the message as the last one in the stream
-	// and therefore, the streamed command has ended.
+	// ended means, we will send a streamed message where we mark the message
+	// as the last one in the stream and therefore, the streamed command has ended.
 	ended       bool
 	cmd         *protocol.Command
 	forward     *protocol.Forward
@@ -74,7 +61,7 @@ func (c *CommandContext) runCommand(cmd *protocol.Command) (*any.Any, error) {
 }
 
 // ChangeFunc sets the function to be called whenever the CRDT is changed.
-// For non-streamed contexts this is a no operation.
+// For non-streamed contexts this is a no-operation.
 func (c *CommandContext) ChangeFunc(f ChangeFunc) {
 	if !c.Streamed() {
 		return
@@ -82,6 +69,7 @@ func (c *CommandContext) ChangeFunc(f ChangeFunc) {
 	c.change = f
 }
 
+// Command returns the command the context is currently handling.
 func (c *CommandContext) Command() *protocol.Command {
 	return c.cmd
 }
@@ -94,13 +82,9 @@ func (c *CommandContext) Streamed() bool {
 }
 
 // CancelFunc registers an on cancel handler for this command.
-//
 // The registered function will be invoked if the client initiates a stream cancel. It will not
-// be invoked if the entity cancels the stream itself via {@link SubscriptionContext#endStream()} from an {@link
-// StreamedCommandContext#onChange(Function)} callback.
-// <p>An on cancel callback may update the CRDT, and may emit side effects via the passed in
-// {@link StreamCancelledContext}.
-// @param effect The effect to perform when this stream is cancelled.
+// be invoked if the entity cancels the stream itself.
+// The CancelFunc may update the CRDT, and may emit side effects.
 func (c *CommandContext) CancelFunc(f CancelFunc) {
 	if !c.Streamed() {
 		return
@@ -108,6 +92,7 @@ func (c *CommandContext) CancelFunc(f CancelFunc) {
 	c.cancel = f
 }
 
+// EndStream ends a running stream.
 func (c *CommandContext) EndStream() {
 	if !c.Streamed() {
 		return
@@ -115,15 +100,18 @@ func (c *CommandContext) EndStream() {
 	c.ended = true
 }
 
-func (c *CommandContext) Forward(f *protocol.Forward) {
+// Forward forwards this command to another service.
+// The protocol.Forward given has to ensure it references a valid service and command.
+func (c *CommandContext) Forward(forward *protocol.Forward) {
 	if c.forward != nil {
 		c.fail(errors.New("this context has already forwarded"))
 	}
-	c.forward = f
+	c.forward = forward
 }
 
-func (c *CommandContext) SideEffect(e *protocol.SideEffect) {
-	c.sideEffects = append(c.sideEffects, e)
+// SideEffect adds a side effect to being emitted after the current command successfully has completed.
+func (c *CommandContext) SideEffect(effect *protocol.SideEffect) {
+	c.sideEffects = append(c.sideEffects, effect)
 }
 
 func (c *CommandContext) clearSideEffect() {
@@ -139,19 +127,6 @@ func (c *CommandContext) changed() (reply *any.Any, err error) {
 	return
 }
 
-/**
- * TODO: rewrite as Go documentation
- * register an on cancel callback for this command.
- *
- * <p>This will be invoked if the client initiates a stream cancel. It will not be invoked if the
- * entity cancels the stream itself via {@link SubscriptionContext#endStream()} from an {@link
- * StreamedCommandContext#onChange(Function)} callback.
- *
- * <p>An on cancel callback may update the CRDT, and may emit side effects via the passed in
- * {@link StreamCancelledContext}.
- *
- * @param effect The effect to perform when this stream is cancelled.
- */
 func (c *CommandContext) cancelled() error {
 	return c.cancel(c)
 }
@@ -182,8 +157,6 @@ func (c *CommandContext) clientActionFor(reply *any.Any) (*protocol.ClientAction
 	}
 	if reply != nil {
 		if c.forward != nil {
-			// spec impl: "Both a reply was returned, and a forward message was sent, choose one or the other."
-			// TODO notallowed: "This context has already forwarded."
 			return nil, errors.New("this context has already forwarded")
 		}
 		return &protocol.ClientAction{

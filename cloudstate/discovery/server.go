@@ -56,6 +56,8 @@ func NewServer(config protocol.Config) *EntityDiscoveryServer {
 				ServiceRuntime:        fmt.Sprintf("%s %s/%s", runtime.Version(), runtime.GOOS, runtime.GOARCH),
 				SupportLibraryName:    SupportLibraryName,
 				SupportLibraryVersion: SupportLibraryVersion,
+				ProtocolMajorVersion:  0,
+				ProtocolMinorVersion:  2,
 			},
 		},
 		fileDescriptorSet: &filedescr.FileDescriptorSet{
@@ -73,8 +75,8 @@ func (s *EntityDiscoveryServer) Discover(_ context.Context, pi *protocol.ProxyIn
 		pi.ProtocolMinorVersion,
 	)
 	log.Printf("Responding with: %v\n", s.entitySpec.GetServiceInfo())
-	// TODO: s.entitySpec can be written potentially but should not after we started to run the server.
-	// Check how to enforce that after protocol.Run has started.
+	// TODO: s.entitySpec can be written potentially but should not after we started to run the server;
+	//  check how to enforce that after protocol.Run has started.
 	return s.entitySpec, nil
 }
 

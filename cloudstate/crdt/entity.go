@@ -20,18 +20,20 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 )
 
-// Entity captures an Entity with its ServiceName.
-// It is used to be registered as an CRDT entity on a Cloudstate instance.
+// Entity captures an Entity with its ServiceName. It is used to be registered
+// as an CRDT entity on a Cloudstate instance.
 type Entity struct {
-	// ServiceName is the fully qualified name of the service that implements this entities interface.
-	// Setting it is mandatory.
+	// ServiceName is the fully qualified name of the service that implements
+	// this entities interface. Setting it is mandatory.
 	ServiceName ServiceName
 	// EntityFunc creates a new entity.
 	EntityFunc func(id EntityId) EntityHandler
 }
 
+// EntityHandler has to be implemented by any type that wants to get
+// registered as a crdt.Entity
 type EntityHandler interface {
+	HandleCommand(ctx *CommandContext, name string, msg proto.Message) (*any.Any, error)
 	Default(ctx *Context) (CRDT, error)
 	Set(ctx *Context, crdt CRDT) error
-	HandleCommand(ctx *CommandContext, name string, msg proto.Message) (*any.Any, error)
 }

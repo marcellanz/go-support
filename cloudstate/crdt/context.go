@@ -66,7 +66,7 @@ func (c *Context) Delete() {
 	c.deleted = true
 }
 
-// fail fails the command with the given message.
+// fail fails the command context with the given message.
 func (c *Context) fail(err error) {
 	if c.failed != nil {
 		return
