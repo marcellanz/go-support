@@ -31,13 +31,13 @@ protoc --go_out=plugins=grpc,paths=source_relative:./tck/eventsourced \
   --proto_path=protobuf/tck eventsourced.proto
 
 # shopping cart example
-protoc --go_out=plugins=grpc:./example/shoppingcart/ \
+protoc --go_out=plugins=grpc,paths=source_relative:./example/shoppingcart/ \
   --proto_path=protobuf/protocol \
   --proto_path=protobuf/frontend \
   --proto_path=protobuf/frontend/cloudstate \
   --proto_path=protobuf/proxy \
   --proto_path=example/shoppingcart shoppingcart.proto
-protoc --go_out=plugins=grpc,paths=source_relative:example/shoppingcart/persistence \
+protoc --go_out=plugins=grpc,paths=source_relative:./example/shoppingcart/persistence \
   --proto_path=protobuf/protocol \
   --proto_path=protobuf/frontend \
   --proto_path=protobuf/frontend/cloudstate \
