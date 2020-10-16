@@ -62,18 +62,22 @@ func (v *Vote) VotesFor() uint32 {
 	return v.votesFor
 }
 
+// AtLeastOne returns true if there is at least one voter for the condition.
 func (v *Vote) AtLeastOne() bool {
 	return v.votesFor > 0
 }
 
+// Majority returns true if the number of votes for is more than half the number of voters.
 func (v *Vote) Majority() bool {
 	return v.votesFor > v.voters/2
 }
 
+// All returns true if the number of votes for equals the number of voters.
 func (v *Vote) All() bool {
 	return v.votesFor == v.voters
 }
 
+// Vote votes with the given boolean for a condition.
 func (v *Vote) Vote(vote bool) {
 	if v.selfVote == vote {
 		return
@@ -134,7 +138,7 @@ func (v *Vote) applyState(state *entity.CrdtState) error {
 		return fmt.Errorf("unable to apply state %+v to the Vote", state)
 	}
 	v.selfVote = s.SelfVote
-	v.votesFor = s.VotesFor
 	v.voters = s.TotalVoters
+	v.votesFor = s.VotesFor
 	return nil
 }

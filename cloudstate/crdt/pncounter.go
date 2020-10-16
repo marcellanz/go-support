@@ -45,9 +45,9 @@ func (c *PNCounter) Increment(i int64) {
 	c.delta += i
 }
 
-func (c *PNCounter) Decrement(i int64) {
-	c.value -= i
-	c.delta -= i
+func (c *PNCounter) Decrement(d int64) {
+	c.value -= d
+	c.delta -= d
 }
 
 func (c *PNCounter) State() *entity.CrdtState {

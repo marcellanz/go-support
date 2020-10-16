@@ -30,20 +30,19 @@ type Context struct {
 	// Instance is an instance of the registered entity.
 	Instance EntityHandler
 
+	ctx            context.Context
+	events         []interface{}
 	failed         error
 	eventSequence  int64
 	shouldSnapshot bool
-	events         []interface{}
-	ctx            context.Context
-
-	forward     *protocol.Forward
-	sideEffects []*protocol.SideEffect
+	forward        *protocol.Forward
+	sideEffects    []*protocol.SideEffect
 }
 
 // Emit is called by a command handler.
 func (c *Context) Emit(event interface{}) {
 	if c.failed != nil {
-		// we can't fail sooner but won't handle events after one failed anymore.
+		// We can't fail sooner but won't handle events after one failed anymore.
 		return
 	}
 	if err := c.Instance.HandleEvent(c, event); err != nil {
@@ -55,6 +54,19 @@ func (c *Context) Emit(event interface{}) {
 	c.shouldSnapshot = c.shouldSnapshot || (c.eventSequence%c.EventSourcedEntity.SnapshotEvery == 0)
 }
 
+// Effect adds a side effect to be emitted. An effect is something whose
+// result has no impact on the result of the current command - if it fails,
+// the current command still succeeds. The result of the effect is therefore
+// ignored. Effects are only performed after the successful completion of any
+// state actions requested by the command handler.
+//
+// Effects may be declared as synchronous or asynchronous. Asynchronous commands
+// run in a "fire and forget" fashion. The code flow of the caller (the command
+// handler of the entity which emitted the async command) continues while the
+// command is being asynchronously processed. Meanwhile, synchronous commands
+// run in "blocking" mode, ie. the commands are processed in order, one at a time.
+// The final result of the command handler, either a reply or a forward, is not
+// sent until all synchronous commands are completed.
 func (c *Context) Effect(serviceName string, command string, payload *any.Any, synchronous bool) {
 	c.sideEffects = append(c.sideEffects, &protocol.SideEffect{
 		ServiceName: serviceName,
@@ -64,6 +76,16 @@ func (c *Context) Effect(serviceName string, command string, payload *any.Any, s
 	})
 }
 
+// Forward sets a protocol.Forward to where a command is forwarded to.
+//
+// An entity may, rather than sending a reply to a command, forward it to another entity.
+// This is done by sending a forward message back to the proxy, instructing the proxy which
+// call on which entity should be invoked, and passing the message to invoke it with.
+//
+// The command won’t be forwarded until any state actions requested by the command handler
+// have successfully completed. It is the responsibility of the forwarded action to return
+// a reply that matches the type of the original command handler. Forwards can be chained
+// arbitrarily long.
 func (c *Context) Forward(serviceName string, command string, payload *any.Any) {
 	c.forward = &protocol.Forward{
 		ServiceName: serviceName,

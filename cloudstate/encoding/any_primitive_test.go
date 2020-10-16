@@ -120,11 +120,11 @@ func BenchmarkMarshallerPrimitives(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					any1, _ = MarshalPrimitive(tc.value)
 				}
-				any0 = any1 //prevent the call optimized away
+				any0 = any1 // prevent the call optimized away
 			})
 		}
 	}
-	_ = any0 == nil //use any0
+	_ = any0 == nil // use any0
 }
 
 func BenchmarkMarshalUnmarshal(b *testing.B) {
@@ -156,9 +156,9 @@ func BenchmarkMarshalUnmarshal(b *testing.B) {
 						}
 					}
 				}
-				any0 = any1 //prevent the call optimized away
+				any0 = any1 // prevent the call optimized away
 			})
 		}
 	}
-	_ = any0 == nil //use any0
+	_ = any0 == nil // use any0
 }

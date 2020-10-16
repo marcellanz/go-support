@@ -18,6 +18,7 @@ package cloudstate
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"os"
 
@@ -51,7 +52,7 @@ func New(c protocol.Config) (*CloudState, error) {
 	return cs, nil
 }
 
-// RegisterEventSourced registers an event sourced entity for Cloudstate.
+// RegisterEventSourced registers an event sourced entity.
 func (cs *CloudState) RegisterEventSourced(entity *eventsourced.Entity, config protocol.DescriptorConfig) error {
 	if err := cs.eventSourcedServer.Register(entity); err != nil {
 		return err
@@ -62,7 +63,7 @@ func (cs *CloudState) RegisterEventSourced(entity *eventsourced.Entity, config p
 	return nil
 }
 
-// RegisterCRDT registers a CRDT entity for CloudState.
+// RegisterCRDT registers a CRDT entity.
 func (cs *CloudState) RegisterCRDT(entity *crdt.Entity, config protocol.DescriptorConfig) error {
 	if err := cs.crdtServer.Register(entity); err != nil {
 		return err
@@ -102,5 +103,5 @@ func (cs *CloudState) RunWithListener(lis net.Listener) error {
 // Stop gracefully stops the Cloudstate instance.
 func (cs *CloudState) Stop() {
 	cs.grpcServer.GracefulStop()
-	fmt.Println("CloudState stopped")
+	log.Println("CloudState stopped")
 }

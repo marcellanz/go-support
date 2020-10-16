@@ -30,7 +30,7 @@ import (
 
 const snapshotEveryDefault = 100
 
-// Server is the implementation of the Server server API for EventSourced service.
+// Server is the implementation of the Server server API for the EventSourced service.
 type Server struct {
 	// mu protects the map below.
 	mu sync.RWMutex
@@ -46,19 +46,19 @@ func NewServer() *Server {
 }
 
 // Register registers an Entity a an event sourced entity for CloudState.
-func (s *Server) Register(e *Entity) error {
-	if e.EntityFunc == nil {
+func (s *Server) Register(entity *Entity) error {
+	if entity.EntityFunc == nil {
 		return errors.New("the entity has to define an EntityFunc but did not")
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, exists := s.entities[e.ServiceName]; exists {
-		return fmt.Errorf("an entity with service name: %s is already registered", e.ServiceName)
+	if _, exists := s.entities[entity.ServiceName]; exists {
+		return fmt.Errorf("an entity with service name: %s is already registered", entity.ServiceName)
 	}
-	if e.SnapshotEvery == 0 {
-		e.SnapshotEvery = snapshotEveryDefault
+	if entity.SnapshotEvery == 0 {
+		entity.SnapshotEvery = snapshotEveryDefault
 	}
-	s.entities[e.ServiceName] = e
+	s.entities[entity.ServiceName] = entity
 	return nil
 }
 
@@ -78,6 +78,7 @@ func (s *Server) Register(e *Entity) error {
 // if provided by the error. If an error is a protocol failure or any other error, a
 // EventSourcedStreamOut_Failure is sent. A protocol failure might provide a command id to
 // be included.
+// TODO: rephrase this to the new atomic failure pattern.
 func (s *Server) Handle(stream entity.EventSourced_HandleServer) error {
 	defer func() {
 		if r := recover(); r != nil {
@@ -86,8 +87,7 @@ func (s *Server) Handle(stream entity.EventSourced_HandleServer) error {
 			panic(r)
 		}
 	}()
-
-	// for any error we get other than codes.Canceled,
+	// For any error we get other than codes.Canceled,
 	// we send a protocol.Failure and close the stream.
 	if err := s.handle(stream); err != nil {
 		if status.Code(err) == codes.Canceled {
@@ -106,38 +106,40 @@ func (s *Server) handle(stream entity.EventSourced_HandleServer) error {
 	first, err := stream.Recv()
 	switch err {
 	case nil:
+		break
 	case io.EOF:
 		return nil
 	default:
 		return err
 	}
-	runner := &runner{stream: stream}
+	r := &runner{stream: stream}
 	switch m := first.GetMessage().(type) {
 	case *entity.EventSourcedStreamIn_Init:
-		if err := s.handleInit(m.Init, runner); err != nil {
+		if err := s.handleInit(m.Init, r); err != nil {
 			return err
 		}
 	default:
 		return fmt.Errorf("a message was received without having an EventSourcedInit message handled before: %+v", first.GetMessage())
 	}
 	for {
-		if runner.context.failed != nil {
+		if r.context.failed != nil {
 			// failed means deactivated. We may never get this far.
 			// context.failed should have been sent as a client reply failure.
-			// TODO: what do we report here
 			// see: https://github.com/cloudstateio/cloudstate/pull/119#discussion_r444851439
-			return fmt.Errorf("failed context was not reported: %w", runner.context.failed)
+			return fmt.Errorf("failed context was not reported: %w", r.context.failed)
 		}
-		msg, err := runner.stream.Recv()
-		if err == io.EOF {
+		msg, err := r.stream.Recv()
+		switch err {
+		case nil:
+			break
+		case io.EOF:
 			return nil
-		}
-		if err != nil {
+		default:
 			return err
 		}
 		switch m := msg.GetMessage().(type) {
 		case *entity.EventSourcedStreamIn_Command:
-			err := runner.handleCommand(m.Command)
+			err := r.handleCommand(m.Command)
 			if err == nil {
 				continue
 			}
@@ -149,7 +151,7 @@ func (s *Server) handle(stream entity.EventSourced_HandleServer) error {
 			}
 			return err
 		case *entity.EventSourcedStreamIn_Event:
-			if err := runner.handleEvent(m.Event); err != nil {
+			if err := r.handleEvent(m.Event); err != nil {
 				return err
 			}
 		case *entity.EventSourcedStreamIn_Init:
@@ -163,22 +165,22 @@ func (s *Server) handle(stream entity.EventSourced_HandleServer) error {
 }
 
 func (s *Server) handleInit(init *entity.EventSourcedInit, r *runner) error {
-	serviceName := ServiceName(init.GetServiceName())
+	service := ServiceName(init.GetServiceName())
 	s.mu.RLock()
-	entity, exists := s.entities[serviceName]
+	e, exists := s.entities[service]
 	s.mu.RUnlock()
 	if !exists {
-		return fmt.Errorf("received a command for an unknown eventsourced service: %v", serviceName)
+		return fmt.Errorf("received a command for an unknown eventsourced service: %q", service)
 	}
-	if entity.EntityFunc == nil {
-		return fmt.Errorf("entity.EntityFunc not defined: %v", serviceName)
+	if e.EntityFunc == nil {
+		return fmt.Errorf("entity.EntityFunc not defined: %q", service)
 	}
 
 	id := EntityId(init.GetEntityId())
 	r.context = &Context{
 		EntityId:           id,
-		EventSourcedEntity: entity,
-		Instance:           entity.EntityFunc(id),
+		EventSourcedEntity: e,
+		Instance:           e.EntityFunc(id),
 		eventSequence:      0,
 		ctx:                r.stream.Context(),
 	}

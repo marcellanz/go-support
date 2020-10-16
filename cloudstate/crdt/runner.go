@@ -23,7 +23,7 @@ import (
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
 )
 
-// runner runs a stream with the help of context.
+// runner runs a stream with the help of a context.
 type runner struct {
 	stream  entity.Crdt_HandleServer
 	context *Context
@@ -37,7 +37,11 @@ type runner struct {
 // because the value was deleted, this must be sent before any deltas.
 func (r *runner) handleState(state *entity.CrdtState) error {
 	if r.context.crdt == nil {
-		r.context.crdt = newFor(state)
+		s, err := newFor(state)
+		if err != nil {
+			return err
+		}
+		r.context.crdt = s
 	}
 	// state has to match the state type, applyState will err if not.
 	if err := r.context.crdt.applyState(state); err != nil {
@@ -65,14 +69,14 @@ func (r *runner) handleDelta(delta *entity.CrdtDelta) error {
 func (r *runner) handleCancellation(cancelled *protocol.StreamCancelled) error {
 	id := CommandId(cancelled.GetId())
 	ctx := r.context.streamedCtx[id]
-	// the cancelled stream is not allowed to handle changes, so we remove it.
+	// The cancelled stream is not allowed to handle changes, so we remove it.
 	delete(r.context.streamedCtx, id)
 	if ctx.cancel == nil {
 		return r.sendCancelledMessage(&entity.CrdtStreamCancelledResponse{
 			CommandId: id.Value(),
 		})
 	}
-	// notify the user about the cancellation.
+	// Notify the user about the cancellation.
 	if err := ctx.cancelled(); err != nil {
 		return err
 	}
@@ -85,6 +89,8 @@ func (r *runner) handleCancellation(cancelled *protocol.StreamCancelled) error {
 	if err != nil {
 		return err
 	}
+	// The state has been changed therefore streamed change handlers get
+	// informed.
 	if stateAction != nil {
 		return r.handleChange()
 	}
@@ -140,8 +146,11 @@ func (r *runner) handleCommand(cmd *protocol.Command) (streamError error) {
 		ClientAction: clientAction,
 		SideEffects:  ctx.sideEffects,
 		StateAction:  stateAction,
-		// TODO: does a user choose to have a command streamed?
-		//  marking the reply streamed while having a stream flag on the command seems superfluous.
+		// TODO: Does a user choose to have a command streamed?
+		//  Marking the reply streamed while having a stream flag on the command seems superfluous.
+		//  According to the JVM implementation this means "stream accepted" and therefore shows the proxy if
+		//  there are commands handling a streamed method.
+		// TODO(spec): feedback on spec about this.
 		Streamed: ctx.Streamed(),
 	})
 	if err != nil {

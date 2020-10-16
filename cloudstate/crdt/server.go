@@ -52,7 +52,7 @@ func (s *Server) Register(e *Entity) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, exists := s.entities[e.ServiceName]; exists {
-		return fmt.Errorf("an entity with service name: %s is already registered", e.ServiceName)
+		return fmt.Errorf("an entity with service name: %q is already registered", e.ServiceName)
 	}
 	s.entities[e.ServiceName] = e
 	return nil
@@ -102,14 +102,14 @@ func (s *Server) handle(stream entity.Crdt_HandleServer) error {
 	r := &runner{stream: stream}
 	switch m := first.GetMessage().(type) {
 	case *entity.CrdtStreamIn_Init:
-		// first, always a CrdtInit message must be received.
+		// First, always a CrdtInit message must be received.
 		if err = s.handleInit(m.Init, r); err != nil {
 			return fmt.Errorf("handling of CrdtInit failed with: %w", err)
 		}
 	default:
 		return fmt.Errorf("a message was received without having a CrdtInit message first: %v", m)
 	}
-	// handle all other messages after a CrdtInit message has been received.
+	// Handle all other messages after a CrdtInit message has been received.
 	for {
 		if r.context.deleted {
 			// With a context flagged deleted, a CrdtDelete
@@ -118,7 +118,7 @@ func (s *Server) handle(stream entity.Crdt_HandleServer) error {
 			return nil
 		}
 		if r.context.failed != nil {
-			// failed means deactivated. we may never get this far.
+			// `failed` means deactivated. We may never get this far.
 			return nil
 		}
 		msg, err := r.stream.Recv()
@@ -174,13 +174,13 @@ func (s *Server) handleInit(init *entity.CrdtInit, r *runner) error {
 	}
 	serviceName := ServiceName(init.GetServiceName())
 	s.mu.RLock()
-	entity, exists := s.entities[serviceName]
+	entity, ok := s.entities[serviceName]
 	s.mu.RUnlock()
-	if !exists {
-		return fmt.Errorf("received CrdtInit for an unknown crdt service: %v", serviceName)
+	if !ok {
+		return fmt.Errorf("received CrdtInit for an unknown crdt service: %q", serviceName)
 	}
 	if entity.EntityFunc == nil {
-		return fmt.Errorf("entity.EntityFunc not defined: %v", serviceName)
+		return fmt.Errorf("entity.EntityFunc is not defined for service: %q", serviceName)
 	}
 	id := EntityId(init.GetEntityId())
 	r.context = &Context{
@@ -188,15 +188,15 @@ func (s *Server) handleInit(init *entity.CrdtInit, r *runner) error {
 		Entity:      entity,
 		Instance:    entity.EntityFunc(id),
 		created:     false,
-		ctx:         r.stream.Context(), // this context is stable as long as the runner runs
+		ctx:         r.stream.Context(), // This context is stable as long as the runner runs.
 		streamedCtx: make(map[CommandId]*CommandContext),
 	}
-	// the init msg may have an initial state.
+	// The init message may have an initial state.
 	if state := init.GetState(); state != nil {
 		if err := r.handleState(state); err != nil {
 			return err
 		}
 	}
-	// the user entity can provide a CRDT through a default function if none is set.
+	// The user entity can provide a CRDT through a default function if none is set.
 	return r.context.initDefault()
 }

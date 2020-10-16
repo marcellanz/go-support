@@ -54,11 +54,10 @@ func (s *ORSet) Size() int {
 
 func (s *ORSet) Add(a *any.Any) {
 	h := s.hashAny(a)
-	_, exists := s.value[h]
-	if exists {
+	if _, ok := s.value[h]; ok {
 		return
 	}
-	if _, has := s.removed[h]; has {
+	if _, ok := s.removed[h]; ok {
 		delete(s.removed, h)
 	} else {
 		s.added[h] = a
@@ -68,8 +67,7 @@ func (s *ORSet) Add(a *any.Any) {
 
 func (s *ORSet) Remove(a *any.Any) {
 	h := s.hashAny(a)
-	_, exists := s.value[h]
-	if !exists {
+	if _, ok := s.value[h]; !ok {
 		return
 	}
 	if len(s.value) == 1 {
@@ -77,7 +75,7 @@ func (s *ORSet) Remove(a *any.Any) {
 		return
 	}
 	delete(s.value, h)
-	if _, has := s.added[h]; has {
+	if _, ok := s.added[h]; ok {
 		delete(s.added, h)
 	} else {
 		s.removed[h] = a
@@ -131,11 +129,7 @@ func (s *ORSet) applyState(state *entity.CrdtState) error {
 		return fmt.Errorf("unable to delta state %v to ORSet", state)
 	}
 	s.value = make(map[uint64]*any.Any)
-	items := set.GetItems()
-	if len(items) == 0 {
-		return nil
-	}
-	for _, a := range items {
+	for _, a := range set.GetItems() {
 		s.value[s.hashAny(a)] = a
 	}
 	return nil
@@ -177,7 +171,7 @@ func (s *ORSet) applyDelta(delta *entity.CrdtDelta) error {
 	}
 	for _, a := range d.GetAdded() {
 		h := s.hashAny(a)
-		if _, has := s.value[h]; !has {
+		if _, ok := s.value[h]; !ok {
 			s.value[h] = a
 		}
 	}

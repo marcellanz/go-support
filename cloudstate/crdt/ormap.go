@@ -91,47 +91,49 @@ func (m *ORMap) Get(key *any.Any) CRDT {
 }
 
 func (m *ORMap) Set(key *any.Any, value CRDT) {
-	hk := m.hashAny(key)
+	k := m.hashAny(key)
 	// why that?
-	if _, has := m.value[hk]; has {
-		if _, has := m.delta.added[hk]; !has {
-			m.delta.removed[hk] = key
+	if _, has := m.value[k]; has {
+		if _, has := m.delta.added[k]; !has {
+			m.delta.removed[k] = key
 		}
 	}
-	m.value[hk] = &orMapValue{
+	m.value[k] = &orMapValue{
 		key:   key,
 		value: value,
 	}
-	m.delta.added[hk] = key
+	m.delta.added[k] = key
 }
 
 func (m *ORMap) Delete(key *any.Any) {
-	hkey := m.hashAny(key)
-	if _, has := m.value[hkey]; has {
-		if len(m.value) == 1 {
-			m.Clear()
-		} else {
-			delete(m.value, hkey)
-			if _, has := m.delta.added[hkey]; has {
-				delete(m.delta.added, hkey)
-			} else {
-				m.delta.removed[hkey] = key
-			}
-		}
+	k := m.hashAny(key)
+	if _, has := m.value[k]; !has {
+		return
 	}
+	if len(m.value) == 1 {
+		m.Clear()
+		return
+	}
+	delete(m.value, k)
+	if _, has := m.delta.added[k]; has {
+		delete(m.delta.added, k)
+		return
+	}
+	m.delta.removed[k] = key
 }
 
 func (d *orMapDelta) clear() {
-	d.cleared = true
 	d.added = make(map[uint64]*any.Any)
 	d.removed = make(map[uint64]*any.Any)
+	d.cleared = true
 }
 
 func (m *ORMap) Clear() {
-	if len(m.value) > 0 {
-		m.value = make(map[uint64]*orMapValue)
-		m.delta.clear()
+	if len(m.value) == 0 {
+		return
 	}
+	m.value = make(map[uint64]*orMapValue)
+	m.delta.clear()
 }
 
 func (m *ORMap) HasDelta() bool {
@@ -150,8 +152,8 @@ func (m *ORMap) Delta() *entity.CrdtDelta {
 	if !m.HasDelta() {
 		return nil
 	}
-	updated := make([]*entity.ORMapEntryDelta, 0)
 	added := make([]*entity.ORMapEntry, 0)
+	updated := make([]*entity.ORMapEntryDelta, 0)
 	for _, v := range m.value {
 		if _, has := m.delta.added[m.hashAny(v.key)]; has {
 			added = append(added, &entity.ORMapEntry{
@@ -192,24 +194,22 @@ func (m *ORMap) applyDelta(delta *entity.CrdtDelta) error {
 		m.value = make(map[uint64]*orMapValue)
 	}
 	for _, r := range d.GetRemoved() {
-		if m.HasKey(r) {
-			delete(m.value, m.hashAny(r))
-		}
+		delete(m.value, m.hashAny(r))
 	}
 	for _, a := range d.Added {
 		if m.HasKey(a.GetKey()) {
 			continue
 		}
-		switch a.GetValue().GetState().(type) {
-		case *entity.CrdtState_Gcounter:
-			crdt := NewGCounter()
-			if err := crdt.applyState(a.GetValue()); err != nil {
-				return err
-			}
-			m.value[m.hashAny(a.GetKey())] = &orMapValue{
-				key:   a.GetKey(),
-				value: crdt,
-			}
+		state, err := newFor(a.GetValue())
+		if err != nil {
+			return err
+		}
+		if err := state.applyState(a.GetValue()); err != nil {
+			return err
+		}
+		m.value[m.hashAny(a.GetKey())] = &orMapValue{
+			key:   a.GetKey(),
+			value: state,
 		}
 	}
 	for _, u := range d.Updated {
@@ -255,9 +255,13 @@ func (m *ORMap) applyState(state *entity.CrdtState) error {
 	}
 	m.value = make(map[uint64]*orMapValue, len(s.GetEntries()))
 	for _, entry := range s.GetEntries() {
+		value, err := newFor(entry.GetValue())
+		if err != nil {
+			return err
+		}
 		v := &orMapValue{
 			key:   entry.GetKey(),
-			value: newFor(entry.GetValue()),
+			value: value,
 		}
 		if err := v.value.applyState(entry.GetValue()); err != nil {
 			return err

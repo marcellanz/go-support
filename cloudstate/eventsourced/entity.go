@@ -22,7 +22,8 @@ import (
 // Entity describes an event sourced entity. It is used to be registered as
 // an event sourced entity on a CloudState instance.
 type Entity struct {
-	// ServiceName is the fully qualified name of the service that implements this entities interface.
+	// ServiceName is the fully qualified name of the service that implements this
+	// entities interface.
 	// Setting it is mandatory.
 	ServiceName ServiceName
 	// PersistenceID is used to namespace events in the journal, useful for
