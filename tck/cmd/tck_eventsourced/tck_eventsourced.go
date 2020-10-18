@@ -25,13 +25,14 @@ import (
 	tck "github.com/cloudstateio/go-support/tck/eventsourced"
 )
 
+// tag::shopping-cart-main[]
 func main() {
 	server, err := cloudstate.New(protocol.Config{
 		ServiceName:    "cloudstate.tck.model.EventSourcedTckModel", // the servicename the proxy gets to know about
 		ServiceVersion: "0.2.0",
 	})
 	if err != nil {
-		log.Fatalf("cloudstate.New failed: %v", err)
+		log.Fatalf("cloudstate.New failed: %s", err)
 	}
 	err = server.RegisterEventSourced(
 		&eventsourced.Entity{
@@ -44,7 +45,7 @@ func main() {
 		},
 	)
 	if err != nil {
-		log.Fatalf("Cloudstate failed to register entity: %v", err)
+		log.Fatalf("Cloudstate failed to register entity: %s", err)
 	}
 	err = server.RegisterEventSourced(
 		&eventsourced.Entity{
@@ -57,8 +58,10 @@ func main() {
 		},
 	)
 	if err != nil {
-		log.Fatalf("Cloudstate failed to register entity: %v", err)
+		log.Fatalf("Cloudstate failed to register entity: %s", err)
 	}
+	// tag::event-sourced-entity-type[]
+	// tag::register[]
 	err = server.RegisterEventSourced(&eventsourced.Entity{
 		ServiceName:   "com.example.shoppingcart.ShoppingCart",
 		PersistenceID: "ShoppingCart",
@@ -66,11 +69,15 @@ func main() {
 	}, protocol.DescriptorConfig{
 		Service: "shoppingcart.proto",
 	}.AddDomainDescriptor("domain.proto"))
+	// end::register[]
 	if err != nil {
-		log.Fatalf("CloudState failed to register entity: %v", err)
+		log.Fatalf("CloudState failed to register entity: %s", err)
 	}
+	// end::event-sourced-entity-type[]
 	err = server.Run()
 	if err != nil {
 		log.Fatalf("Cloudstate failed to run: %v", err)
 	}
 }
+
+// end::shopping-cart-main[]

@@ -56,6 +56,7 @@ func (id CommandId) Value() int64 {
 	return int64(id)
 }
 
+// tag::entity-type[]
 type EntityHandler interface {
 	// HandleCommand is the code that handles a command. It
 	// may validate the command using the current state, and
@@ -71,6 +72,9 @@ type EntityHandler interface {
 	HandleEvent(ctx *Context, event interface{}) error
 }
 
+// end::entity-type[]
+
+// tag::snapshooter[]
 type Snapshooter interface {
 	// Snapshot is a recording of the entire current state of an entity,
 	// persisted periodically (eg, every 100 events), as an optimization.
@@ -80,3 +84,5 @@ type Snapshooter interface {
 	Snapshot(ctx *Context) (snapshot interface{}, err error)
 	HandleSnapshot(ctx *Context, snapshot interface{}) error
 }
+
+// end::snapshooter[]

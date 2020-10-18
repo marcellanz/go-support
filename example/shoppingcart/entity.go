@@ -26,20 +26,29 @@ import (
 )
 
 // A Cloudstate event sourced entity.
+// tag::entity-type[]
+// tag::entity-state[]
 type ShoppingCart struct {
 	// our domain object
 	cart []*domain.LineItem
 }
 
+// end::entity-state[]
+// end::entity-type[]
+
 // NewShoppingCart returns a new and initialized instance of the ShoppingCart entity.
+// tag::entity-func[]
 func NewShoppingCart(eventsourced.EntityId) eventsourced.EntityHandler {
 	return &ShoppingCart{
 		cart: make([]*domain.LineItem, 0),
 	}
 }
 
+// end::entity-func[]
+
 // ItemAdded is a event handler function for the ItemAdded event.
-func (sc *ShoppingCart) ItemAdded(added *domain.ItemAdded) error { // TODO: enable handling for values
+// tag::item-added[]
+func (sc *ShoppingCart) ItemAdded(added *domain.ItemAdded) error {
 	if added.Item.GetName() == "FAIL" {
 		return errors.New("boom: forced an unexpected error")
 	}
@@ -55,6 +64,8 @@ func (sc *ShoppingCart) ItemAdded(added *domain.ItemAdded) error { // TODO: enab
 	return nil
 }
 
+// end::item-added[]
+
 // ItemRemoved is a event handler function for the ItemRemoved event.
 func (sc *ShoppingCart) ItemRemoved(removed *domain.ItemRemoved) error {
 	if !sc.remove(removed.ProductId) {
@@ -64,7 +75,8 @@ func (sc *ShoppingCart) ItemRemoved(removed *domain.ItemRemoved) error {
 }
 
 // HandleEvent lets us handle events by ourselves.
-func (sc *ShoppingCart) HandleEvent(_ *eventsourced.Context, event interface{}) error {
+// tag::handle-event[]
+func (sc *ShoppingCart) HandleEvent(ctx *eventsourced.Context, event interface{}) error {
 	switch e := event.(type) {
 	case *domain.ItemAdded:
 		return sc.ItemAdded(e)
@@ -75,10 +87,13 @@ func (sc *ShoppingCart) HandleEvent(_ *eventsourced.Context, event interface{}) 
 	}
 }
 
+// end::handle-event[]
+
 // AddItem implements the AddItem command handling of the shopping cart service.
+// tag::add-item[]
 func (sc *ShoppingCart) AddItem(ctx *eventsourced.Context, li *AddLineItem) (*empty.Empty, error) {
 	if li.GetQuantity() <= 0 {
-		return nil, fmt.Errorf("cannot add negative quantity of to item %s", li.GetProductId())
+		return nil, fmt.Errorf("cannot add negative quantity of to item %q", li.GetProductId())
 	}
 	ctx.Emit(&domain.ItemAdded{
 		Item: &domain.LineItem{
@@ -88,6 +103,8 @@ func (sc *ShoppingCart) AddItem(ctx *eventsourced.Context, li *AddLineItem) (*em
 		}})
 	return &empty.Empty{}, nil
 }
+
+// end::add-item[]
 
 // RemoveItem implements the RemoveItem command handling of the shopping cart service.
 func (sc *ShoppingCart) RemoveItem(ctx *eventsourced.Context, li *RemoveLineItem) (*empty.Empty, error) {
@@ -99,6 +116,7 @@ func (sc *ShoppingCart) RemoveItem(ctx *eventsourced.Context, li *RemoveLineItem
 }
 
 // GetCart implements the GetCart command handling of the shopping cart service.
+// tag::get-cart[]
 func (sc *ShoppingCart) GetCart(*eventsourced.Context, *GetShoppingCart) (*Cart, error) {
 	cart := &Cart{}
 	for _, item := range sc.cart {
@@ -111,7 +129,10 @@ func (sc *ShoppingCart) GetCart(*eventsourced.Context, *GetShoppingCart) (*Cart,
 	return cart, nil
 }
 
+// end::get-cart[]
+
 // HandleCommand is the entities command handler implemented by the shopping cart.
+// tag::handle-command[]
 func (sc *ShoppingCart) HandleCommand(ctx *eventsourced.Context, name string, cmd proto.Message) (proto.Message, error) {
 	switch c := cmd.(type) {
 	case *GetShoppingCart:
@@ -125,23 +146,31 @@ func (sc *ShoppingCart) HandleCommand(ctx *eventsourced.Context, name string, cm
 	}
 }
 
+// end::handle-command[]
+
 // Snapshot returns the current state of the shopping cart.
+// tag::snapshot[]
 func (sc *ShoppingCart) Snapshot(*eventsourced.Context) (snapshot interface{}, err error) {
 	return &domain.Cart{
 		Items: append(make([]*domain.LineItem, 0, len(sc.cart)), sc.cart...),
 	}, nil
 }
 
+// end::snapshot[]
+
 // HandleSnapshot applies given snapshot to be the current state.
+// tag::handle-snapshot[]
 func (sc *ShoppingCart) HandleSnapshot(ctx *eventsourced.Context, snapshot interface{}) error {
 	switch value := snapshot.(type) {
-	case *domain.Cart: // missed because of non-pointer type!!!
+	case *domain.Cart:
 		sc.cart = append(sc.cart[:0], value.Items...)
 		return nil
 	default:
 		return fmt.Errorf("unknown snapshot type: %v", value)
 	}
 }
+
+// end::handle-snapshot[]
 
 // find finds a product in the shopping cart by productId and returns it as a LineItem.
 func (sc *ShoppingCart) find(productId string) (item *domain.LineItem, index int) {
