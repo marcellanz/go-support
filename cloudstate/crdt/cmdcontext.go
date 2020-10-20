@@ -74,6 +74,7 @@ func (c *CommandContext) Command() *protocol.Command {
 	return c.cmd
 }
 
+// Streamed returns whether the command handled by the context is streamed.
 func (c *CommandContext) Streamed() bool {
 	if c.cmd == nil {
 		return false

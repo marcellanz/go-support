@@ -69,8 +69,8 @@ func (m *ORMap) Size() int {
 
 func (m *ORMap) Values() []*entity.CrdtState {
 	values := make([]*entity.CrdtState, 0, len(m.value))
-	for i, v := range m.value {
-		values[i] = v.value.State()
+	for _, v := range m.value {
+		values = append(values, v.value.State())
 	}
 	return values
 }

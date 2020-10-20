@@ -502,6 +502,13 @@ func TestORMap(t *testing.T) {
 }
 
 func TestORMapAdditional(t *testing.T) {
+	t.Run("should return values", func(t *testing.T) {
+		s := NewORMap()
+		s.Set(encoding.String("one"), NewFlag())
+		s.Set(encoding.String("two"), NewFlag())
+		s.Set(encoding.String("three"), NewFlag())
+		s.Values()
+	})
 	t.Run("apply invalid delta", func(t *testing.T) {
 		s := NewORMap()
 		if err := s.applyDelta(&entity.CrdtDelta{

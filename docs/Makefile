@@ -46,6 +46,8 @@ attributes: ${cloudstate_antora}
 
 examples:
 	# also create empty go module to ignore example sources
+	# https://youtrack.jetbrains.com/issue/GO-9320
+	# https://github.com/golang/go/issues/30058
 	mkdir -p "${managed_examples}"
 	touch "${managed_examples}/go.mod"
 	$(call copy_example,cloudstate/eventsourced/entity.go)

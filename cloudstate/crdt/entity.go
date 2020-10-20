@@ -35,5 +35,5 @@ type Entity struct {
 type EntityHandler interface {
 	HandleCommand(ctx *CommandContext, name string, msg proto.Message) (*any.Any, error)
 	Default(ctx *Context) (CRDT, error)
-	Set(ctx *Context, crdt CRDT) error
+	Set(ctx *Context, state CRDT) error
 }

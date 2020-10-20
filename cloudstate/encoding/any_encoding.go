@@ -22,6 +22,14 @@ func DecodeInt64(a *any.Any) int64 {
 	return i.(int64)
 }
 
+func StringMust(s string) *any.Any {
+	primitive, err := MarshalPrimitive(s)
+	if err != nil {
+		panic(err)
+	}
+	return primitive
+}
+
 func String(s string) *any.Any {
 	primitive, _ := MarshalPrimitive(s)
 	return primitive
