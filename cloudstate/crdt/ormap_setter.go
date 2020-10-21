@@ -109,35 +109,3 @@ func (m *ORMap) Vote(key *any.Any) (*Vote, error) {
 	}
 	return nil, nil
 }
-
-func (m *ORMap) SetFlag(key *any.Any, flag *Flag) {
-	m.Set(key, flag)
-}
-
-func (m *ORMap) SetGCounter(key *any.Any, counter *GCounter) {
-	m.Set(key, counter)
-}
-
-func (m *ORMap) SetGSet(key *any.Any, set *GSet) {
-	m.Set(key, set)
-}
-
-func (m *ORMap) SetLWWRegister(key *any.Any, register *LWWRegister) {
-	m.Set(key, register)
-}
-
-func (m *ORMap) SetORMap(key *any.Any, orMap *ORMap) {
-	m.Set(key, orMap)
-}
-
-func (m *ORMap) SetORSet(key *any.Any, set *ORSet) {
-	m.Set(key, set)
-}
-
-func (m *ORMap) SetPNCounter(key *any.Any, counter *PNCounter) {
-	m.Set(key, counter)
-}
-
-func (m *ORMap) SetVote(key *any.Any, vote *Vote) {
-	m.Set(key, vote)
-}

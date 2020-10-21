@@ -30,6 +30,19 @@ protoc --go_out=plugins=grpc,paths=source_relative:./tck/eventsourced \
   --proto_path=protobuf/tck/cloudstate/tck/model \
   --proto_path=protobuf/tck eventsourced.proto
 
+# CRDT shopping cart example
+protoc --go_out=plugins=grpc,paths=source_relative:./example/crdt_shoppingcart/shoppingcart --proto_path=protobuf/protocol \
+  --proto_path=protobuf/frontend \
+  --proto_path=protobuf/frontend/cloudstate \
+  --proto_path=protobuf/proxy \
+  --proto_path=example/crdt_shoppingcart/shoppingcart shoppingcart.proto hotitems.proto
+
+protoc --go_out=plugins=grpc,paths=source_relative:./example/crdt_shoppingcart/domain --proto_path=protobuf/protocol \
+  --proto_path=protobuf/frontend \
+  --proto_path=protobuf/frontend/cloudstate \
+  --proto_path=protobuf/proxy \
+  --proto_path=example/crdt_shoppingcart/domain domain.proto
+
 # shopping cart example
 protoc --go_out=plugins=grpc,paths=source_relative:./example/shoppingcart/ \
   --proto_path=protobuf/protocol \
