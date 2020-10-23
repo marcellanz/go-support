@@ -32,8 +32,11 @@ type Entity struct {
 
 // EntityHandler has to be implemented by any type that wants to get
 // registered as a crdt.Entity
+// tag::entity-handler[]
 type EntityHandler interface {
 	HandleCommand(ctx *CommandContext, name string, msg proto.Message) (*any.Any, error)
 	Default(ctx *Context) (CRDT, error)
 	Set(ctx *Context, state CRDT) error
 }
+
+// end::entity-handler[]

@@ -17,10 +17,14 @@ package synth
 
 import (
 	"context"
+	"fmt"
+	"reflect"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/cloudstateio/go-support/cloudstate/protocol"
+	"github.com/cloudstateio/go-support/example/crdt_shoppingcart/shoppingcart"
 )
 
 // TestCRDT runs the TCK for the CRDT state model.
@@ -29,12 +33,22 @@ import (
 // - create
 // - update
 // - delete
+
+func Command(i interface{}) string {
+	// github.com/cloudstateio/go-support/example/crdt_shoppingcart/shoppingcart.ShoppingCartServiceServer.AddItem
+	return runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()
+}
+
 func TestCRDT(t *testing.T) {
 	s := newServer(t)
 	s.newClientConn()
 	defer s.teardown()
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
+
+	t.Run("huh", func(t *testing.T) {
+		fmt.Println(Command(shoppingcart.ShoppingCartServiceServer.AddItem))
+	})
 
 	t.Run("entity discovery should find the service", func(t *testing.T) {
 		edc := protocol.NewEntityDiscoveryClient(s.conn)

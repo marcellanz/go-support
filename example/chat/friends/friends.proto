@@ -22,7 +22,7 @@ import "cloudstate/entity_key.proto";
 
 package cloudstate.samples.chat.friends;
 
-option go_package = ".;friends";
+option go_package = "github.com/cloudstateio/go-support/example/chat/friends;friends";
 
 message Friend {
     string user = 1;

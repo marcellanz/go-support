@@ -78,6 +78,7 @@ func (c *Context) fail(err error) {
 func (c *Context) initDefault() error {
 	// with a handled state, the CRDT might already be set.
 	if c.crdt != nil {
+		// TODO: the type of c.Instance.Default(c) and c.crdt have to match. should we check that?
 		return c.Instance.Set(c, c.crdt)
 	}
 	// with no state given, the entity instance can provide one.

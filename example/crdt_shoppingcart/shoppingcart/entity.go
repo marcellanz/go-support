@@ -2,6 +2,8 @@ package shoppingcart
 
 import (
 	"errors"
+	"reflect"
+	"runtime"
 
 	"github.com/cloudstateio/go-support/cloudstate/crdt"
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
@@ -12,8 +14,13 @@ import (
 //go:generate protoc --go_out=plugins=grpc,paths=source_relative:./example/crdt_shoppingcart/shoppingcart --proto_path=protobuf/protocol --proto_path=protobuf/frontend --proto_path=protobuf/frontend/cloudstate --proto_path=protobuf/proxy --proto_path=example/crdt_shoppingcart/shoppingcart proto
 
 type ShoppingCart struct {
-	// items *crdt.LWWRegister
 	items *crdt.ORMap
+
+	ShoppingCartServiceServer
+}
+
+func NewShoppingCart(id crdt.EntityId) crdt.EntityHandler {
+	return &ShoppingCart{}
 }
 
 func (s *ShoppingCart) getCart() (*Cart, error) {
@@ -28,7 +35,17 @@ func (s *ShoppingCart) getCart() (*Cart, error) {
 	return items, nil
 }
 
+func Command(i interface{}) string {
+	return runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()
+}
+
+// tag::command-handling-getcart-0[]
+// tag::add-item-0[]
 func (s *ShoppingCart) HandleCommand(ctx *crdt.CommandContext, name string, msg proto.Message) (*any.Any, error) {
+	// end::command-handling-getcart-0[]
+	// end::add-item-0[]
+
+	// tag::watch-cart[]
 	switch name {
 	case "WatchCart":
 		ctx.ChangeFunc(func(c *crdt.CommandContext) (*any.Any, error) {
@@ -44,14 +61,19 @@ func (s *ShoppingCart) HandleCommand(ctx *crdt.CommandContext, name string, msg 
 		}
 		return encoding.MarshalAny(cart)
 	}
-
+	// end::watch-cart[]
+	// tag::command-handling-getcart-1[]
+	// tag::add-item-1[]
 	switch m := msg.(type) {
+	// end::add-item-1[]
 	case *GetShoppingCart:
 		cart, err := s.getCart()
 		if err != nil {
 			return nil, err
 		}
 		return encoding.MarshalAny(cart)
+	// end::command-handling-getcart-1[]
+	// tag::add-item-2[]
 	case *AddLineItem:
 		if m.GetQuantity() <= 0 {
 			return nil, errors.New("cannot add a negative quantity of items")
@@ -77,21 +99,20 @@ func (s *ShoppingCart) HandleCommand(ctx *crdt.CommandContext, name string, msg 
 		}
 		s.items.Set(key, reg)
 		return encoding.Empty, nil
+	// end::add-item-2[]
 	default:
 		return nil, nil
 	}
 }
 
+// tag::creation[]
 func (s *ShoppingCart) Default(ctx *crdt.Context) (crdt.CRDT, error) {
-	return crdt.NewLWWRegister(nil), nil
+	return crdt.NewORMap(), nil
 }
 
 func (s *ShoppingCart) Set(ctx *crdt.Context, state crdt.CRDT) error {
-	switch c := state.(type) {
-	case *crdt.ORMap:
-		s.items = c
-		return nil
-	default:
-		return errors.New("unable to set state")
-	}
+	s.items = state.(*crdt.ORMap)
+	return nil
 }
+
+// end::creation[]

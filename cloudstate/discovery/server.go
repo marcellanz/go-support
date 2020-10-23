@@ -34,8 +34,10 @@ import (
 )
 
 const (
-	SupportLibraryVersion = "0.2.0"
 	SupportLibraryName    = "cloudstate-go-support"
+	SupportLibraryVersion = "0.2.0"
+	ProtocolMajorVersion  = 0
+	ProtocolMinorVersion  = 2
 )
 
 // EntityDiscoveryServer implements the Cloudstate discovery protocol.
@@ -56,8 +58,8 @@ func NewServer(config protocol.Config) *EntityDiscoveryServer {
 				ServiceRuntime:        fmt.Sprintf("%s %s/%s", runtime.Version(), runtime.GOOS, runtime.GOARCH),
 				SupportLibraryName:    SupportLibraryName,
 				SupportLibraryVersion: SupportLibraryVersion,
-				ProtocolMajorVersion:  0,
-				ProtocolMinorVersion:  2,
+				ProtocolMajorVersion:  ProtocolMajorVersion,
+				ProtocolMinorVersion:  ProtocolMinorVersion,
 			},
 		},
 		fileDescriptorSet: &filedescr.FileDescriptorSet{

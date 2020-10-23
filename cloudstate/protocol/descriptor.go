@@ -20,7 +20,7 @@ func (dc DescriptorConfig) AddDomainMessage(m descriptor.Message) DescriptorConf
 	return dc
 }
 
-func (dc DescriptorConfig) AddDomainDescriptor(filename string) DescriptorConfig {
-	dc.Domain = append(dc.Domain, filename)
+func (dc DescriptorConfig) AddDomainDescriptor(filename ...string) DescriptorConfig {
+	dc.Domain = append(dc.Domain, filename...)
 	return dc
 }

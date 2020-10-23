@@ -51,9 +51,13 @@ examples:
 	mkdir -p "${managed_examples}"
 	touch "${managed_examples}/go.mod"
 	$(call copy_example,cloudstate/eventsourced/entity.go)
+	$(call copy_example,cloudstate/crdt/entity.go)
 	$(call copy_example,example/shoppingcart/entity.go)
 	$(call copy_example,example/shoppingcart/persistence/domain.proto)
 	$(call copy_example,tck/cmd/tck_eventsourced/tck_eventsourced.go)
+	$(call copy_example,example/crdt_shoppingcart/shoppingcart/entity.go)
+	$(call copy_example,example/crdt_shoppingcart/cmd/crdt_shoppingcart.go)
+
 
 ${descriptor}: ${cloudstate_antora}
 	mkdir -p $$(dirname ${descriptor})
