@@ -151,7 +151,7 @@ If the same value serializes to two different sets of bytes on different occasio
 This is particularly relevant when using protocol buffers.
 The ordering of map entries in a serialized protocol buffers is undefined, and very often will be different for two equal maps.
 Hence, maps should never be used as keys in `ORMap` or as values in `GSet`, `ORSet`.
-For the rest of the protocol buffers specification, while no guarantees are made on the stability by the specification itself, the Go protocol buffer libraries do https://github.com/protocolbuffers/protobuf-go/blob/v1.25.0/proto/encode.go#L31-L52[produce stable orderings of fields and stable output of non-map values].
+For the rest of the protocol buffers specification, while no guarantees are made on the stability by the specification itself, the Go protocol buffer libraries do https://pkg.go.dev/google.golang.org/protobuf/proto#MarshalOptions[produce stable orderings of fields and stable output of non-map values].
 
 Care should be taken when changing the structure of protocol buffers.
 Many changes that are backwards compatible from a protocol buffer standpoint do not necessarily translate into stable serializations.
