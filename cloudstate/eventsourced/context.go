@@ -67,13 +67,8 @@ func (c *Context) Emit(event interface{}) {
 // run in "blocking" mode, ie. the commands are processed in order, one at a time.
 // The final result of the command handler, either a reply or a forward, is not
 // sent until all synchronous commands are completed.
-func (c *Context) Effect(serviceName string, command string, payload *any.Any, synchronous bool) {
-	c.sideEffects = append(c.sideEffects, &protocol.SideEffect{
-		ServiceName: serviceName,
-		CommandName: command,
-		Payload:     payload,
-		Synchronous: synchronous,
-	})
+func (c *Context) Effect(effect *protocol.SideEffect) {
+	c.sideEffects = append(c.sideEffects, effect)
 }
 
 // Forward sets a protocol.Forward to where a command is forwarded to.
@@ -86,12 +81,8 @@ func (c *Context) Effect(serviceName string, command string, payload *any.Any, s
 // have successfully completed. It is the responsibility of the forwarded action to return
 // a reply that matches the type of the original command handler. Forwards can be chained
 // arbitrarily long.
-func (c *Context) Forward(serviceName string, command string, payload *any.Any) {
-	c.forward = &protocol.Forward{
-		ServiceName: serviceName,
-		CommandName: command,
-		Payload:     payload,
-	}
+func (c *Context) Forward(forward *protocol.Forward) {
+	c.forward = forward
 }
 
 // StreamCtx returns the context.Context for the contexts' current running stream.

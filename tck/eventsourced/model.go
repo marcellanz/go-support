@@ -20,6 +20,7 @@ import (
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
 	"github.com/cloudstateio/go-support/cloudstate/eventsourced"
+	"github.com/cloudstateio/go-support/cloudstate/protocol"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -43,13 +44,22 @@ func (m *TestModel) HandleCommand(ctx *eventsourced.Context, name string, cmd pr
 				if err != nil {
 					return nil, err
 				}
-				ctx.Forward("cloudstate.model.EventSourcedTwo", "Call", any)
+				ctx.Forward(&protocol.Forward{
+					ServiceName: "cloudstate.model.EventSourcedTwo",
+					CommandName: "Call",
+					Payload:     any,
+				})
 			case *RequestAction_Effect:
 				req, err := encoding.MarshalAny(&Request{Id: a.Effect.Id})
 				if err != nil {
 					return nil, err
 				}
-				ctx.Effect("cloudstate.model.EventSourcedTwo", "Call", req, a.Effect.Synchronous)
+				ctx.Effect(&protocol.SideEffect{
+					ServiceName: "cloudstate.model.EventSourcedTwo",
+					CommandName: "Call",
+					Payload:     req,
+					Synchronous: a.Effect.Synchronous,
+				})
 			case *RequestAction_Fail:
 				return nil, errors.New(a.Fail.GetMessage())
 			}

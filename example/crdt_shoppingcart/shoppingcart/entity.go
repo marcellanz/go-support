@@ -15,8 +15,6 @@ import (
 
 type ShoppingCart struct {
 	items *crdt.ORMap
-
-	ShoppingCartServiceServer
 }
 
 func NewShoppingCart(id crdt.EntityId) crdt.EntityHandler {

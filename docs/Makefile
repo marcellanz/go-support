@@ -57,7 +57,7 @@ examples:
 	$(call copy_example,tck/cmd/tck_eventsourced/tck_eventsourced.go)
 	$(call copy_example,example/crdt_shoppingcart/shoppingcart/entity.go)
 	$(call copy_example,example/crdt_shoppingcart/cmd/crdt_shoppingcart.go)
-
+	$(call copy_example,example/effects/shoppingcart/entity.go)
 
 ${descriptor}: ${cloudstate_antora}
 	mkdir -p $$(dirname ${descriptor})
