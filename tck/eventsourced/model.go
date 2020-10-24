@@ -45,7 +45,7 @@ func (m *TestModel) HandleCommand(ctx *eventsourced.Context, name string, cmd pr
 					return nil, err
 				}
 				ctx.Forward(&protocol.Forward{
-					ServiceName: "cloudstate.model.EventSourcedTwo",
+					ServiceName: "cloudstate.tck.model.EventSourcedTwo",
 					CommandName: "Call",
 					Payload:     any,
 				})
@@ -55,7 +55,7 @@ func (m *TestModel) HandleCommand(ctx *eventsourced.Context, name string, cmd pr
 					return nil, err
 				}
 				ctx.Effect(&protocol.SideEffect{
-					ServiceName: "cloudstate.model.EventSourcedTwo",
+					ServiceName: "cloudstate.tck.model.EventSourcedTwo",
 					CommandName: "Call",
 					Payload:     req,
 					Synchronous: a.Effect.Synchronous,
