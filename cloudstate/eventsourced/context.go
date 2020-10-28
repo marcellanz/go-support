@@ -24,7 +24,7 @@ import (
 )
 
 type Context struct {
-	EntityId EntityId
+	EntityID EntityID
 	// EventSourcedEntity describes the instance hold by the EntityInstance.
 	EventSourcedEntity *Entity
 	// Instance is an instance of the registered entity.

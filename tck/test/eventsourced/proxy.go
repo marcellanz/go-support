@@ -30,7 +30,7 @@ func newProxy(ctx context.Context, s *server) *proxy {
 	return &proxy{t: s.t, h: h, seq: 1}
 }
 
-func (p *proxy) checkCommandId(m interface{}) {
+func (p *proxy) checkCommandID(m interface{}) {
 	p.t.Helper()
 	switch m := m.(type) {
 	case *entity.EventSourcedStreamOut_Reply:

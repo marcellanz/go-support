@@ -63,17 +63,17 @@ func (e *TestEntity) HandleSnapshot(_ *Context, snapshot interface{}) error {
 	return nil
 }
 
-func (te *TestEntity) IncrementBy(n int64) (int64, error) {
-	te.Value += n
-	return te.Value, nil
+func (e *TestEntity) IncrementBy(n int64) (int64, error) {
+	e.Value += n
+	return e.Value, nil
 }
 
-func (te *TestEntity) DecrementBy(n int64) (int64, error) {
-	te.Value -= n
-	return te.Value, nil
+func (e *TestEntity) DecrementBy(n int64) (int64, error) {
+	e.Value -= n
+	return e.Value, nil
 }
 
-// initialize value to <0 let us check whether an initCommand works
+// Initialize value to <0 let us check whether an initCommand works.
 var testEntity = &TestEntity{
 	Value: -1,
 }
@@ -85,7 +85,7 @@ func resetTestEntity() {
 }
 
 // IncrementByCommand with value receiver.
-func (te *TestEntity) IncrementByCommand(ctx *Context, ibc *IncrementByCommand) (*empty.Empty, error) {
+func (e *TestEntity) IncrementByCommand(ctx *Context, ibc *IncrementByCommand) (*empty.Empty, error) {
 	ctx.Emit(&IncrementByEvent{
 		Value: ibc.Amount,
 	})
@@ -93,7 +93,7 @@ func (te *TestEntity) IncrementByCommand(ctx *Context, ibc *IncrementByCommand) 
 }
 
 // DecrementByCommand with pointer receiver.
-func (te *TestEntity) DecrementByCommand(ctx *Context, ibc *DecrementByCommand) (*empty.Empty, error) {
+func (e *TestEntity) DecrementByCommand(ctx *Context, ibc *DecrementByCommand) (*empty.Empty, error) {
 	ctx.Emit(&DecrementByEvent{
 		Value: ibc.Amount,
 	})
@@ -128,18 +128,18 @@ func (inc DecrementByEvent) ProtoMessage() {
 func (inc DecrementByEvent) Reset() {
 }
 
-func (te *TestEntity) DecrementByEvent(d *DecrementByEvent) error {
-	_, err := te.DecrementBy(d.Value)
+func (e *TestEntity) DecrementByEvent(d *DecrementByEvent) error {
+	_, err := e.DecrementBy(d.Value)
 	return err
 }
 
-func (te *TestEntity) HandleEvent(_ *Context, event interface{}) error {
-	switch e := event.(type) {
+func (e *TestEntity) HandleEvent(_ *Context, event interface{}) error {
+	switch evt := event.(type) {
 	case *IncrementByEvent:
-		_, err := te.IncrementBy(e.Value)
+		_, err := e.IncrementBy(evt.Value)
 		return err
 	case *DecrementByEvent:
-		_, err := te.DecrementBy(e.Value)
+		_, err := e.DecrementBy(evt.Value)
 		return err
 	default:
 		return nil
@@ -174,7 +174,7 @@ func (inc DecrementByCommand) ProtoMessage() {
 func (inc DecrementByCommand) Reset() {
 }
 
-// TestEventSourcedHandleServer is a grpc.ServerStream mock
+// TestEventSourcedHandleServer is a grpc.ServerStream mock.
 type TestEventSourcedHandleServer struct {
 	grpc.ServerStream
 }
@@ -193,7 +193,7 @@ func (t TestEventSourcedHandleServer) Recv() (*entity.EventSourcedStreamIn, erro
 func newHandler(t *testing.T) *Server {
 	handler := NewServer()
 	entity := Entity{
-		EntityFunc: func(id EntityId) EntityHandler {
+		EntityFunc: func(id EntityID) EntityHandler {
 			resetTestEntity()
 			testEntity.Value = 0
 			return testEntity

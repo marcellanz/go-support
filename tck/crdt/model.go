@@ -29,7 +29,7 @@ import (
 )
 
 type TestModel struct {
-	id          crdt.EntityId
+	id          crdt.EntityID
 	gCounter    *crdt.GCounter
 	pnCounter   *crdt.PNCounter
 	gSet        *crdt.GSet
@@ -40,7 +40,7 @@ type TestModel struct {
 	orMap       *crdt.ORMap
 }
 
-func NewEntity(id crdt.EntityId) *TestModel {
+func NewEntity(id crdt.EntityID) *TestModel {
 	return &TestModel{id: id}
 }
 
@@ -67,7 +67,7 @@ func (s *TestModel) Set(_ *crdt.Context, c crdt.CRDT) error {
 }
 
 func (s *TestModel) Default(c *crdt.Context) (crdt.CRDT, error) {
-	switch strings.Split(c.EntityId.String(), "-")[0] {
+	switch strings.Split(c.EntityID.String(), "-")[0] {
 	case "gcounter":
 		return crdt.NewGCounter(), nil
 	case "pncounter":
@@ -321,36 +321,36 @@ func (s *TestModel) HandleCommand(cc *crdt.CommandContext, name string, cmd prot
 				// we reuse this entities implementation to handle
 				// requests for CRDT values of this ORMap.
 				//
-				var entityId string
+				var entityID string
 				var req proto.Message
 				switch t := a.Request.GetRequest().(type) {
 				case *ORMapActionRequest_GCounterRequest:
-					entityId = "gcounter"
+					entityID = "gcounter"
 					req = t.GCounterRequest
 				case *ORMapActionRequest_FlagRequest:
-					entityId = "flag"
+					entityID = "flag"
 					req = t.FlagRequest
 				case *ORMapActionRequest_GsetRequest:
-					entityId = "gset"
+					entityID = "gset"
 					req = t.GsetRequest
 				case *ORMapActionRequest_LwwRegisterRequest:
-					entityId = "lwwregister"
+					entityID = "lwwregister"
 					req = t.LwwRegisterRequest
 				case *ORMapActionRequest_OrMapRequest: // yeah, really!
-					entityId = "ormap"
+					entityID = "ormap"
 					req = t.OrMapRequest
 				case *ORMapActionRequest_OrSetRequest:
-					entityId = "orset"
+					entityID = "orset"
 					req = t.OrSetRequest
 				case *ORMapActionRequest_VoteRequest:
-					entityId = "pncounter"
+					entityID = "pncounter"
 					req = t.VoteRequest
 				case *ORMapActionRequest_PnCounterRequest:
-					entityId = "pncounter"
+					entityID = "pncounter"
 					req = t.PnCounterRequest
 				}
 				if err := s.runRequest(
-					&crdt.CommandContext{Context: &crdt.Context{EntityId: crdt.EntityId(entityId)}},
+					&crdt.CommandContext{Context: &crdt.Context{EntityID: crdt.EntityID(entityID)}},
 					a.Request.GetEntryKey(),
 					req,
 				); err != nil {

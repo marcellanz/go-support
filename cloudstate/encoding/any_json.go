@@ -41,7 +41,7 @@ func MarshalJSON(value interface{}) (*any.Any, error) {
 	}
 	buffer := proto.NewBuffer(make([]byte, 0))
 	buffer.SetDeterministic(true)
-	typeUrl := fmt.Sprintf("%s/%s.%s", JSONTypeURLPrefix, typeOf.PkgPath(), typeOf.Name())
+	typeURL := fmt.Sprintf("%s/%s.%s", JSONTypeURLPrefix, typeOf.PkgPath(), typeOf.Name())
 	_ = buffer.EncodeVarint(fieldKey | proto.WireBytes)
 	bytes, err := json.Marshal(value)
 	if err != nil {
@@ -49,7 +49,7 @@ func MarshalJSON(value interface{}) (*any.Any, error) {
 	}
 	_ = buffer.EncodeRawBytes(bytes)
 	return &any.Any{
-		TypeUrl: typeUrl,
+		TypeUrl: typeURL,
 		Value:   buffer.Bytes(),
 	}, nil
 }

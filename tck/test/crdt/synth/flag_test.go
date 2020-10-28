@@ -31,15 +31,15 @@ func TestCRDTFlag(t *testing.T) {
 	defer cancel()
 
 	t.Run("Flag", func(t *testing.T) {
-		entityId := "flag-1"
+		entityID := "flag-1"
 		command := "ProcessFlag"
 		p := newProxy(ctx, s)
 		defer p.teardown()
 
-		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityID})
 		t.Run("Get emits client action", func(t *testing.T) {
 			tr := tester{t}
-			switch m := p.command(entityId, command,
+			switch m := p.command(entityID, command,
 				flagRequest(&crdt.Get{}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
@@ -57,7 +57,7 @@ func TestCRDTFlag(t *testing.T) {
 		})
 		t.Run("FlagEnable emits client action and create state action", func(t *testing.T) {
 			tr := tester{t}
-			switch m := p.command(entityId, command,
+			switch m := p.command(entityID, command,
 				flagRequest(&crdt.FlagEnable{}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
@@ -78,7 +78,7 @@ func TestCRDTFlag(t *testing.T) {
 		})
 		t.Run("Delete emits client action and delete state action", func(t *testing.T) {
 			tr := tester{t}
-			switch m := p.command(entityId, command,
+			switch m := p.command(entityID, command,
 				flagRequest(&crdt.Delete{}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
@@ -100,10 +100,10 @@ func TestCRDTFlag(t *testing.T) {
 			p := newProxy(ctx, s)
 			defer p.teardown()
 
-			entityId = "flag-2"
-			p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+			entityID = "flag-2"
+			p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityID})
 			p.state(&entity.FlagState{Value: true})
-			switch m := p.command(entityId, command,
+			switch m := p.command(entityID, command,
 				flagRequest(&crdt.Get{}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
@@ -127,10 +127,10 @@ func TestCRDTFlag(t *testing.T) {
 			p := newProxy(ctx, s)
 			defer p.teardown()
 
-			entityId = "flag-3"
-			p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+			entityID = "flag-3"
+			p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityID})
 			p.delta(&entity.FlagDelta{Value: true})
-			switch m := p.command(entityId, command,
+			switch m := p.command(entityID, command,
 				flagRequest(&crdt.Get{}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:

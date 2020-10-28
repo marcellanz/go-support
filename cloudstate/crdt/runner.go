@@ -67,7 +67,7 @@ func (r *runner) handleDelta(delta *entity.CrdtDelta) error {
 // the crdt is being used to track connections, for example, when using Vote
 // CRDTs to track a users online status.
 func (r *runner) handleCancellation(cancelled *protocol.StreamCancelled) error {
-	id := CommandId(cancelled.GetId())
+	id := CommandID(cancelled.GetId())
 	ctx := r.context.streamedCtx[id]
 	// The cancelled stream is not allowed to handle changes, so we remove it.
 	delete(r.context.streamedCtx, id)
@@ -109,8 +109,8 @@ func (r *runner) handleCancellation(cancelled *protocol.StreamCancelled) error {
 // in response to the CRDT changing. In this way, use cases that require monitoring
 // the state of a CRDT can be implemented.
 func (r *runner) handleCommand(cmd *protocol.Command) (streamError error) {
-	if r.context.EntityId != EntityId(cmd.EntityId) {
-		return fmt.Errorf("the command entity id: %s does not match the initialized entity id: %s", cmd.EntityId, r.context.EntityId)
+	if r.context.EntityID != EntityID(cmd.EntityId) {
+		return fmt.Errorf("the command entity id: %s does not match the initialized entity id: %s", cmd.EntityId, r.context.EntityID)
 	}
 	ctx := r.context.commandContextFor(cmd)
 	reply, err := ctx.runCommand(cmd)
@@ -136,13 +136,13 @@ func (r *runner) handleCommand(cmd *protocol.Command) (streamError error) {
 	}
 	if ctx.failed != nil {
 		return r.sendCrdtReply(&entity.CrdtReply{
-			CommandId:    ctx.CommandId.Value(),
+			CommandId:    ctx.CommandID.Value(),
 			ClientAction: clientAction, // this is a ClientAction_Failure
 		})
 	}
 	stateAction := ctx.stateAction()
 	err = r.sendCrdtReply(&entity.CrdtReply{
-		CommandId:    ctx.CommandId.Value(),
+		CommandId:    ctx.CommandID.Value(),
 		ClientAction: clientAction,
 		SideEffects:  ctx.sideEffects,
 		StateAction:  stateAction,
@@ -174,13 +174,10 @@ func (r *runner) handleChange() error {
 			continue
 		}
 		reply, err := ctx.changed()
-		if err != nil {
-			// ctx.deactivate()
-			// TODO: why/how? failed, active, deleted; hows that to work?
-			//  TIL: As contexts get instantiated on every message received and are short-lived for that handle invocation,
-			//  the flag protects one from emitting anything after certain points reached in the stream.
-		}
+
+		// TODO: we have to clarify error path from here on.
 		if errors.Is(err, ErrCtxFailCalled) {
+			// ctx.clientActionFor will report a failure for that.
 			reply = nil
 		} else if err != nil {
 			return err
@@ -190,9 +187,9 @@ func (r *runner) handleChange() error {
 			return err
 		}
 		if ctx.failed != nil {
-			delete(ctx.streamedCtx, ctx.CommandId)
+			delete(ctx.streamedCtx, ctx.CommandID)
 			if err := r.sendStreamedMessage(&entity.CrdtStreamedMessage{
-				CommandId:    ctx.CommandId.Value(),
+				CommandId:    ctx.CommandID.Value(),
 				ClientAction: clientAction,
 			}); err != nil {
 				return err
@@ -201,10 +198,10 @@ func (r *runner) handleChange() error {
 		}
 		if clientAction != nil || ctx.ended || len(ctx.sideEffects) > 0 {
 			if ctx.ended {
-				delete(ctx.streamedCtx, ctx.CommandId)
+				delete(ctx.streamedCtx, ctx.CommandID)
 			}
 			msg := &entity.CrdtStreamedMessage{
-				CommandId:    ctx.CommandId.Value(),
+				CommandId:    ctx.CommandID.Value(),
 				ClientAction: clientAction,
 				SideEffects:  ctx.sideEffects,
 				EndStream:    ctx.ended,

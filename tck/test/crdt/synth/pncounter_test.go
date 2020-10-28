@@ -32,16 +32,16 @@ func TestCRDTPNCounter(t *testing.T) {
 	defer cancel()
 
 	t.Run("PNCounter", func(t *testing.T) {
-		entityId := "pncounter-1"
+		entityID := "pncounter-1"
 		command := "ProcessPNCounter"
 		p := newProxy(ctx, s)
 		defer p.teardown()
-		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityID})
 
 		t.Run("incrementing a PNCounter should emit client action and create-state action", func(t *testing.T) {
 			tr := tester{t}
 			switch m := p.command(
-				entityId, command, pncounterRequest(&crdt.PNCounterIncrement{Key: entityId, Value: 7}),
+				entityID, command, pncounterRequest(&crdt.PNCounterIncrement{Key: entityID, Value: 7}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
 				var r crdt.PNCounterResponse
@@ -55,7 +55,7 @@ func TestCRDTPNCounter(t *testing.T) {
 		t.Run("a second increment should emit a client action and an update-state action", func(t *testing.T) {
 			tr := tester{t}
 			switch m := p.command(
-				entityId, command, pncounterRequest(&crdt.PNCounterIncrement{Key: entityId, Value: 7}),
+				entityID, command, pncounterRequest(&crdt.PNCounterIncrement{Key: entityID, Value: 7}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
 				var r crdt.PNCounterResponse
@@ -69,7 +69,7 @@ func TestCRDTPNCounter(t *testing.T) {
 		t.Run("a decrement should emit a client action and an update state action", func(t *testing.T) {
 			tr := tester{t}
 			switch m := p.command(
-				entityId, command, pncounterRequest(&crdt.PNCounterDecrement{Key: entityId, Value: 28}),
+				entityID, command, pncounterRequest(&crdt.PNCounterDecrement{Key: entityID, Value: 28}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
 				var r crdt.PNCounterResponse
@@ -84,7 +84,7 @@ func TestCRDTPNCounter(t *testing.T) {
 			tr := tester{t}
 			p.state(&entity.PNCounterState{Value: 49})
 			switch m := p.command(
-				entityId, command, pncounterRequest(&crdt.Get{Key: entityId}),
+				entityID, command, pncounterRequest(&crdt.Get{Key: entityID}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
 				var r crdt.PNCounterResponse
@@ -99,7 +99,7 @@ func TestCRDTPNCounter(t *testing.T) {
 			tr := tester{t}
 			p.delta(&entity.PNCounterDelta{Change: -56})
 			switch m := p.command(
-				entityId, command, pncounterRequest(&crdt.Get{Key: entityId}),
+				entityID, command, pncounterRequest(&crdt.Get{Key: entityID}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
 				var r crdt.PNCounterResponse

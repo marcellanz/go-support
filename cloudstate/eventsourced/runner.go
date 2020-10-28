@@ -200,15 +200,15 @@ func (r *runner) applyEvent(event interface{}) error {
 
 func (*runner) unmarshalSnapshot(snapshot *entity.EventSourcedSnapshot) (interface{}, error) {
 	// see: https://developers.google.com/protocol-buffers/docs/reference/csharp/class/google/protobuf/well-known-types/any#typeurl
-	typeUrl := snapshot.Snapshot.GetTypeUrl()
-	if !strings.Contains(typeUrl, "://") {
-		typeUrl = "https://" + typeUrl
+	typeURL := snapshot.Snapshot.GetTypeUrl()
+	if !strings.Contains(typeURL, "://") {
+		typeURL = "https://" + typeURL
 	}
-	typeURL, err := url.Parse(typeUrl)
+	parsedURL, err := url.Parse(typeURL)
 	if err != nil {
 		return nil, err
 	}
-	switch typeURL.Host {
+	switch parsedURL.Host {
 	case encoding.PrimitiveTypeURLPrefix:
 		return encoding.UnmarshalPrimitive(snapshot.Snapshot)
 	case encoding.ProtoAnyBase:
@@ -227,7 +227,7 @@ func (*runner) unmarshalSnapshot(snapshot *entity.EventSourcedSnapshot) (interfa
 		}
 		return message, nil
 	}
-	return nil, fmt.Errorf("no snapshot unmarshaller found for: %q", typeURL.String())
+	return nil, fmt.Errorf("no snapshot unmarshaller found for: %q", parsedURL.String())
 }
 
 func (r *runner) sendEventSourcedReply(reply *entity.EventSourcedReply) error {

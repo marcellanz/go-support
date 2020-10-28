@@ -17,11 +17,11 @@ package crdt
 
 type (
 	ServiceName string
-	EntityId    string
-	CommandId   int64
+	EntityID    string
+	CommandID   int64
 )
 
-func (i EntityId) String() string {
+func (i EntityID) String() string {
 	return string(i)
 }
 
@@ -29,6 +29,6 @@ func (sn ServiceName) String() string {
 	return string(sn)
 }
 
-func (id CommandId) Value() int64 {
+func (id CommandID) Value() int64 {
 	return int64(id)
 }

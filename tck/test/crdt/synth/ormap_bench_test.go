@@ -16,11 +16,11 @@ func BenchmarkCRDTORMap(b *testing.B) {
 	defer s.teardown()
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	entityId := "ormap-1"
+	entityID := "ormap-1"
 	command := "ProcessORMap"
 	p := newProxy(ctx, s)
 	defer p.teardown()
-	p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+	p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityID})
 
 	tr := tester{s.t}
 	var sum uint64
@@ -31,7 +31,7 @@ func BenchmarkCRDTORMap(b *testing.B) {
 		}()
 		inc0 := uint64(1)
 		for i := 0; i < b.N; i++ {
-			switch m := p.command(entityId, command,
+			switch m := p.command(entityID, command,
 				ormapRequest(&crdt.ORMapActionRequest{
 					EntryKey: encoding.String("niner"),
 					Request: &crdt.ORMapActionRequest_GCounterRequest{

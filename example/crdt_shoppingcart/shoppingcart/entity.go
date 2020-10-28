@@ -17,7 +17,7 @@ type ShoppingCart struct {
 	items *crdt.ORMap
 }
 
-func NewShoppingCart(id crdt.EntityId) crdt.EntityHandler {
+func NewShoppingCart(id crdt.EntityID) crdt.EntityHandler {
 	return &ShoppingCart{}
 }
 
@@ -90,10 +90,10 @@ func (s *ShoppingCart) HandleCommand(ctx *crdt.CommandContext, name string, msg 
 		if err != nil {
 			return nil, err
 		}
-		if reg == nil {
-			reg = crdt.NewLWWRegister(item)
-		} else {
+		if reg != nil {
 			reg.Set(item)
+		} else {
+			reg = crdt.NewLWWRegister(item)
 		}
 		s.items.Set(key, reg)
 		return encoding.Empty, nil

@@ -25,7 +25,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 )
 
-// A Cloudstate event sourced entity.
+// A Cloudstate event sourced entity implementing a shopping cart.
 // tag::entity-type[]
 // tag::entity-state[]
 type ShoppingCart struct {
@@ -38,7 +38,7 @@ type ShoppingCart struct {
 
 // NewShoppingCart returns a new and initialized instance of the ShoppingCart entity.
 // tag::entity-func[]
-func NewShoppingCart(eventsourced.EntityId) eventsourced.EntityHandler {
+func NewShoppingCart(eventsourced.EntityID) eventsourced.EntityHandler {
 	return &ShoppingCart{
 		cart: make([]*domain.LineItem, 0),
 	}
@@ -173,9 +173,9 @@ func (sc *ShoppingCart) HandleSnapshot(ctx *eventsourced.Context, snapshot inter
 // end::handle-snapshot[]
 
 // find finds a product in the shopping cart by productId and returns it as a LineItem.
-func (sc *ShoppingCart) find(productId string) (item *domain.LineItem, index int) {
+func (sc *ShoppingCart) find(productID string) (item *domain.LineItem, index int) {
 	for i, item := range sc.cart {
-		if productId == item.ProductId {
+		if productID == item.ProductId {
 			return item, i
 		}
 	}
@@ -184,8 +184,8 @@ func (sc *ShoppingCart) find(productId string) (item *domain.LineItem, index int
 
 // remove removes a product from the shopping cart.
 // An ok flag is returned to indicate that the product was present and removed.
-func (sc *ShoppingCart) remove(productId string) (ok bool) {
-	if item, i := sc.find(productId); item != nil {
+func (sc *ShoppingCart) remove(productID string) (ok bool) {
+	if item, i := sc.find(productID); item != nil {
 		// remove and re-slice
 		copy(sc.cart[i:], sc.cart[i+1:])
 		sc.cart = sc.cart[:len(sc.cart)-1]

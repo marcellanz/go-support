@@ -68,17 +68,21 @@ func (m *ORMap) Size() int {
 }
 
 func (m *ORMap) Values() []*entity.CrdtState {
-	values := make([]*entity.CrdtState, 0, len(m.value))
+	values := make([]*entity.CrdtState, len(m.value))
+	var i = 0
 	for _, v := range m.value {
-		values = append(values, v.value.State())
+		values[i] = v.value.State()
+		i++
 	}
 	return values
 }
 
 func (m *ORMap) Keys() []*any.Any {
-	keys := make([]*any.Any, 0, len(m.value))
+	keys := make([]*any.Any, len(m.value))
+	var i = 0
 	for _, v := range m.value {
-		keys = append(keys, v.key)
+		keys[i] = v.key
+		i++
 	}
 	return keys
 }
@@ -92,7 +96,9 @@ func (m *ORMap) Get(key *any.Any) CRDT {
 
 func (m *ORMap) Set(key *any.Any, value CRDT) {
 	k := m.hashAny(key)
-	// why that?
+	// from ref. impl: Setting an existing key to a new value
+	// can have unintended effects, as the old value may end
+	// up being merged with the new.
 	if _, has := m.value[k]; has {
 		if _, has := m.delta.added[k]; !has {
 			m.delta.removed[k] = key
@@ -160,18 +166,18 @@ func (m *ORMap) Delta() *entity.CrdtDelta {
 				Key:   v.key,
 				Value: v.value.State(),
 			})
-		} else {
-			if v.value.HasDelta() {
-				updated = append(updated, &entity.ORMapEntryDelta{
-					Key:   v.key,
-					Delta: v.value.Delta(),
-				})
-			}
+		} else if v.value.HasDelta() {
+			updated = append(updated, &entity.ORMapEntryDelta{
+				Key:   v.key,
+				Delta: v.value.Delta(),
+			})
 		}
 	}
-	removed := make([]*any.Any, 0, len(m.delta.removed))
+	removed := make([]*any.Any, len(m.delta.removed))
+	var i = 0
 	for _, e := range m.delta.removed {
-		removed = append(removed, e)
+		removed[i] = e
+		i++
 	}
 	return &entity.CrdtDelta{
 		Delta: &entity.CrdtDelta_Ormap{
@@ -226,18 +232,20 @@ func (m *ORMap) resetDelta() {
 	for _, v := range m.value {
 		v.value.resetDelta()
 	}
-	m.delta.cleared = false // whats the thing with cleared to be different to orMapDelta.clear()?
+	m.delta.cleared = false // TODO: what's the thing with cleared to be different to orMapDelta.clear()?
 	m.delta.added = make(map[uint64]*any.Any)
 	m.delta.removed = make(map[uint64]*any.Any)
 }
 
 func (m *ORMap) State() *entity.CrdtState {
-	entries := make([]*entity.ORMapEntry, 0, len(m.value))
+	entries := make([]*entity.ORMapEntry, len(m.value))
+	var i = 0
 	for _, v := range m.value {
-		entries = append(entries, &entity.ORMapEntry{
+		entries[i] = &entity.ORMapEntry{
 			Key:   v.key,
 			Value: v.value.State(),
-		})
+		}
+		i++
 	}
 	return &entity.CrdtState{
 		State: &entity.CrdtState_Ormap{

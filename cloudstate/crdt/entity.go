@@ -27,7 +27,7 @@ type Entity struct {
 	// this entities interface. Setting it is mandatory.
 	ServiceName ServiceName
 	// EntityFunc creates a new entity.
-	EntityFunc func(id EntityId) EntityHandler
+	EntityFunc func(id EntityID) EntityHandler
 }
 
 // EntityHandler has to be implemented by any type that wants to get

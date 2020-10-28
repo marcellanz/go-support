@@ -35,7 +35,7 @@ func main() {
 	err = server.RegisterCRDT(
 		&crdt.Entity{
 			ServiceName: "crdt.TckCrdt", // this is the package + service(name) from the gRPC proto file.
-			EntityFunc: func(id crdt.EntityId) crdt.EntityHandler {
+			EntityFunc: func(id crdt.EntityID) crdt.EntityHandler {
 				return tck.NewEntity(id)
 			},
 		},

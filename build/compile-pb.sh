@@ -4,6 +4,7 @@ set -o nounset
 set -o errexit
 set -o pipefail
 
+# Cloudstate
 protoc --go_out=plugins=grpc,paths=source_relative:cloudstate/protocol --proto_path=protobuf/protocol/cloudstate entity.proto
 protoc --go_out=plugins=grpc,paths=source_relative:. --proto_path=protobuf/frontend/ cloudstate/entity_key.proto
 protoc --go_out=plugins=grpc,paths=source_relative:cloudstate/entity --proto_path=protobuf/protocol \
@@ -43,7 +44,7 @@ protoc --go_out=plugins=grpc,paths=source_relative:./example/crdt_shoppingcart/d
   --proto_path=protobuf/proxy \
   --proto_path=example/crdt_shoppingcart/domain domain.proto
 
-# shopping cart example
+# event sourced shopping cart example
 protoc --go_out=plugins=grpc,paths=source_relative:./example/shoppingcart/ \
   --proto_path=protobuf/protocol \
   --proto_path=protobuf/frontend \

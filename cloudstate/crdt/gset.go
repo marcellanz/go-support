@@ -62,7 +62,6 @@ func (s GSet) State() *entity.CrdtState {
 			},
 		},
 	}
-
 }
 
 func (s GSet) HasDelta() bool {
@@ -70,23 +69,27 @@ func (s GSet) HasDelta() bool {
 }
 
 func (s GSet) Value() []*any.Any {
-	val := make([]*any.Any, 0, s.Size())
+	val := make([]*any.Any, len(s.value))
+	var i = 0
 	for _, v := range s.value {
-		val = append(val, v)
+		val[i] = v
+		i++
 	}
 	return val
 }
 
 func (s GSet) Added() []*any.Any {
-	val := make([]*any.Any, 0, s.Size())
+	val := make([]*any.Any, len(s.added))
+	var i = 0
 	for _, v := range s.added {
-		val = append(val, v)
+		val[i] = v
+		i++
 	}
 	return val
 }
 
 func (s GSet) Delta() *entity.CrdtDelta {
-	if len(s.added) == 0 {
+	if !s.HasDelta() {
 		return nil
 	}
 	return &entity.CrdtDelta{
@@ -103,23 +106,23 @@ func (s *GSet) resetDelta() {
 }
 
 func (s *GSet) applyState(state *entity.CrdtState) error {
-	gss := state.GetGset()
-	if gss == nil {
+	ss := state.GetGset()
+	if ss == nil {
 		return fmt.Errorf("unable to apply state %+v to GSet", state)
 	}
 	s.value = make(map[uint64]*any.Any)
-	for _, v := range gss.GetItems() {
+	for _, v := range ss.GetItems() {
 		s.value[s.hashAny(v)] = v
 	}
 	return nil
 }
 
 func (s *GSet) applyDelta(delta *entity.CrdtDelta) error {
-	gsd := delta.GetGset()
-	if gsd == nil {
+	d := delta.GetGset()
+	if d == nil {
 		return fmt.Errorf("unable to apply state %+v to GSet", delta)
 	}
-	for _, v := range gsd.GetAdded() {
+	for _, v := range d.GetAdded() {
 		s.value[s.hashAny(v)] = v
 	}
 	return nil

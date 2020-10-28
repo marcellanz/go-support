@@ -35,11 +35,11 @@ func TestCRDTGSet(t *testing.T) {
 	defer cancel()
 
 	t.Run("GSet", func(t *testing.T) {
-		entityId := "gset-1"
+		entityID := "gset-1"
 		command := "ProcessGSet"
 		p := newProxy(ctx, s)
 		defer p.teardown()
-		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityID})
 
 		type pair struct {
 			Left  string
@@ -52,8 +52,8 @@ func TestCRDTGSet(t *testing.T) {
 				t.Fatal(err)
 			}
 			switch m := p.command(
-				entityId, command, gsetRequest(&crdt.GSetAdd{
-					Key:   entityId,
+				entityID, command, gsetRequest(&crdt.GSetAdd{
+					Key:   entityID,
 					Value: &crdt.AnySupportType{Value: &crdt.AnySupportType_AnyValue{AnyValue: one}},
 				}),
 			).Message.(type) {
@@ -87,8 +87,8 @@ func TestCRDTGSet(t *testing.T) {
 				t.Fatal(err)
 			}
 			switch m := p.command(
-				entityId, command, gsetRequest(&crdt.GSetAdd{
-					Key:   entityId,
+				entityID, command, gsetRequest(&crdt.GSetAdd{
+					Key:   entityID,
 					Value: &crdt.AnySupportType{Value: &crdt.AnySupportType_AnyValue{AnyValue: two}},
 				}),
 			).Message.(type) {
@@ -133,8 +133,8 @@ func TestCRDTGSet(t *testing.T) {
 		// 	// 	{"three", 3},
 		// 	// } {
 		// 	// 	switch m := p.command(
-		// 	// 		entityId, "AddGSet",
-		// 	// 		&crdt.GSetAdd{Key: entityId,
+		// 	// 		entityID, "AddGSet",
+		// 	// 		&crdt.GSetAdd{Key: entityID,
 		// 	// 			Value: &crdt.AnySupportType{Value: &crdt.AnySupportType_AnyValue{AnyValue: encoding.Struct(pr)}},
 		// 	// 		},
 		// 	// 	).Message.(type) {
@@ -145,7 +145,7 @@ func TestCRDTGSet(t *testing.T) {
 		// 	// 	}
 		// 	// }
 		// 	// switch m := p.command(
-		// 	// 	entityId, "GetGSetSize", &crdt.Get{Key: entityId},
+		// 	// 	entityID, "GetGSetSize", &crdt.Get{Key: entityID},
 		// 	// ).Message.(type) {
 		// 	// case *entity.CrdtStreamOut_Reply:
 		// 	// 	var value crdt.GSetSize
@@ -158,13 +158,13 @@ func TestCRDTGSet(t *testing.T) {
 	})
 
 	t.Run("GSet AnySupportTypes", func(t *testing.T) {
-		entityId := "gset-2"
+		entityID := "gset-2"
 		command := "ProcessGSet"
 		p := newProxy(ctx, s)
 		defer p.teardown()
 		p.init(&entity.CrdtInit{
 			ServiceName: serviceName,
-			EntityId:    entityId,
+			EntityId:    entityID,
 		})
 
 		var values = []*crdt.AnySupportType{
@@ -176,6 +176,6 @@ func TestCRDTGSet(t *testing.T) {
 			{Value: &crdt.AnySupportType_StringValue{StringValue: "five"}},
 			{Value: &crdt.AnySupportType_BytesValue{BytesValue: []byte{'a', 'b', 3, 4, 5, 6}}},
 		}
-		p.command(entityId, command, gsetRequest(&crdt.GSetAdd{Key: entityId, Value: values[0]}))
+		p.command(entityID, command, gsetRequest(&crdt.GSetAdd{Key: entityID, Value: values[0]}))
 	})
 }

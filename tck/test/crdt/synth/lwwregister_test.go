@@ -38,19 +38,19 @@ func TestCRDTLWWRegister(t *testing.T) {
 		Right int64
 	}
 	t.Run("LWWRegister", func(t *testing.T) {
-		entityId := "lwwregister-1"
+		entityID := "lwwregister-1"
 		command := "ProcessORSet"
 		p := newProxy(ctx, s)
 		defer p.teardown()
 
-		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityID})
 		t.Run("LWWRegisterSet emits client action and create state action", func(t *testing.T) {
 			tr := tester{t}
 			one, err := encoding.Struct(pair{"one", 1})
 			if err != nil {
 				t.Fatal(err)
 			}
-			switch m := p.command(entityId, command, lwwRegisterRequest(&crdt.LWWRegisterSet{
+			switch m := p.command(entityID, command, lwwRegisterRequest(&crdt.LWWRegisterSet{
 				Value: &crdt.AnySupportType{
 					Value: &crdt.AnySupportType_AnyValue{AnyValue: one},
 				},
@@ -85,7 +85,7 @@ func TestCRDTLWWRegister(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			switch m := p.command(entityId, command, lwwRegisterRequest(&crdt.LWWRegisterSetWithClock{
+			switch m := p.command(entityID, command, lwwRegisterRequest(&crdt.LWWRegisterSetWithClock{
 				Value: &crdt.AnySupportType{
 					Value: &crdt.AnySupportType_AnyValue{AnyValue: two},
 				},
@@ -119,7 +119,7 @@ func TestCRDTLWWRegister(t *testing.T) {
 		})
 		t.Run("Delete emits client action and create state action", func(t *testing.T) {
 			tr := tester{t}
-			switch m := p.command(entityId, command, lwwRegisterRequest(&crdt.Delete{})).Message.(type) {
+			switch m := p.command(entityID, command, lwwRegisterRequest(&crdt.Delete{})).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
 				// action reply
 				tr.expectedNil(m.Reply.GetSideEffects())

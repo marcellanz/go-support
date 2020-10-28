@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Server is the implementation of the Server server API for the CRDT service.
 type Server struct {
 	// mu protects the map below.
 	mu sync.RWMutex
@@ -43,7 +44,7 @@ func NewServer() *Server {
 
 // CrdtEntities can be registered to a server that handles crdt entities by a ServiceName.
 // Whenever a internalCRDT.Server receives an CrdInit for an instance of a crdt entity identified by its
-// EntityId and a ServiceName, the internalCRDT.Server handles such entities through their lifecycle.
+// EntityID and a ServiceName, the internalCRDT.Server handles such entities through their lifecycle.
 // The handled entities value are captured by a context that is held fo each of them.
 func (s *Server) Register(e *Entity) error {
 	if e.EntityFunc == nil {
@@ -58,12 +59,14 @@ func (s *Server) Register(e *Entity) error {
 	return nil
 }
 
-// After invoking handle, the first message sent will always be a CrdtInit message, containing the entity ID, and,
-// if it exists or is available, the current value of the entity. After that, one or more commands may be sent,
-// as well as deltas as they arrive, and the entire value if either the entity is created, or the proxy wishes the
-// user function to replace its entire value.
-// The user function must respond with one reply per command in. They do not necessarily have to be sent in the same
-// order that the commands were sent, the command ID is used to correlate commands to replies.
+// After invoking handle, the first message sent will always be a CrdtInit message,
+// containing the entity ID, and, if it exists or is available, the current value of
+// the entity. After that, one or more commands may be sent, as well as deltas as
+// they arrive, and the entire value if either the entity is created, or the proxy
+// wishes the user function to replace its entire value. The user function must
+// respond with one reply per command in. They do not necessarily have to be sent
+// in the same order that the commands were sent, the command ID is used to correlate
+// commands to replies.
 func (s *Server) Handle(stream entity.Crdt_HandleServer) error {
 	defer func() {
 		if r := recover(); r != nil {
@@ -118,7 +121,7 @@ func (s *Server) handle(stream entity.Crdt_HandleServer) error {
 			return nil
 		}
 		if r.context.failed != nil {
-			// `failed` means deactivated. We may never get this far.
+			// failed means deactivated. We may never get this far.
 			return nil
 		}
 		msg, err := r.stream.Recv()
@@ -156,10 +159,10 @@ func (s *Server) handle(stream entity.Crdt_HandleServer) error {
 				return err
 			}
 		case *entity.CrdtStreamIn_Init:
-			if EntityId(m.Init.EntityId) == r.context.EntityId {
+			if EntityID(m.Init.EntityId) == r.context.EntityID {
 				return errors.New("duplicate init message for the same entity")
 			}
-			return errors.New("duplicate init message for a new entity:" + m.Init.EntityId)
+			return fmt.Errorf("duplicate init message for a new entity: %q", m.Init.EntityId)
 		case nil:
 			return errors.New("empty message received")
 		default:
@@ -182,14 +185,14 @@ func (s *Server) handleInit(init *entity.CrdtInit, r *runner) error {
 	if entity.EntityFunc == nil {
 		return fmt.Errorf("entity.EntityFunc is not defined for service: %q", serviceName)
 	}
-	id := EntityId(init.GetEntityId())
+	id := EntityID(init.GetEntityId())
 	r.context = &Context{
-		EntityId:    id,
+		EntityID:    id,
 		Entity:      entity,
 		Instance:    entity.EntityFunc(id),
 		created:     false,
 		ctx:         r.stream.Context(), // This context is stable as long as the runner runs.
-		streamedCtx: make(map[CommandId]*CommandContext),
+		streamedCtx: make(map[CommandID]*CommandContext),
 	}
 	// The init message may have an initial state.
 	if state := init.GetState(); state != nil {

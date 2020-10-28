@@ -14,8 +14,7 @@ include::example$cloudstate/crdt/entity.go[tag=entity-handler]
 
 == Accessing and creating an entity's CRDT
 
-Each CRDT entity manages one root CRDT. That CRDT will either be supplied to the entity by the proxy when it is started through {cloudstate-go-lib-api-base}/cloudstate/crdt#EntityHandler.Set[`crdt.EntityHandler.Set`].
-If no CRDT exists for the entity when it is started, it has to be created by the entity using the {cloudstate-go-lib-api-base}/cloudstate/crdt#EntityHandler.Default[`crdt.EntityHandler.Default`] factory method.
+Each CRDT entity manages one root CRDT. That CRDT will either be supplied to the entity by the proxy when it is started through {cloudstate-go-lib-api-base}/cloudstate/crdt#EntityHandler.Set[`crdt.EntityHandler.Set`], or, if no CRDT exists for the entity when it is started, it has to be created by the entity using the {cloudstate-go-lib-api-base}/cloudstate/crdt#EntityHandler.Default[`crdt.EntityHandler.Default`] factory method.
 
 [source,go]
 ----
@@ -34,8 +33,14 @@ In this regard, a type assertion check is not necessary.
 Command handlers are implemented with the {cloudstate-go-lib-api-base}/cloudstate/crdt#EntityHandler.HandleCommand[`crdt.EntityHandler.HandleCommand`] method.
 The command handler provides a `CommandContext`, a commands `name`, and the gRPCs message as a protobuf message.
 The matching combination of a commands name and the messages type from the defined gRPC service can be used to handle the command.
+So to handle the shopping cart service method `GetCart`:
 
-So to handle the shopping cart service method `rpc GetCart (GeShoppingCart) returns (Cart);` the commands name `GetCart` together with its message type `GetShoppingCart` has to be matched.
+[source,go]
+----
+rpc GetCart (GeShoppingCart) returns (Cart);
+----
+
+the commands name `GetCart` together with its message type `GetShoppingCart` has to be matched.
 A type switch or a type assertion for the protobuf command message is useful to get the commands data, process it, and then return the appropriate return type, `Cart` in our example.
 
 The return type of the command handler must be the output type for the gRPC service call, this will be sent as the reply.
@@ -70,7 +75,7 @@ include::example$example/crdt_shoppingcart/shoppingcart/entity.go[tag=add-item-2
 It's good practice to dispatch commands both using their command name and messages type.
 Unfortunately, the Go gRPC implementation does not provide typesafe service descriptors out of a compiled `*.proto` file as they are not exported to be user accessible.
 
-While the Go runtime function `runtime.FuncForPC` allows to get a function pointers pointed function name and there are ways to get the `shoppingcart.ShoppingCartServiceServer.AddItem` command name from the gRPC interface of the shopping cart service, we do not encourage doing so.
+While the Go runtime function `runtime.FuncForPC` allows to get a function pointers pointed function name and there are ways to get the `shoppingcart.ShoppingCartServiceServer.AddItem` command name from the gRPC interface of the shopping cart service at runtime, we do not encourage doing so.
 In general, the Cloudstate Go User Support library does use explicit ways to implement the gRPC service of a Cloudstate entity.
 It could have been implemeted using reflection heavily, although this is non-idiomatic use of Go and would leave this library as a strange citizen in the Go ecosystem.
 ====
@@ -130,8 +135,8 @@ The Cloudstate Go language support library offers Go types for each of the xref:
 
 {cloudstate-go-lib-api-base}/cloudstate/crdt#Vote[`crdt.Vote`] is available for the Vote CRDT. The Vote CRDT allows updating the current node's vote using the {cloudstate-go-lib-api-base}/cloudstate/crdt#Vote.Vote[`crdt.Vote.Vote`] method, the current nodes vote can be queried using the {cloudstate-go-lib-api-base}/cloudstate/crdt#Vote.SelfVote[`crdt.Vote.SelfVote`] method.
 
-For determining the result of a vote, {cloudstate-go-lib-api-base}/cloudstate/crdt#Vote.Voters[`crdt.Vote.Voters`] and For determining the result of a vote, {cloudstate-go-lib-api-base}/cloudstate/crdt#Vote.VotesFor[`crdt.Vote.VotesFor`] can be used to check the total number of nodes, and the number of nodes that have voted for the condition, respectively.
-In addition, convenience methods are provided for common vote decision approaches, {cloudstate-go-lib-api-base}/cloudstate/crdt#Vote.AtLeastOne[`crdt.Vote.AtLeastOne`] returns true if there is at least one voter for the condition, {cloudstate-go-lib-api-base}/cloudstate/crdt#Vote.Majority[`crdt.Vote.Majority`] returns true if the number of votes for is more than half the number of voters, and {cloudstate-go-lib-api-base}/cloudstate/crdt#Vote.All[`crdt.Vote.All`] returns true if the number of votes for equals the number of voters.
+For determining the result of a vote, {cloudstate-go-lib-api-base}/cloudstate/crdt#Vote.Voters[`crdt.Vote.Voters`] and for determining the result of a vote, {cloudstate-go-lib-api-base}/cloudstate/crdt#Vote.VotesFor[`crdt.Vote.VotesFor`] can be used to check the total number of nodes, and the number of nodes that have voted for the condition, respectively.
+In addition, convenience methods are provided for common vote decision approaches, {cloudstate-go-lib-api-base}/cloudstate/crdt#Vote.AtLeastOne[`crdt.Vote.AtLeastOne`] returns true if there is at least one voter for the condition. {cloudstate-go-lib-api-base}/cloudstate/crdt#Vote.Majority[`crdt.Vote.Majority`] returns true if the number of votes for is more than half the number of voters, and {cloudstate-go-lib-api-base}/cloudstate/crdt#Vote.All[`crdt.Vote.All`] returns `true` if the number of votes for equals the number of voters.
 
 === Registers
 

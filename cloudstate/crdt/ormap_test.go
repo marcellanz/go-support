@@ -204,7 +204,6 @@ func TestORMap(t *testing.T) {
 		if d := m.Delta(); d != nil {
 			t.Fatalf("m.Delta(): %v; want: %v", d, nil)
 		}
-
 	})
 	t.Run("should generate a clear delta", func(t *testing.T) {
 		m := NewORMap()

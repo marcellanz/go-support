@@ -41,32 +41,32 @@ func MarshalPrimitive(i interface{}) (*any.Any, error) {
 	buffer := proto.NewBuffer(make([]byte, 0))
 	buffer.SetDeterministic(true)
 	// see https://developers.google.com/protocol-buffers/docs/encoding#structure
-	var typeUrl string
+	var typeURL string
 	switch val := i.(type) {
 	case int32:
-		typeUrl = PrimitiveTypeURLPrefixInt32
+		typeURL = PrimitiveTypeURLPrefixInt32
 		_ = buffer.EncodeVarint(fieldKey | proto.WireVarint)
 		_ = buffer.EncodeVarint(uint64(val))
 	case int64:
-		typeUrl = PrimitiveTypeURLPrefixInt64
+		typeURL = PrimitiveTypeURLPrefixInt64
 		_ = buffer.EncodeVarint(fieldKey | proto.WireVarint)
 		_ = buffer.EncodeVarint(uint64(val))
 	case string:
-		typeUrl = PrimitiveTypeURLPrefixString
+		typeURL = PrimitiveTypeURLPrefixString
 		_ = buffer.EncodeVarint(fieldKey | proto.WireBytes)
 		if err := buffer.EncodeStringBytes(val); err != nil {
 			return nil, err
 		}
 	case float32:
-		typeUrl = PrimitiveTypeURLPrefixFloat
+		typeURL = PrimitiveTypeURLPrefixFloat
 		_ = buffer.EncodeVarint(fieldKey | proto.WireFixed32)
 		_ = buffer.EncodeFixed32(uint64(math.Float32bits(val)))
 	case float64:
-		typeUrl = PrimitiveTypeURLPrefixDouble
+		typeURL = PrimitiveTypeURLPrefixDouble
 		_ = buffer.EncodeVarint(fieldKey | proto.WireFixed64)
 		_ = buffer.EncodeFixed64(math.Float64bits(val))
 	case bool:
-		typeUrl = PrimitiveTypeURLPrefixBool
+		typeURL = PrimitiveTypeURLPrefixBool
 		_ = buffer.EncodeVarint(fieldKey | proto.WireVarint)
 		switch val {
 		case true:
@@ -75,7 +75,7 @@ func MarshalPrimitive(i interface{}) (*any.Any, error) {
 			_ = buffer.EncodeVarint(0)
 		}
 	case []byte:
-		typeUrl = PrimitiveTypeURLPrefixBytes
+		typeURL = PrimitiveTypeURLPrefixBytes
 		_ = buffer.EncodeVarint(fieldKey | proto.WireBytes)
 		if err := buffer.EncodeRawBytes(val); err != nil {
 			return nil, err
@@ -84,7 +84,7 @@ func MarshalPrimitive(i interface{}) (*any.Any, error) {
 		return nil, ErrNotMarshalled
 	}
 	return &any.Any{
-		TypeUrl: typeUrl,
+		TypeUrl: typeURL,
 		Value:   buffer.Bytes(),
 	}, nil
 }

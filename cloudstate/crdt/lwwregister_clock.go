@@ -20,40 +20,40 @@ import "github.com/cloudstateio/go-support/cloudstate/entity"
 type Clock uint64
 
 const (
-	// The default clock, uses the current system time as the clock value.
+	// The Default clock, uses the current system time as the clock value.
 	Default Clock = iota
 
-	// A reverse clock, based on the system clock.
-	// Using this effectively achieves First-Write-Wins semantics.
-	// This is susceptible to the same clock skew problems as the default clock.
+	// A Reverse clock, based on the system clock. Using this effectively
+	// achieves First-Write-Wins semantics. This is susceptible to the
+	// same clock skew problems as the default clock.
 	Reverse
 
-	// TODO: cleanup markups from Scala
 	// A custom clock.
 	// The custom clock value is passed by using the customClockValue parameter on
-	// the {@link LWWRegister#set(Object, Clock, long)} method. The value should be a domain
-	// specific monotonically increasing value. For example, if the source of the value for this
-	// register is a single device, that device may attach a sequence number to each update, that
-	// sequence number can be used to guarantee that the register will converge to the last update
-	// emitted by that device.
+	// the `SetWithClock` method. The value should be a domain specific monotonically
+	// increasing value. For example, if the source of the value for this register
+	// is a single device, that device may attach a sequence number to each update,
+	// that sequence number can be used to guarantee that the register will converge
+	// to the last update emitted by that device.
 	Custom
 
-	// TODO: cleanup markups from Scala
-	// A custom clock, that automatically increments the custom value if the local clock value is
-	// greater than it.
+	// CustomAutoIncrement is a custom clock, that automatically increments the
+	// custom value if the local clock value is greater than it.
 	//
-	// This is like {@link Clock#CUSTOM}, however if when performing the update in the proxy,
-	// it's found that the clock value of the register is greater than the specified clock value for
-	// the update, the proxy will instead use the current clock value of the register plus one.
+	// This is like `Custom`, however if when performing the update in the proxy,
+	// it's found that the clock value of the register is greater than the specified
+	// clock value for the update, the proxy will instead use the current clock
+	// value of the register plus one.
 	//
-	// This can guarantee that updates done on the same node will be causally ordered (addressing
-	// problems caused by the system clock being adjusted), but will not guarantee causal ordering
-	// for updates on different nodes, since it's possible that an update on a different node has
-	// not yet been replicated to this node.
+	// This can guarantee that updates done on the same node will be causally
+	// ordered (addressing problems caused by the system clock being adjusted),
+	// but will not guarantee causal ordering for updates on different nodes,
+	// since it's possible that an update on a different node has not yet been
+	// replicated to this node.
 	CustomAutoIncrement
 )
 
-func FromCrdtClock(clock entity.CrdtClock) Clock {
+func fromCrdtClock(clock entity.CrdtClock) Clock {
 	switch clock {
 	case entity.CrdtClock_DEFAULT:
 		return Default

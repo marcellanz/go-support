@@ -17,6 +17,7 @@ package eventsourced
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/cloudstateio/go-support/cloudstate/encoding"
 	"github.com/cloudstateio/go-support/cloudstate/eventsourced"
@@ -28,7 +29,7 @@ type TestModel struct {
 	state string
 }
 
-func NewTestModel(id eventsourced.EntityId) eventsourced.EntityHandler {
+func NewTestModel(id eventsourced.EntityID) eventsourced.EntityHandler {
 	return &TestModel{}
 }
 
@@ -40,14 +41,14 @@ func (m *TestModel) HandleCommand(ctx *eventsourced.Context, name string, cmd pr
 			case *RequestAction_Emit:
 				ctx.Emit(&Persisted{Value: a.Emit.GetValue()})
 			case *RequestAction_Forward:
-				any, err := encoding.MarshalAny(&Request{Id: a.Forward.Id})
+				req, err := encoding.MarshalAny(&Request{Id: a.Forward.Id})
 				if err != nil {
 					return nil, err
 				}
 				ctx.Forward(&protocol.Forward{
 					ServiceName: "cloudstate.tck.model.EventSourcedTwo",
 					CommandName: "Call",
-					Payload:     any,
+					Payload:     req,
 				})
 			case *RequestAction_Effect:
 				req, err := encoding.MarshalAny(&Request{Id: a.Effect.Id})
@@ -93,18 +94,18 @@ func (m *TestModel) HandleSnapshot(ctx *eventsourced.Context, snapshot interface
 type TestModelTwo struct {
 }
 
-func (t *TestModelTwo) HandleCommand(ctx *eventsourced.Context, name string, cmd proto.Message) (reply proto.Message, err error) {
+func (m *TestModelTwo) HandleCommand(ctx *eventsourced.Context, name string, cmd proto.Message) (reply proto.Message, err error) {
 	switch cmd.(type) {
 	case *Request:
 		return &Response{}, nil
 	}
-	return nil, errors.New("unhandled command: " + name)
+	return nil, fmt.Errorf("unhandled command: %q", name)
 }
 
-func (t *TestModelTwo) HandleEvent(ctx *eventsourced.Context, event interface{}) error {
+func (m *TestModelTwo) HandleEvent(ctx *eventsourced.Context, event interface{}) error {
 	return nil
 }
 
-func NewTestModelTwo(id eventsourced.EntityId) eventsourced.EntityHandler {
+func NewTestModelTwo(id eventsourced.EntityID) eventsourced.EntityHandler {
 	return &TestModelTwo{}
 }

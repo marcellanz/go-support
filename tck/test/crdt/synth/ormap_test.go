@@ -32,15 +32,15 @@ func TestCRDTORMap(t *testing.T) {
 	defer cancel()
 
 	t.Run("ORMap", func(t *testing.T) {
-		entityId := "ormap-1"
+		entityID := "ormap-1"
 		command := "ProcessORMap"
 		p := newProxy(ctx, s)
 		defer p.teardown()
 
-		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityID})
 		t.Run("Get", func(t *testing.T) {
 			tr := tester{t}
-			switch m := p.command(entityId, command,
+			switch m := p.command(entityID, command,
 				ormapRequest(&crdt.Get{}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
@@ -53,7 +53,7 @@ func TestCRDTORMap(t *testing.T) {
 		})
 		t.Run("Set – GCounter", func(t *testing.T) {
 			tr := tester{t}
-			switch m := p.command(entityId, command,
+			switch m := p.command(entityID, command,
 				ormapRequest(&crdt.ORMapActionRequest{
 					EntryKey: encoding.String("niner"),
 					Request: &crdt.ORMapActionRequest_GCounterRequest{
@@ -67,7 +67,7 @@ func TestCRDTORMap(t *testing.T) {
 			default:
 				tr.unexpected(m)
 			}
-			switch m := p.command(entityId, command,
+			switch m := p.command(entityID, command,
 				ormapRequest(&crdt.ORMapActionRequest{
 					EntryKey: encoding.String("niner"),
 					Request: &crdt.ORMapActionRequest_GCounterRequest{
@@ -96,7 +96,7 @@ func TestCRDTORMap(t *testing.T) {
 		})
 		t.Run("Delete", func(t *testing.T) {
 			tr := tester{t}
-			switch m := p.command(entityId, command,
+			switch m := p.command(entityID, command,
 				ormapRequest(&crdt.Delete{}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
@@ -108,11 +108,11 @@ func TestCRDTORMap(t *testing.T) {
 	})
 	t.Run("ORMap – State", func(t *testing.T) {
 		tr := tester{t}
-		entityId := "ormap-2"
+		entityID := "ormap-2"
 		command := "ProcessORMap"
 		p := newProxy(ctx, s)
 		defer p.teardown()
-		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityID})
 		p.state(&entity.ORMapState{
 			Entries: []*entity.ORMapEntry{
 				{
@@ -121,7 +121,7 @@ func TestCRDTORMap(t *testing.T) {
 				},
 			},
 		})
-		switch m := p.command(entityId, command,
+		switch m := p.command(entityID, command,
 			ormapRequest(&crdt.ORMapActionRequest{
 				EntryKey: encoding.String("one"),
 				Request: &crdt.ORMapActionRequest_FlagRequest{

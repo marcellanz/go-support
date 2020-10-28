@@ -38,7 +38,6 @@ type server struct {
 	lis            *bufconn.Listener
 	teardownServer func()
 	teardownClient func()
-	serviceName    string
 }
 
 func newServer(t *testing.T) *server {
@@ -58,7 +57,7 @@ func newServer(t *testing.T) *server {
 	err = server.RegisterCRDT(
 		&crdt.Entity{
 			ServiceName: serviceName, // this is the package + service(name) from the gRPC proto file.
-			EntityFunc: func(id crdt.EntityId) crdt.EntityHandler {
+			EntityFunc: func(id crdt.EntityID) crdt.EntityHandler {
 				return crdt2.NewEntity(id)
 			},
 		},

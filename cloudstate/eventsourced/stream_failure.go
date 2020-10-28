@@ -38,11 +38,11 @@ import (
 //
 // Any error coming not from context.fail, closes the stream, independently if it's a protocol error or an entity error.
 func sendProtocolFailure(e error, s entity.EventSourced_HandleServer) error {
-	var commandId int64 = 0
+	var commandID int64 = 0
 	var desc = e.Error()
 	var se protocol.ServerError
 	if errors.As(e, &se) {
-		commandId = se.Failure.CommandId
+		commandID = se.Failure.CommandId
 		desc = se.Failure.Description
 		if desc == "" {
 			if u := errors.Unwrap(e); u != nil {
@@ -53,7 +53,7 @@ func sendProtocolFailure(e error, s entity.EventSourced_HandleServer) error {
 	err := s.Send(&entity.EventSourcedStreamOut{
 		Message: &entity.EventSourcedStreamOut_Failure{
 			Failure: &protocol.Failure{
-				CommandId:   commandId,
+				CommandId:   commandID,
 				Description: desc,
 			},
 		},

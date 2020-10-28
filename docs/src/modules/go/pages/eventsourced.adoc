@@ -30,7 +30,7 @@ The `SnapshotEvery` parameter controls how often snapshots are taken, so that th
 If left unset, it defaults to 100.
 Setting it to a negative number will result in snapshots never being taken.
 
-The `EntityFunc` is a factory method which generates a new Entity whenever Cloudstate has to initialize one.
+The `EntityFunc` is a factory function which generates a new entity whenever Cloudstate has to initialize one.
 
 [source,go]
 ----

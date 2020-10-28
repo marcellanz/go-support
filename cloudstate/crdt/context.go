@@ -22,8 +22,8 @@ import (
 
 // Context holds the context of a running entity.
 type Context struct {
-	// EntityId is the ID of the entity.
-	EntityId EntityId
+	// EntityID is the ID of the entity.
+	EntityID EntityID
 	// Entity describes the instance that is used as an entity.
 	Entity *Entity
 	// Instance is the instance of the entity this context is for.
@@ -33,7 +33,7 @@ type Context struct {
 	// ctx is the context.Context from the stream this context is assigned to.
 	ctx context.Context
 	// streamedCtx are command contexts of streamed commands.
-	streamedCtx map[CommandId]*CommandContext
+	streamedCtx map[CommandID]*CommandContext
 	// created defines if the CRDT was created by the user function.
 	created bool
 	deleted bool
@@ -47,16 +47,7 @@ func (c *Context) StreamCtx() context.Context {
 	return c.ctx
 }
 
-// SetCRDT lets the user function set the CRDT for the entity.
-func (c *Context) SetCRDT(newCRDT CRDT) error {
-	if c.crdt != nil {
-		return errors.New("the CRTD has already been created")
-	}
-	c.crdt = newCRDT
-	c.created = true
-	return nil
-}
-
+// TODO: do we really need that?
 func (c *Context) CRDT() CRDT {
 	return c.crdt
 }

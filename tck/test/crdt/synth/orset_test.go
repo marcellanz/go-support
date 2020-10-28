@@ -37,19 +37,19 @@ func TestCRDTORSet(t *testing.T) {
 		Right int64
 	}
 	t.Run("ORSet", func(t *testing.T) {
-		entityId := "orset-1"
+		entityID := "orset-1"
 		command := "ProcessORSet"
 		p := newProxy(ctx, s)
 		defer p.teardown()
 
-		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityID})
 		t.Run("ORSetAdd emits client action and create state action", func(t *testing.T) {
 			tr := tester{t}
 			one, err := encoding.Struct(pair{"one", 1})
 			if err != nil {
 				t.Fatal(err)
 			}
-			switch m := p.command(entityId, command, orsetRequest(&crdt.ORSetAdd{Value: &crdt.AnySupportType{
+			switch m := p.command(entityID, command, orsetRequest(&crdt.ORSetAdd{Value: &crdt.AnySupportType{
 				Value: &crdt.AnySupportType_AnyValue{AnyValue: one}},
 			}),
 			).Message.(type) {
@@ -77,14 +77,14 @@ func TestCRDTORSet(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			p.command(entityId, command, orsetRequest(&crdt.ORSetAdd{Value: &crdt.AnySupportType{
+			p.command(entityID, command, orsetRequest(&crdt.ORSetAdd{Value: &crdt.AnySupportType{
 				Value: &crdt.AnySupportType_AnyValue{AnyValue: two}},
 			}))
 			one, err := encoding.Struct(pair{"one", 1})
 			if err != nil {
 				t.Fatal(err)
 			}
-			switch m := p.command(entityId, command, orsetRequest(&crdt.ORSetRemove{Value: &crdt.AnySupportType{
+			switch m := p.command(entityID, command, orsetRequest(&crdt.ORSetRemove{Value: &crdt.AnySupportType{
 				Value: &crdt.AnySupportType_AnyValue{AnyValue: one}},
 			}),
 			).Message.(type) {
@@ -118,11 +118,11 @@ func TestCRDTORSet(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			p.command(entityId, command, orsetRequest(&crdt.ORSetAdd{Value: &crdt.AnySupportType{
+			p.command(entityID, command, orsetRequest(&crdt.ORSetAdd{Value: &crdt.AnySupportType{
 				Value: &crdt.AnySupportType_AnyValue{AnyValue: two}},
 			}))
 			switch m := p.command(
-				entityId, command, orsetRequest(&crdt.Delete{}),
+				entityID, command, orsetRequest(&crdt.Delete{}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
 				tr.expectedNil(m.Reply.GetSideEffects())

@@ -90,25 +90,31 @@ func (s *ORSet) Clear() {
 }
 
 func (s ORSet) Value() []*any.Any {
-	val := make([]*any.Any, 0, len(s.value))
+	val := make([]*any.Any, len(s.value))
+	var i = 0
 	for _, v := range s.value {
-		val = append(val, v)
+		val[i] = v
+		i++
 	}
 	return val
 }
 
 func (s ORSet) Added() []*any.Any {
-	val := make([]*any.Any, 0, len(s.added))
+	val := make([]*any.Any, len(s.added))
+	var i = 0
 	for _, v := range s.added {
-		val = append(val, v)
+		val[i] = v
+		i++
 	}
 	return val
 }
 
 func (s ORSet) Removed() []*any.Any {
-	val := make([]*any.Any, 0, len(s.removed))
+	val := make([]*any.Any, len(s.removed))
+	var i = 0
 	for _, v := range s.removed {
-		val = append(val, v)
+		val[i] = v
+		i++
 	}
 	return val
 }
@@ -128,7 +134,7 @@ func (s *ORSet) applyState(state *entity.CrdtState) error {
 	if set == nil {
 		return fmt.Errorf("unable to delta state %v to ORSet", state)
 	}
-	s.value = make(map[uint64]*any.Any)
+	s.value = make(map[uint64]*any.Any, len(set.GetItems()))
 	for _, a := range set.GetItems() {
 		s.value[s.hashAny(a)] = a
 	}
@@ -166,8 +172,7 @@ func (s *ORSet) applyDelta(delta *entity.CrdtDelta) error {
 		s.value = make(map[uint64]*any.Any)
 	}
 	for _, r := range d.GetRemoved() {
-		h := s.hashAny(r)
-		delete(s.value, h)
+		delete(s.value, s.hashAny(r))
 	}
 	for _, a := range d.GetAdded() {
 		h := s.hashAny(a)

@@ -39,6 +39,7 @@ func (f Flag) Value() bool {
 	return f.value
 }
 
+// Enables enables this flag. Once enabled, it can't be disabled.
 func (f *Flag) Enable() {
 	if !f.value {
 		f.value, f.delta = true, true

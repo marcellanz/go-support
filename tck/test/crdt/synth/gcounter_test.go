@@ -46,12 +46,12 @@ func TestCRDTGCounter(t *testing.T) {
 
 	command := "ProcessGCounter"
 	t.Run("GCounter", func(t *testing.T) {
-		entityId := "gcounter-0"
+		entityID := "gcounter-0"
 		p := newProxy(ctx, s)
 		defer p.teardown()
 		t.Run("sending CrdtInit should not fail", func(t *testing.T) {
 			tr := tester{t}
-			p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+			p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityID})
 			resp, err := p.Recv()
 			tr.expectedNil(err)
 			tr.expectedNil(resp)
@@ -59,7 +59,7 @@ func TestCRDTGCounter(t *testing.T) {
 		t.Run("incrementing a GCounter should emit a client action and create state action", func(t *testing.T) {
 			tr := tester{t}
 			switch m := p.command(
-				entityId, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityId, Value: 8}),
+				entityID, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityID, Value: 8}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
 				r := crdt.GCounterResponse{}
@@ -73,7 +73,7 @@ func TestCRDTGCounter(t *testing.T) {
 		t.Run("a second increment should emit a client action and an update state action", func(t *testing.T) {
 			tr := tester{t}
 			switch m := p.command(
-				entityId, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityId, Value: 8}),
+				entityID, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityID, Value: 8}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
 				r := crdt.GCounterResponse{}
@@ -86,7 +86,7 @@ func TestCRDTGCounter(t *testing.T) {
 		})
 		t.Run("get should return the counters value", func(t *testing.T) {
 			tr := tester{t}
-			switch m := p.command(entityId, command, gcounterRequest(&crdt.Get{Key: entityId})).Message.(type) {
+			switch m := p.command(entityID, command, gcounterRequest(&crdt.Get{Key: entityID})).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
 				r := crdt.GCounterResponse{}
 				tr.toProto(m.Reply.GetClientAction().GetReply().GetPayload(), &r)
@@ -99,7 +99,7 @@ func TestCRDTGCounter(t *testing.T) {
 			tr := tester{t}
 			p.state(&entity.GCounterState{Value: 24})
 			switch m := p.command(
-				entityId, command, gcounterRequest(&crdt.Get{Key: entityId}),
+				entityID, command, gcounterRequest(&crdt.Get{Key: entityID}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
 				r := crdt.GCounterResponse{}
@@ -113,7 +113,7 @@ func TestCRDTGCounter(t *testing.T) {
 			tr := tester{t}
 			p.delta(&entity.GCounterDelta{Increment: 8})
 			switch m := p.command(
-				entityId, command, gcounterRequest(&crdt.Get{Key: entityId}),
+				entityID, command, gcounterRequest(&crdt.Get{Key: entityID}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
 				r := crdt.GCounterResponse{}
@@ -126,7 +126,7 @@ func TestCRDTGCounter(t *testing.T) {
 		t.Run("deleting an entity should emit a delete state action", func(t *testing.T) {
 			tr := tester{t}
 			switch m := p.command(
-				entityId, command, gcounterRequest(&crdt.Delete{Key: entityId}),
+				entityID, command, gcounterRequest(&crdt.Delete{Key: entityID}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
 				tr.expectedNotNil(m.Reply.GetClientAction().GetReply())
@@ -157,12 +157,12 @@ func TestCRDTGCounter(t *testing.T) {
 
 	t.Run("GCounter Streamed", func(t *testing.T) {
 		command := "ProcessGCounterStreamed"
-		entityId := "gcounter-x-0"
+		entityID := "gcounter-x-0"
 		p := newProxy(ctx, s)
 		defer p.teardown()
 		t.Run("sending CrdtInit should not fail", func(t *testing.T) {
 			tr := tester{t}
-			p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+			p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityID})
 			resp, err := p.Recv()
 			tr.expectedNil(err)
 			tr.expectedNil(resp)
@@ -170,7 +170,7 @@ func TestCRDTGCounter(t *testing.T) {
 		t.Run("incrementing a GCounter should emit a client action and create state action", func(t *testing.T) {
 			tr := tester{t}
 			switch m := p.commandStreamed(
-				entityId, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityId, Value: 8}),
+				entityID, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityID, Value: 8}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
 				r := crdt.GCounterResponse{}
@@ -183,9 +183,9 @@ func TestCRDTGCounter(t *testing.T) {
 		})
 		t.Run("incrementing a GCounter should emit a client action and create state action", func(t *testing.T) {
 			tr := tester{t}
-			prevCmdId := p.seq - 1
+			prevCmdID := p.seq - 1
 			switch m := p.command(
-				entityId, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityId, Value: 8}),
+				entityID, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityID, Value: 8}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
 				r := crdt.GCounterResponse{}
@@ -202,7 +202,7 @@ func TestCRDTGCounter(t *testing.T) {
 			}
 			// there must be a response with the command id from the first command sent.
 			tr.expectedNotNil(recv)
-			tr.expectedInt64(recv.GetStreamedMessage().GetCommandId(), prevCmdId)
+			tr.expectedInt64(recv.GetStreamedMessage().GetCommandId(), prevCmdID)
 			r := crdt.GCounterResponse{}
 			tr.toProto(recv.GetStreamedMessage().GetClientAction().GetReply().GetPayload(), &r)
 			tr.expectedUInt64(r.GetValue().GetValue(), 16)
@@ -210,14 +210,14 @@ func TestCRDTGCounter(t *testing.T) {
 	})
 
 	t.Run("GCounter – CrdtDelete", func(t *testing.T) {
-		entityId := "gcounter-0"
+		entityID := "gcounter-0"
 		tr := tester{t}
 		p := newProxy(ctx, s)
 		defer p.teardown()
 
-		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityID})
 		switch m := p.command(
-			entityId, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityId, Value: 8}),
+			entityID, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityID, Value: 8}),
 		).Message.(type) {
 		case *entity.CrdtStreamOut_Failure:
 			tr.unexpected(m)
@@ -231,10 +231,10 @@ func TestCRDTGCounter(t *testing.T) {
 		if resp != nil {
 			t.Fatal("no response expected")
 		}
-		entityId = "gcounter-0.1"
-		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		entityID = "gcounter-0.1"
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityID})
 		switch m := p.command(
-			entityId, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityId, Value: 16}),
+			entityID, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityID, Value: 16}),
 		).Message.(type) {
 		case *entity.CrdtStreamOut_Reply:
 			tr.expectedUInt64(m.Reply.GetStateAction().GetCreate().GetGcounter().GetValue(), 16)
@@ -244,22 +244,22 @@ func TestCRDTGCounter(t *testing.T) {
 	})
 
 	t.Run("GCounter – unknown entity id used", func(t *testing.T) {
-		entityId := "gcounter-1"
+		entityID := "gcounter-1"
 		tr := tester{t}
 		p := newProxy(ctx, s)
 		defer p.teardown()
-		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityID})
 		switch m := p.command(
-			entityId, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityId, Value: 8}),
+			entityID, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityID, Value: 8}),
 		).Message.(type) {
 		case *entity.CrdtStreamOut_Failure:
 			tr.unexpected(m)
 		}
 		t.Run("calling GetGCounter for a non existing entity id should fail", func(t *testing.T) {
 			tr := tester{t}
-			entityId := "gcounter-1-xxx"
+			entityID := "gcounter-1-xxx"
 			switch m := p.command(
-				entityId, command, gcounterRequest(&crdt.Get{Key: entityId}),
+				entityID, command, gcounterRequest(&crdt.Get{Key: entityID}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Failure:
 			default:
@@ -269,10 +269,10 @@ func TestCRDTGCounter(t *testing.T) {
 	})
 
 	t.Run("GCounter – incompatible CRDT delta sequence", func(t *testing.T) {
-		entityId := "gcounter-2"
+		entityID := "gcounter-2"
 		p := newProxy(ctx, s)
 		defer p.teardown()
-		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityID})
 		t.Run("setting a delta without ever sending state should fail", func(t *testing.T) {
 			t.Skip("we can't test this one for now")
 			p.delta(&entity.GCounterDelta{Increment: 7})
@@ -293,14 +293,14 @@ func TestCRDTGCounter(t *testing.T) {
 	})
 
 	t.Run("GCounter – incompatible CRDT delta used", func(t *testing.T) {
-		entityId := "gcounter-3"
+		entityID := "gcounter-3"
 		tr := tester{t}
 		p := newProxy(ctx, s)
 		defer p.teardown()
 
-		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityID})
 		switch m := p.command(
-			entityId, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityId, Value: 8}),
+			entityID, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityID, Value: 8}),
 		).Message.(type) {
 		case *entity.CrdtStreamOut_Failure:
 			tr.unexpected(m)
@@ -326,15 +326,15 @@ func TestCRDTGCounter(t *testing.T) {
 
 	// TODO: check if that is enough
 	t.Run("GCounter – inconsistent local state", func(t *testing.T) {
-		entityId := "gcounter-4"
+		entityID := "gcounter-4"
 		tr := tester{t}
 		p := newProxy(ctx, s)
 		defer p.teardown()
 
-		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
-		p.command(entityId, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityId, Value: 7}))
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityID})
+		p.command(entityID, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityID, Value: 7}))
 		switch m := p.command(
-			entityId, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityId, Value: 7, FailWith: "error"}),
+			entityID, command, gcounterRequest(&crdt.GCounterIncrement{Key: entityID, Value: 7, FailWith: "error"}),
 		).Message.(type) {
 		case *entity.CrdtStreamOut_Failure:
 			tr.expectedString(m.Failure.Description, "error")
@@ -352,8 +352,8 @@ func TestCRDTGCounter(t *testing.T) {
 		// }
 		//
 		// switch m := p.sendCmdRecvReply(command{
-		//	&entity.Command{EntityId: entityId, Name: "IncrementGCounter"},
-		//	&crdt.GCounterIncrement{Key: entityId, Value: 9},
+		//	&entity.Command{EntityID: entityID, Name: "IncrementGCounter"},
+		//	&crdt.GCounterIncrement{Key: entityID, Value: 9},
 		// }).Message.(type) {
 		// case *entity.CrdtStreamOut_Reply:
 		//	value := crdt.GCounterValue{}

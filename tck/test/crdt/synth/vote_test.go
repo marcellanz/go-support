@@ -31,15 +31,15 @@ func TestCRDTVote(t *testing.T) {
 	defer cancel()
 
 	t.Run("Vote", func(t *testing.T) {
-		entityId := "vote-1"
+		entityID := "vote-1"
 		command := "ProcessVote"
 		p := newProxy(ctx, s)
 		defer p.teardown()
 
-		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityID})
 		t.Run("Get emits client action", func(t *testing.T) {
 			tr := tester{t}
-			switch m := p.command(entityId, command,
+			switch m := p.command(entityID, command,
 				voteRequest(&crdt.Get{}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
@@ -56,7 +56,7 @@ func TestCRDTVote(t *testing.T) {
 		})
 		t.Run("Vote emits client and state action", func(t *testing.T) {
 			tr := tester{t}
-			switch m := p.command(entityId, command,
+			switch m := p.command(entityID, command,
 				voteRequest(&crdt.VoteVote{Value: true}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
@@ -77,7 +77,7 @@ func TestCRDTVote(t *testing.T) {
 				tr.unexpected(m)
 			}
 
-			switch m := p.command(entityId, command,
+			switch m := p.command(entityID, command,
 				voteRequest(&crdt.VoteVote{Value: false}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
@@ -104,7 +104,7 @@ func TestCRDTVote(t *testing.T) {
 				VotesFor:    3,
 				SelfVote:    true,
 			})
-			switch m := p.command(entityId, command,
+			switch m := p.command(entityID, command,
 				voteRequest(&crdt.Get{}),
 			).Message.(type) {
 			case *entity.CrdtStreamOut_Reply:
@@ -123,14 +123,14 @@ func TestCRDTVote(t *testing.T) {
 		})
 	})
 	t.Run("VoteState", func(t *testing.T) {
-		entityId := "vote-1"
+		entityID := "vote-1"
 		command := "ProcessVote"
 		p := newProxy(ctx, s)
 		defer p.teardown()
 		tr := tester{t}
 
-		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityId})
-		p.command(entityId, command,
+		p.init(&entity.CrdtInit{ServiceName: serviceName, EntityId: entityID})
+		p.command(entityID, command,
 			voteRequest(&crdt.VoteVote{Value: true}),
 		)
 		p.delta(&entity.VoteDelta{
@@ -138,7 +138,7 @@ func TestCRDTVote(t *testing.T) {
 			VotesFor:    3,
 			SelfVote:    false,
 		})
-		switch m := p.command(entityId, command,
+		switch m := p.command(entityID, command,
 			voteRequest(&crdt.Get{}),
 		).Message.(type) {
 		case *entity.CrdtStreamOut_Reply:

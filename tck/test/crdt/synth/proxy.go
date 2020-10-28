@@ -216,16 +216,16 @@ func (p *proxy) sendRecvDelta(d delta) (*entity.CrdtStreamOut, error) {
 	return p.Recv()
 }
 
-func (p *proxy) command(entityId string, name string, m proto.Message) *entity.CrdtStreamOut {
+func (p *proxy) command(entityID string, name string, m proto.Message) *entity.CrdtStreamOut {
 	return p.sendCmdRecvReply(command{
-		&protocol.Command{EntityId: entityId, Name: name},
+		&protocol.Command{EntityId: entityID, Name: name},
 		m,
 	})
 }
 
-func (p *proxy) commandStreamed(entityId string, name string, m proto.Message) *entity.CrdtStreamOut {
+func (p *proxy) commandStreamed(entityID string, name string, m proto.Message) *entity.CrdtStreamOut {
 	return p.sendCmdRecvReply(command{
-		&protocol.Command{EntityId: entityId, Name: name, Streamed: true},
+		&protocol.Command{EntityId: entityID, Name: name, Streamed: true},
 		m,
 	})
 }
@@ -255,7 +255,7 @@ func (p *proxy) sendCmdRecvReply(cmd command) *entity.CrdtStreamOut {
 	switch msg.Message.(type) {
 	case *entity.CrdtStreamOut_Failure:
 	default:
-		p.checkCommandId(msg)
+		p.checkCommandID(msg)
 	}
 	return msg
 }
@@ -285,7 +285,7 @@ func (p *proxy) sendCmdRecvErr(cmd command) (*entity.CrdtStreamOut, error) {
 	switch recv.Message.(type) {
 	case *entity.CrdtStreamOut_Failure:
 	default:
-		p.checkCommandId(recv)
+		p.checkCommandID(recv)
 	}
 	return recv, nil
 }
@@ -322,7 +322,7 @@ func deleteMsg(d *entity.CrdtDelete) *entity.CrdtStreamIn {
 	}
 }
 
-func (p *proxy) checkCommandId(msg interface{}) {
+func (p *proxy) checkCommandID(msg interface{}) {
 	p.t.Helper()
 	switch m := msg.(type) {
 	case *entity.CrdtStreamOut:

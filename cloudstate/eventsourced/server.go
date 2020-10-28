@@ -176,9 +176,9 @@ func (s *Server) handleInit(init *entity.EventSourcedInit, r *runner) error {
 		return fmt.Errorf("entity.EntityFunc not defined: %q", service)
 	}
 
-	id := EntityId(init.GetEntityId())
+	id := EntityID(init.GetEntityId())
 	r.context = &Context{
-		EntityId:           id,
+		EntityID:           id,
 		EventSourcedEntity: e,
 		Instance:           e.EntityFunc(id),
 		eventSequence:      0,

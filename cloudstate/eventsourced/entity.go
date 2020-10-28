@@ -39,24 +39,25 @@ type Entity struct {
 	// Setting it to a negative number will result in snapshots never being taken.
 	SnapshotEvery int64
 	// EntityFunc is a factory method which generates a new Entity.
-	EntityFunc func(id EntityId) EntityHandler
+	EntityFunc func(id EntityID) EntityHandler
 }
 
 type (
 	ServiceName string
-	EntityId    string
-	CommandId   int64
+	EntityID    string
+	CommandID   int64
 )
 
 func (sn ServiceName) String() string {
 	return string(sn)
 }
 
-func (id CommandId) Value() int64 {
+func (id CommandID) Value() int64 {
 	return int64(id)
 }
 
 // tag::entity-type[]
+// An EntityHandler implements methods to handle commands and events.
 type EntityHandler interface {
 	// HandleCommand is the code that handles a command. It
 	// may validate the command using the current state, and
@@ -75,6 +76,8 @@ type EntityHandler interface {
 // end::entity-type[]
 
 // tag::snapshooter[]
+// A Snapshooter enables eventsourced snapshots to be taken and as well
+// handling snapshots provided.
 type Snapshooter interface {
 	// Snapshot is a recording of the entire current state of an entity,
 	// persisted periodically (eg, every 100 events), as an optimization.
@@ -82,6 +85,8 @@ type Snapshooter interface {
 	// entire journal doesn't need to be replayed, just the changes since
 	// the last snapshot.
 	Snapshot(ctx *Context) (snapshot interface{}, err error)
+	// HandleSnapshot is used to apply snapshots provided by the Cloudstate
+	// proxy.
 	HandleSnapshot(ctx *Context, snapshot interface{}) error
 }
 
