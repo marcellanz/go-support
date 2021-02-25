@@ -9,6 +9,6 @@ require (
 	golang.org/x/text v0.3.2 // indirect
 	golang.org/x/tools v0.0.0-20190524140312-2c0ae7006135
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
-	google.golang.org/grpc v1.33.1
+	google.golang.org/grpc v1.36.0
 	google.golang.org/protobuf v1.25.0
 )
